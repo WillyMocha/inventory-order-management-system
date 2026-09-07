@@ -1,0 +1,62 @@
+# Inventory & Order Management System — local runtime.
+#
+# Two containers, one host, no orchestration: source §66 rules out Kubernetes, brokers
+# and cloud targets as non-goals. `docker compose up --build` from a fresh clone must
+# bring up a working system (NFR-012).
+#
+# The app reaches the database by the compose service name `mysql` — never by a host
+# address or a machine-specific path.
+
+services:
+  app:
+    build:
+      context: .
+    # Read credentials from .env. That file is git-ignored; copy .env.example to .env
+    # before the first run. No credential is baked into this file or the image.
+    env_file:
+      - .env
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      # Bind-mount the source for development so an edit is visible without a rebuild.
+      # vendor/ and the upload directory are kept in named volumes so the container's
+      # own contents survive and are not shadowed by the host.
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+      - uploads:/var/www/html/public/uploads/products
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${DB_DATABASE:-ioms}
+      MYSQL_USER: ${DB_USERNAME:-ioms}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    command:
+      # InnoDB is required for the SELECT ... FOR UPDATE row locking that the whole
+      # oversell guarantee rests on (ADR-002). Pinned explicitly rather than assumed.
+      - --default-storage-engine=InnoDB
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # The app container waits for this to pass, so a first `up` cannot race the
+      # database into a connection-refused error.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  vendor:
+  uploads:

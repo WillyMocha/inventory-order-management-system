@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="IOMS">
+    <description>
+        PSR-12 coding standard, per the project constitution (Principle II).
+        Run: vendor/bin/phpcs — fix what is auto-fixable with vendor/bin/phpcbf
+    </description>
+
+    <file>app</file>
+    <file>public</file>
+    <file>config</file>
+    <file>scripts</file>
+    <file>tests</file>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/database/*.sql</exclude-pattern>
+
+    <!-- Show sniff codes so a failure says which rule to read, not just that one broke. -->
+    <arg name="report" value="full"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+    <arg name="extensions" value="php"/>
+
+    <rule ref="PSR12"/>
+
+    <!--
+        Constitution II requires strict_types in every PHP file. tests/Unit/ConventionTest
+        asserts it for app/ as a test, but catching it here as well means a developer
+        sees it at lint time instead of at test time.
+    -->
+    <rule ref="Generic.PHP.RequireStrictTypes"/>
+
+    <!-- Views are PHP templates: HTML with short echo tags, not classes. -->
+    <rule ref="PSR1.Files.SideEffects">
+        <exclude-pattern>views/*</exclude-pattern>
+        <exclude-pattern>public/index.php</exclude-pattern>
+        <exclude-pattern>config/*</exclude-pattern>
+        <exclude-pattern>scripts/*</exclude-pattern>
+    </rule>
+</ruleset>

@@ -49,7 +49,22 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Gates are derived from `.rudis/memory/constitution.md`. Record PASS/FAIL with evidence
+for each; any FAIL must either be fixed or justified in Complexity Tracking below.
+
+| # | Gate | Principle | Status |
+| - | ---- | --------- | ------ |
+| 1 | Layering respected: no SQL/business rules in controllers, services depend on repository interfaces only | I | [PASS/FAIL] |
+| 2 | Every touched PHP file declares `strict_types=1`; explicit types throughout | II | [PASS/FAIL] |
+| 3 | PHPStan level >= 5 clean over `app/` | II | [PASS/FAIL] |
+| 4 | PSR-12 clean | II | [PASS/FAIL] |
+| 5 | Every use case in this plan has planned unit tests (success + rule-violation paths) | III | [PASS/FAIL] |
+| 6 | Integration tests planned for any goods-receipt / goods-issue / oversell path touched | III | [PASS/FAIL] |
+| 7 | Every protected action has a server-side authorization check plus a denial test | IV | [PASS/FAIL] |
+| 8 | Stock mutations are transactional, row-locked, and ledger-writing | V | [PASS/FAIL] |
+| 9 | Security baseline held (prepared statements, output escaping, session regeneration, upload validation, no committed secrets) | VI | [PASS/FAIL] |
+| 10 | ADR written for each architecturally significant decision | VI | [PASS/FAIL] |
+| 11 | Stack constraints honored (PHP 8.4.x, no framework/ORM/DI container, vanilla frontend) | Tech Stack | [PASS/FAIL] |
 
 ## Project Structure
 

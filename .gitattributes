@@ -1,0 +1,42 @@
+# Normalise line endings.
+#
+# PSR-12 requires LF, and PHP_CodeSniffer enforces it
+# (Generic.Files.LineEndings.InvalidEOLChar). Without this file, a checkout on Windows
+# produces CRLF and every PHP file fails the style gate — a machine-specific failure,
+# which NFR-012 exists to prevent.
+
+# Treat everything as text and store LF in the repository.
+* text=auto eol=lf
+
+# Files that must be LF on disk regardless of platform.
+*.php text eol=lf
+*.sql text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.svg text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.neon text eol=lf
+*.md text eol=lf
+*.htaccess text eol=lf
+Dockerfile text eol=lf
+.env.example text eol=lf
+.gitignore text eol=lf
+.dockerignore text eol=lf
+
+# Binary — never converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# Keep generated and vendored artefacts out of diffs and language statistics.
+/vendor/** linguist-vendored
+composer.lock -diff linguist-generated
