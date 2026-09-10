@@ -1,0 +1,6 @@
+{
+  "marketplace": "rudis",
+  "governance_plugins": [
+    "tmf-oda-constitution"
+  ]
+}

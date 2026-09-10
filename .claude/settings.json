@@ -1,0 +1,51 @@
+{
+  "extraKnownMarketplaces": {
+    "rudis": {
+      "source": {
+        "source": "url",
+        "url": "https://git.neuron.id/research/rudis-marketplace-tooling.git"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "rudis-core@rudis": true
+  },
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git push --force-with-lease *)",
+      "Read(.env)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Write(.env)",
+      "Write(**/.env)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import os,sys,runpy;sys.exit(runpy.run_path(os.path.join(os.environ.get('CLAUDE_PROJECT_DIR') or os.getcwd(),'.rudis/hooks/governance-guard.py'),run_name='__main__').get('_exit_code',0))\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import os,sys,runpy;sys.exit(runpy.run_path(os.path.join(os.environ.get('CLAUDE_PROJECT_DIR') or os.getcwd(),'.rudis/hooks/governance-guard.py'),run_name='__main__').get('_exit_code',0))\""
+          }
+        ],
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit|Bash"
+      }
+    ]
+  }
+}
