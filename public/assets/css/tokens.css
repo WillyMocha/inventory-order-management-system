@@ -1,0 +1,128 @@
+/* =========================================================================
+   Design token — sumber tunggal seluruh warna, jarak, radius, dan tipografi.
+   Nilai persis mengikuti research R-013.
+
+   Tidak ada satu pun hex yang boleh ditulis langsung di app.css maupun di
+   template. Kalau sebuah warna dibutuhkan dan belum ada di sini, tambahkan
+   token-nya lebih dulu.
+   ========================================================================= */
+
+:root {
+    /* --- Accent -------------------------------------------------------
+       Dibelanjakan pada SATU area per halaman (header, stat unggulan, atau
+       primary CTA). Sisanya dibiarkan netral. */
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-wash: #eff6ff;
+    --accent-border: #bfdbfe;
+
+    /* --- Netral berbias biru ------------------------------------------
+       Bukan abu-abu murni. Inilah yang menjaga tabel padat tidak terlihat
+       seperti dokumen tanpa gaya. */
+    --neutral-50: #f8fafc;
+    --neutral-100: #f1f5f9;
+    --neutral-200: #e2e8f0;
+    --neutral-300: #cbd5e1;
+    --neutral-400: #94a3b8;
+    --neutral-500: #64748b;
+    --neutral-600: #475569;
+    --neutral-700: #334155;
+    --neutral-800: #1e293b;
+    --neutral-900: #0f172a;
+
+    /* --- Status -------------------------------------------------------
+       Sengaja dijaga terpisah dari accent: status memiliki makna, accent
+       hanya menandai penekanan. */
+    --success: #16a34a;
+    --success-bg: #f0fdf4;
+    --success-border: #bbf7d0;
+
+    --warning: #d97706;
+    --warning-bg: #fffbeb;
+    --warning-border: #fde68a;
+
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --danger-border: #fecaca;
+
+    --info: #0891b2;
+    --info-bg: #ecfeff;
+    --info-border: #a5f3fc;
+
+    /* --- Pemetaan status domain ---------------------------------------
+       Satu tempat, sehingga badge status konsisten di seluruh halaman. */
+    --status-draft: var(--neutral-500);
+    --status-draft-bg: var(--neutral-100);
+    --status-pending: var(--warning);
+    --status-pending-bg: var(--warning-bg);
+    --status-approved: var(--info);
+    --status-approved-bg: var(--info-bg);
+    --status-fulfilled: var(--success);
+    --status-fulfilled-bg: var(--success-bg);
+    --status-cancelled: var(--danger);
+    --status-cancelled-bg: var(--danger-bg);
+    --status-low-stock: var(--warning);
+    --status-low-stock-bg: var(--warning-bg);
+
+    /* --- Permukaan ----------------------------------------------------- */
+    --surface-page: var(--neutral-50);
+    --surface-card: #ffffff;
+    --surface-raised: #ffffff;
+    --surface-sunken: var(--neutral-100);
+    --border-default: var(--neutral-200);
+    --border-strong: var(--neutral-300);
+
+    /* --- Teks ---------------------------------------------------------- */
+    --text-primary: var(--neutral-900);
+    --text-secondary: var(--neutral-600);
+    --text-muted: var(--neutral-500);
+    --text-inverse: #ffffff;
+
+    /* --- Skala jarak, kelipatan 8 (dengan 4 sebagai setengah langkah) --- */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* --- Radius -------------------------------------------------------- */
+    --radius-control: 4px;
+    --radius-card: 8px;
+    --radius-pill: 9999px;
+
+    /* --- Elevasi: satu tingkat lembut saja ----------------------------- */
+    --shadow-card: 0 1px 3px rgb(15 23 42 / 0.08), 0 1px 2px rgb(15 23 42 / 0.04);
+    --shadow-raised: 0 4px 12px rgb(15 23 42 / 0.10), 0 2px 4px rgb(15 23 42 / 0.06);
+
+    /* --- Tipografi ----------------------------------------------------- */
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-base: 16px;
+    --text-lg: 20px;
+    --text-xl: 24px;
+    --text-2xl: 32px;
+
+    --leading-tight: 1.25;
+    --leading-normal: 1.5;
+
+    --weight-normal: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+
+    /* --- Layout -------------------------------------------------------- */
+    --container-max: 1280px;
+    --nav-height: 56px;
+
+    /* Lebar sidebar pada layar lebar. Di bawah 640px sidebar menjadi drawer. */
+    --sidebar-width: 240px;
+
+    /* Latar gelap di belakang drawer pada layar sempit. */
+    --scrim: rgb(15 23 42 / 0.45);
+}

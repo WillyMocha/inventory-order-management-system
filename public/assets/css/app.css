@@ -1,0 +1,1072 @@
+/* =========================================================================
+   Layout, tabel, form, badge, dan empty state.
+
+   Seluruh warna berasal dari token pada tokens.css — tidak ada hex langsung
+   di file ini. Responsive sampai lebar 360px (UI-01, NFR-006).
+   ========================================================================= */
+
+/* --- Reset secukupnya --------------------------------------------------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    color: var(--text-primary);
+    background: var(--surface-page);
+}
+
+h1, h2, h3, h4, p, figure {
+    margin: 0;
+}
+
+img {
+    max-width: 100%;
+    display: block;
+}
+
+/* Angka pada kolom uang dan quantity harus sejajar antar baris. */
+.tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Fokus: harus terlihat jelas (NFR-006) ------------------------------ */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* --- Layout ------------------------------------------------------------- */
+/*
+ * Sidebar di kiri, konten di kanan. Grid dipakai — bukan flex — agar lebar
+ * sidebar dapat dipatok satu token sementara kolom konten mengambil sisanya.
+ *
+ * Di bawah 640px grid ini dimatikan dan sidebar berubah menjadi drawer
+ * (lihat blok max-width: 640px).
+ */
+.app-shell {
+    min-height: 100vh;
+    display: grid;
+    /*
+     * Nilai cadangan WAJIB ada. Bila --sidebar-width tidak tersedia — tokens.css
+     * masih versi lama di cache browser, atau gagal dimuat — var() menjadi invalid
+     * dan SELURUH deklarasi ini dibuang. Grid lalu runtuh menjadi satu kolom,
+     * sidebar melebar penuh setinggi viewport, dan menutupi seluruh halaman.
+     */
+    grid-template-columns: var(--sidebar-width, 240px) 1fr;
+}
+
+/*
+ * Checkbox penggerak drawer.
+ *
+ * Pada layar lebar sidebar bersifat permanen, jadi checkbox-nya disembunyikan
+ * sepenuhnya — kalau tidak, pengguna keyboard akan singgah pada kontrol tak
+ * terlihat yang tidak melakukan apa pun.
+ *
+ * Pada layar sempit ia dihidupkan kembali dan tetap FOKUSABLE (lewat
+ * .visually-hidden, bukan display:none), supaya drawer dapat dibuka dengan
+ * keyboard tanpa JavaScript sama sekali.
+ */
+.nav-toggle {
+    display: none;
+}
+
+/* Latar gelap di belakang drawer; menekannya menutup drawer. */
+.nav-scrim {
+    display: none;
+}
+
+/* Bar atas berisi tombol drawer — hanya ada pada layar sempit. */
+.topbar {
+    display: none;
+}
+
+.container {
+    width: 100%;
+    max-width: var(--container-max);
+    margin-inline: auto;
+    padding-inline: var(--space-4);
+}
+
+.page {
+    /*
+     * min-width: 0 wajib ada. Grid item defaultnya min-width: auto, sehingga
+     * tabel lebar akan MELEBARKAN kolomnya alih-alih menggulir di dalam
+     * .table-wrap — dan seluruh halaman ikut bergeser mendatar.
+     */
+    min-width: 0;
+    padding-block: var(--space-6) var(--space-12);
+}
+
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+}
+
+.page-title {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-tight);
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    margin-top: var(--space-1);
+}
+
+/* --- Navigasi ----------------------------------------------------------- */
+.nav {
+    background: var(--surface-card);
+    border-right: 1px solid var(--border-default);
+    /*
+     * Sticky + tinggi viewport: sidebar ikut menempel saat konten digulir, dan
+     * menu yang panjang menggulir di DALAM sidebar, bukan memanjangkan halaman.
+     */
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    z-index: 10;
+}
+
+.nav-brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-height: var(--nav-height);
+}
+
+/* Tombol tutup drawer — tidak relevan saat sidebar permanen. */
+.nav-close {
+    display: none;
+}
+
+
+.nav-brand {
+    flex: none;
+    font-weight: var(--weight-bold);
+    color: var(--text-primary);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+/* Nav TIDAK PERNAH membungkus ke baris kedua: pembungkusan menyisakan ruang
+   kosong di kanan dan terbaca seperti kesalahan layout. Bila item tidak muat,
+   barisnya digulir horizontal - perilaku yang sama seperti di layar sempit. */
+.nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    /* Mendorong blok user ke dasar sidebar. */
+    flex: 1 1 auto;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: nowrap;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-control);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: var(--weight-medium);
+}
+
+.nav-link:hover {
+    background: var(--neutral-100);
+    color: var(--text-primary);
+}
+
+.nav-link[aria-current="page"] {
+    background: var(--accent-wash);
+    color: var(--accent);
+}
+
+.nav-user {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-default);
+}
+
+.nav-user-name {
+    color: var(--text-secondary);
+}
+
+/* --- Card --------------------------------------------------------------- */
+/*
+ * Card adalah blok tingkat halaman, dan beberapa halaman menumpuk lebih dari
+ * satu — dashboard, report, dan halaman detail order. Tanpa margin, card-card
+ * itu menempel tanpa jarak sama sekali.
+ *
+ * Jaraknya disamakan dengan .page-header dan .stat-grid yang sudah memakai
+ * --space-6, sehingga ritme vertikal seluruh halaman tetap satu skala.
+ *
+ * Card TIDAK PERNAH berada di dalam container ber-gap (pola yang dipakai
+ * selalu .card > form.stack, bukan sebaliknya), jadi margin ini tidak pernah
+ * bertumpuk dengan gap.
+ */
+.card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    margin-bottom: var(--space-6);
+}
+
+/*
+ * Card terakhir tidak perlu menambah jarak: padding bawah .page sudah
+ * menutupnya. Card yang masih diikuti elemen lain — misalnya .form-actions
+ * pada form order — tetap mendapat margin-nya, karena ia bukan :last-child.
+ */
+.card:last-child {
+    margin-bottom: 0;
+}
+
+.card-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border-default);
+}
+
+.card-title {
+    font-size: var(--text-base);
+    font-weight: var(--weight-semibold);
+}
+
+.card-body {
+    padding: var(--space-4);
+}
+
+/* --- Stat tile ---------------------------------------------------------- */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.stat {
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-4);
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+}
+
+.stat-chip {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-card);
+    display: grid;
+    place-items: center;
+    background: var(--accent-wash);
+    color: var(--accent);
+}
+
+.stat-chip--success { background: var(--success-bg); color: var(--success); }
+.stat-chip--warning { background: var(--warning-bg); color: var(--warning); }
+.stat-chip--danger  { background: var(--danger-bg);  color: var(--danger); }
+.stat-chip--info    { background: var(--info-bg);    color: var(--info); }
+
+.stat-body {
+    min-width: 0;
+}
+
+.stat-value {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-tight);
+    font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Varian untuk stat yang isinya nama, bukan angka — misalnya pembuat dan
+ * penyetuju pada detail order. Nama panjang tidak boleh memaksa kartu
+ * melebar, jadi dibungkus; tabular numerals tidak relevan di sini.
+ */
+.stat-value--text {
+    font-size: var(--text-base);
+    font-variant-numeric: normal;
+    overflow-wrap: anywhere;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.stat-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    margin-top: var(--space-1);
+}
+
+.stat-delta--up   { color: var(--success); }
+.stat-delta--down { color: var(--danger); }
+.stat-delta--flat { color: var(--text-muted); }
+
+/* --- Tabel -------------------------------------------------------------- */
+.table-wrap {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+}
+
+.table th,
+.table td {
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    border-bottom: 1px solid var(--border-default);
+    white-space: nowrap;
+}
+
+.table th {
+    background: var(--surface-sunken);
+    color: var(--text-secondary);
+    font-weight: var(--weight-semibold);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.table tbody tr:hover {
+    background: var(--neutral-50);
+}
+
+/*
+ * Header kolom yang dapat diurutkan (FIND-01).
+ *
+ * Link mewarisi tipografi th-nya, sehingga kolom yang dapat diurutkan tidak
+ * terlihat seperti jenis teks yang berbeda dari yang tidak. Ikon arah yang
+ * membedakannya, bukan warna atau ukuran huruf.
+ */
+.sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    text-decoration: none;
+}
+
+.sort-link:hover {
+    color: var(--text-primary);
+}
+
+.sort-link--active {
+    color: var(--text-primary);
+}
+
+.sort-icon {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    opacity: 0.45;
+}
+
+.sort-link:hover .sort-icon,
+.sort-link--active .sort-icon {
+    opacity: 1;
+}
+
+.table th.numeric .sort-link {
+    /* Kolom angka rata kanan, jadi header-nya ikut rata kanan. */
+    flex-direction: row-reverse;
+}
+
+.table td.numeric,
+.table th.numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.table .cell-primary {
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+}
+
+.table .cell-secondary {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+/* Nama entity pada baris tabel selalu didahului ikon entity-nya, agar tipe
+   record terbaca sekilas alih-alih hanya teks polos. */
+.row-entity {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.row-entity .icon {
+    color: var(--text-muted);
+}
+
+/* Nama entity yang dapat diklik: garis bawah hanya saat hover. Pada tabel
+   padat, underline permanen membuat setiap baris terlihat berisik. */
+a.row-entity {
+    color: inherit;
+    text-decoration: none;
+}
+
+a.row-entity:hover .cell-primary {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+/* Ringkasan kesalahan di atas form. */
+.alert ul {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-4);
+}
+
+/* --- Badge status ------------------------------------------------------- */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    background: var(--neutral-100);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: currentColor;
+    flex: none;
+}
+
+.badge--draft     { background: var(--status-draft-bg);     color: var(--status-draft); }
+.badge--pending   { background: var(--status-pending-bg);   color: var(--status-pending); }
+.badge--approved  { background: var(--status-approved-bg);  color: var(--status-approved); }
+.badge--fulfilled { background: var(--status-fulfilled-bg); color: var(--status-fulfilled); }
+.badge--received  { background: var(--status-fulfilled-bg); color: var(--status-fulfilled); }
+.badge--cancelled { background: var(--status-cancelled-bg); color: var(--status-cancelled); }
+.badge--low-stock { background: var(--status-low-stock-bg); color: var(--status-low-stock); }
+
+/* --- Tombol ------------------------------------------------------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-control);
+    background: var(--surface-card);
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background: var(--neutral-100);
+}
+
+.btn--primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-inverse);
+}
+
+.btn--primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.btn--danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--text-inverse);
+}
+
+.btn--ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-secondary);
+}
+
+.btn[disabled],
+.btn[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.btn--sm {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-xs);
+}
+
+/* --- Form --------------------------------------------------------------- */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--space-4);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.field-label {
+    font-weight: var(--weight-medium);
+    color: var(--text-secondary);
+}
+
+.field-required::after {
+    content: " *";
+    color: var(--danger);
+}
+
+.input,
+.select,
+.textarea {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-control);
+    background: var(--surface-card);
+    color: var(--text-primary);
+    font: inherit;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+    border-color: var(--accent);
+    outline: 2px solid var(--accent-wash);
+    outline-offset: 0;
+}
+
+.input[aria-invalid="true"],
+.select[aria-invalid="true"],
+.textarea[aria-invalid="true"] {
+    border-color: var(--danger);
+}
+
+.field-error {
+    color: var(--danger);
+    font-size: var(--text-xs);
+}
+
+.field-hint {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+}
+
+/* --- Toolbar filter ----------------------------------------------------- */
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: flex-end;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border-default);
+}
+
+.toolbar .field {
+    min-width: 160px;
+}
+
+/* --- Flash / alert ------------------------------------------------------ */
+.alert {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    margin-bottom: var(--space-4);
+}
+
+.alert--success { background: var(--success-bg); border-color: var(--success-border); color: var(--success); }
+.alert--warning { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning); }
+.alert--error   { background: var(--danger-bg);  border-color: var(--danger-border);  color: var(--danger); }
+.alert--info    { background: var(--info-bg);    border-color: var(--info-border);    color: var(--info); }
+
+/* --- Empty state -------------------------------------------------------- */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-3);
+    padding: var(--space-12) var(--space-4);
+}
+
+.empty-state-icon {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-pill);
+    background: var(--accent-wash);
+    color: var(--accent);
+}
+
+.empty-state-title {
+    font-size: var(--text-base);
+    font-weight: var(--weight-semibold);
+}
+
+.empty-state-text {
+    color: var(--text-secondary);
+    max-width: 42ch;
+}
+
+/* --- Skeleton loading --------------------------------------------------- */
+.skeleton {
+    background: linear-gradient(90deg, var(--neutral-100), var(--neutral-200), var(--neutral-100));
+    background-size: 200% 100%;
+    border-radius: var(--radius-control);
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-row {
+    height: 16px;
+    margin-block: var(--space-3);
+}
+
+@keyframes skeleton-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton {
+        animation: none;
+    }
+
+    .nav {
+        transition: none;
+    }
+}
+
+/* --- Pagination --------------------------------------------------------- */
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4);
+    border-top: 1px solid var(--border-default);
+}
+
+.pagination-info {
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+}
+
+.pagination-links {
+    display: flex;
+    gap: var(--space-1);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.pagination-link {
+    display: inline-flex;
+    min-width: 32px;
+    justify-content: center;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-control);
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.pagination-link[aria-current="page"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-inverse);
+}
+
+/* --- Halaman auth dan error --------------------------------------------- */
+.centered-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+}
+
+.centered-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-raised);
+    padding: var(--space-8);
+}
+
+.centered-card .page-title {
+    margin-bottom: var(--space-2);
+}
+
+.error-code {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-bold);
+    color: var(--accent);
+    line-height: var(--leading-tight);
+}
+
+/* --- Icon --------------------------------------------------------------- */
+.icon {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.icon--lg {
+    width: 24px;
+    height: 24px;
+}
+
+/* --- Utilitas ----------------------------------------------------------- */
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+}
+
+.muted {
+    color: var(--text-muted);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* --- Responsive: harus terpakai di 360px (UI-01) ------------------------ */
+@media (max-width: 640px) {
+    /*
+     * Sidebar menjadi DRAWER.
+     *
+     * Grid dimatikan supaya konten memakai seluruh lebar; sidebar keluar dari
+     * alur dokumen dan digeser ke luar layar sampai checkbox-nya dicentang.
+     * Seluruhnya CSS — tanpa JavaScript navigasi tetap dapat dibuka.
+     */
+    .app-shell {
+        display: block;
+    }
+
+    .nav-toggle {
+        display: block;
+    }
+
+    .topbar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-height: var(--nav-height);
+        padding-inline: var(--space-4);
+        background: var(--surface-card);
+        border-bottom: 1px solid var(--border-default);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .topbar-toggle {
+        display: inline-flex;
+        align-items: center;
+        padding: var(--space-2);
+        margin-inline-start: calc(var(--space-2) * -1);
+        border-radius: var(--radius-control);
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+
+    .topbar-brand {
+        font-weight: var(--weight-bold);
+        color: var(--text-primary);
+        text-decoration: none;
+    }
+
+    .nav {
+        position: fixed;
+        inset-block: 0;
+        inset-inline-start: 0;
+        width: min(280px, 85vw);
+        height: 100vh;
+        border-right: 1px solid var(--border-default);
+        box-shadow: var(--shadow-raised);
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        z-index: 30;
+    }
+
+    .nav-toggle:checked ~ .nav {
+        transform: translateX(0);
+    }
+
+    .nav-toggle:checked ~ .nav-scrim {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: var(--scrim, rgb(15 23 42 / 0.45));
+        z-index: 20;
+    }
+
+    .nav-close {
+        display: inline-flex;
+        align-items: center;
+        padding: var(--space-2);
+        border-radius: var(--radius-control);
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+
+    /*
+     * Fokus keyboard pada checkbox yang tersembunyi tidak terlihat; cincin
+     * fokusnya dipindahkan ke tombol yang benar-benar tampak.
+     */
+    .nav-toggle:focus-visible ~ .page .topbar-toggle {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions .btn {
+        flex: 1 1 auto;
+    }
+
+    .pagination {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    /*
+     * Field filter melebar penuh pada layar sempit. Tanpa ini, input dengan
+     * placeholder panjang mempertahankan lebar intrinsiknya dan mendorong
+     * toolbar melewati 360px (NFR-006).
+     */
+    .toolbar .field {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .toolbar .btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    /* Deret badge status tidak boleh memaksa halaman menggeser mendatar. */
+    .tally-item {
+        flex: 1 1 100%;
+        justify-content: space-between;
+    }
+}
+
+/*
+ * Toolbar yang field-nya memuat pesan bantuan atau error di bawah input
+ * (dipakai halaman report).
+ *
+ * .toolbar meratakan itemnya dengan align-items: flex-end, sehingga yang
+ * disejajarkan adalah SISI BAWAH tiap item. Begitu satu field punya <p> di
+ * bawah input sementara field lain tidak, tinggi keduanya berbeda: input yang
+ * satu tersejajarkan dengan pesan milik yang lain, dan tombolnya ikut turun.
+ * Itulah yang membuat barisnya terlihat berantakan.
+ *
+ * Perbaikannya mengeluarkan pesan dari perhitungan tinggi baris — pesan
+ * digantung tepat di bawah field-nya sendiri — sehingga seluruh item kembali
+ * setinggi input dan sejajar. Ruang untuk pesannya disediakan padding bawah
+ * toolbar.
+ *
+ * Hanya berlaku dari 641px ke atas. Di bawah itu field sudah melebar penuh dan
+ * menumpuk (lihat blok max-width: 640px), jadi tidak ada lagi kesejajaran antar
+ * kolom yang perlu dijaga dan pesan lebih baik mengalir normal.
+ */
+@media (min-width: 641px) {
+    .toolbar--with-notes {
+        padding-bottom: var(--space-8);
+    }
+
+    .toolbar--with-notes .field {
+        position: relative;
+    }
+
+    .toolbar--with-notes .field-hint,
+    .toolbar--with-notes .field-error {
+        position: absolute;
+        top: calc(100% + var(--space-1));
+        left: 0;
+        margin: 0;
+        max-width: 100%;
+    }
+}
+
+/* --- Dashboard & report ------------------------------------------------- */
+
+/*
+ * Satu kartu per halaman diberi anchor visual berupa wash lembut, agar
+ * deretan stat tidak terbaca sebagai kotak putih yang seragam. Warna aksen
+ * penuh tetap disimpan untuk satu tempat saja per halaman — tombol aksi
+ * utamanya — sehingga keduanya tidak saling berebut perhatian.
+ */
+.stat--feature {
+    background: linear-gradient(180deg, var(--accent-wash), var(--surface-card) 70%);
+    border-color: var(--accent-border);
+}
+
+/* Ikon kecil di dalam baris teks pendamping angka. */
+.icon--sm {
+    width: 14px;
+    height: 14px;
+}
+
+/*
+ * Sebaran order per status. Dibuat wrap sejak awal: lima status pada layar
+ * 360px tidak mungkin muat satu baris (NFR-006).
+ */
+.tally {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.tally-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    background: var(--surface-raised);
+    color: inherit;
+    text-decoration: none;
+}
+
+a.tally-item:hover {
+    border-color: var(--accent-border);
+    background: var(--accent-wash);
+}
+
+.tally-count {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-tight);
+}
+
+.tally-total {
+    margin-top: var(--space-3);
+    font-size: var(--text-xs);
+}
+
+/*
+ * Available stock di samping line Sales Order (API-01).
+ *
+ * Penandaannya bersifat PANDUAN, bukan larangan: order tetap boleh dibuat
+ * walaupun stock terlihat kurang, karena keputusan yang mengikat baru terjadi
+ * saat goods issue (ARCH-02). Karena itu warnanya memakai token warning dan
+ * success, bukan danger — ini bukan kondisi error.
+ */
+.stock-hint {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.stock-hint--ok {
+    color: var(--success);
+}
+
+.stock-hint--low {
+    color: var(--warning);
+    font-weight: var(--weight-medium);
+}

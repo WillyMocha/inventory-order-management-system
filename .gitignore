@@ -1,0 +1,37 @@
+# Dependency
+/vendor/
+
+# Environment - tidak pernah masuk repository
+.env
+.env.local
+.env.*.local
+
+# Upload user - isinya tidak pernah di-commit, direktorinya tetap ada
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+
+# Output tool
+/docs/quality/*.txt
+/docs/quality/*.xml
+.phpunit.result.cache
+.phpunit.cache/
+/coverage/
+*.log
+*.cache
+
+# OS dan editor
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+.idea/
+.vscode/
+
+# AI Related
+.ai
+.agents
+AGENTS.md
+CLAUDE.md
+.rudis
+.claude
+specs

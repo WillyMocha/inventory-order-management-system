@@ -1,0 +1,15 @@
+# Level 6 - di atas lantai level 5 yang diminta brief dan constitution
+# (research R-011). Bila level 6 menuntut suppression alih-alih perbaikan,
+# turunkan ke level 5 dan catat alasannya di docs/quality/ - jangan
+# menekan finding hanya demi mempertahankan level.
+parameters:
+    level: 6
+    paths:
+        - app
+        - config
+        - database
+        - scripts
+        - tests
+    excludePaths:
+        - vendor
+    treatPhpDocTypesAsCertain: false
