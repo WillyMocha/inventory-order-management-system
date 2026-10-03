@@ -132,6 +132,11 @@ untuknya. Pada volume brief (NFR-011: 30 product, 25 order) ini tidak terasa.
 
 ## TD-7 — Pemeriksaan visual belum pernah dilakukan di browser
 
+> **Status 2026-10-03: sebagian besar terselesaikan.** 34 screenshot desktop dan 360px sudah
+> diambil dengan Chrome headless, dan tiga cacat yang terlihat sudah diperbaiki. Lihat
+> [`docs/testing/responsive-accessibility.md`](../testing/responsive-accessibility.md).
+> Yang tersisa: penelusuran keyboard-only dan pengukuran rasio kontras.
+
 **Keadaan.** Seluruh halaman sudah dipastikan mengembalikan 200 dengan isi yang benar lewat
 HTTP, dan template-nya dieksekusi untuk seluruh keadaan (terisi, kosong, error). Tetapi
 **spacing, keselarasan grid, harmoni warna, dan perilaku responsive pada 360px belum pernah

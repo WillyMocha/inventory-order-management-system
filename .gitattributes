@@ -40,3 +40,6 @@ Dockerfile text eol=lf
 # Keep generated and vendored artefacts out of diffs and language statistics.
 /vendor/** linguist-vendored
 composer.lock -diff linguist-generated
+
+# Screenshot bukti UI-01 / VIEW-01 - jangan dinormalisasi sebagai teks.
+*.png binary

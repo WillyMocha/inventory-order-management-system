@@ -35,5 +35,5 @@ FOUND 0 ERRORS AND 1 WARNING AFFECTING 1 LINE
    |         | on line 25.
 --------------------------------------------------------------------------------
 
-Time: 1.87 secs; Memory: 16MB
+Time: 1.75 secs; Memory: 16MB
 

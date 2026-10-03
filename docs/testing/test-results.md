@@ -7,9 +7,9 @@ PHP 8.4.26 dan MySQL 8.0.46.
 
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
-| Unit | `composer test:unit` | **OK — 363 test, 948 assertion** |
-| Integration | `composer test:integration` | **OK — 114 test, 382 assertion** |
-| Gabungan | `composer test` | **OK — 477 test, 1330 assertion** |
+| Unit | `composer test:unit` | **OK — 367 test, 962 assertion** |
+| Integration | `composer test:integration` | **OK — 117 test, 406 assertion** |
+| Gabungan | `composer test` | **OK — 484 test, 1368 assertion** |
 
 **Nol test yang di-skip, incomplete, atau risky.** `phpunit.xml` menyetel `failOnWarning`,
 `failOnRisky`, dan `failOnNotice` ke `true`, sehingga test yang diam-diam tidak menguji apa

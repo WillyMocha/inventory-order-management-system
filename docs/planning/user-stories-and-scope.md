@@ -56,7 +56,10 @@ Dinyatakan eksplisit agar tidak menjadi harapan yang tidak pernah disepakati:
 
 Schema **mirror** dari resource model sumber. Tidak ada resource yang di-merge, di-rename, atau
 disederhanakan — daftar lengkap beserta kolomnya ada di
-[`data-model.md`](../../specs/001-inventory-order-management/data-model.md).
+[`data-model.md`](../../specs/001-inventory-order-management/data-model.md), dan ERD yang
+diturunkan dari DDL ada di [`erd.md`](./erd.md).
+
+Tafsiran atas bagian brief yang ambigu dicatat di [`decisions.md`](./decisions.md).
 
 ```mermaid
 erDiagram
