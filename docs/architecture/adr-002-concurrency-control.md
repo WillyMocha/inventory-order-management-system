@@ -77,12 +77,13 @@ perubahan stock wajib sepakat.
 (NFR-011) itu tidak berarti apa-apa. Lock juga hanya berlaku selama transaction, sehingga
 transaction harus tetap pendek — tidak boleh ada I/O lambat di dalamnya.
 
-**Jebakan yang sudah ditemukan.** `Database::transaction()` memperlakukan panggilan bersarang
-sebagai passthrough — hanya transaction terluar yang commit. `IntegrationTestCase` membungkus
-setiap test dalam transaction, sehingga di dalam test transaction milik Service tidak pernah
-terbentuk dan **rollback-nya tidak pernah terjadi**. Test yang memeriksa rollback WAJIB
-mematikan pembungkus itu lewat `wrapsInTransaction()`. Dicatat di
-`docs/quality/tech-debt.md`.
+**Jebakan yang sudah ditemukan, dan sudah ditutup.** `Database::transaction()` dulu
+memperlakukan panggilan bersarang sebagai passthrough. Karena `IntegrationTestCase` membungkus
+setiap test dalam transaction, transaction milik Service di dalam test tidak pernah terbentuk
+dan **rollback-nya tidak pernah terjadi**. Panggilan bersarang kini menjadi `SAVEPOINT`, sehingga
+rollback di tengah operasi bekerja juga di bawah pembungkus test (`NestedTransactionTest`,
+`docs/quality/tech-debt.md` TD-1). Lock `FOR UPDATE` yang diambil di dalam savepoint tetap
+ditahan sampai transaction terluar selesai — perilaku InnoDB yang memang dibutuhkan ARCH-02.
 
 ## Alternatif yang ditolak
 

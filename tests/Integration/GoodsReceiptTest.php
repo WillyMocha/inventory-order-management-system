@@ -39,39 +39,17 @@ final class GoodsReceiptTest extends IntegrationTestCase
     private MysqlStockLedgerRepository $ledger;
 
     /**
-     * Test ini memeriksa ROLLBACK milik StockService, jadi transaction-nya
-     * harus benar-benar ada.
+     * Test ini memeriksa ROLLBACK milik StockService DI DALAM pembungkus
+     * transaction IntegrationTestCase.
      *
-     * Database::transaction() memperlakukan panggilan bersarang sebagai
-     * passthrough — hanya transaction terluar yang commit. Dengan pembungkus
-     * IntegrationTestCase aktif, transaction Service tidak pernah terbentuk dan
-     * rollback-nya tidak pernah terjadi, sehingga penulisan parsial justru
-     * bertahan. Karena itu pembungkusnya dimatikan dan fixture dibersihkan
-     * manual, sama seperti ConcurrentGoodsIssueTest.
+     * Transaction Service yang bersarang menjadi SAVEPOINT (TD-1), sehingga
+     * kegagalan di tengah receipt benar-benar dibatalkan walaupun transaction
+     * terluarnya milik harness. Dulu test ini harus mematikan pembungkusnya dan
+     * membersihkan fixture manual; kini tidak perlu lagi.
      */
-    protected function wrapsInTransaction(): bool
-    {
-        return false;
-    }
-
-    protected function tearDown(): void
-    {
-        if ($this->pdo->inTransaction()) {
-            $this->pdo->rollBack();
-        }
-
-        $this->cleanUpSalesOrderFixtures();
-
-        parent::tearDown();
-    }
-
     protected function setUp(): void
     {
         parent::setUp();
-
-        // Sisa fixture dari test sebelumnya yang gagal di tengah jalan tidak
-        // boleh terbawa: fixture di sini ter-commit sungguhan.
-        $this->cleanUpSalesOrderFixtures();
 
         $this->orders = new MysqlPurchaseOrderRepository($this->database);
         $this->ledger = new MysqlStockLedgerRepository($this->database);

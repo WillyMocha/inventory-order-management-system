@@ -31,7 +31,8 @@ stock DAN ledger bersama-sama.
 **Bukti**: `GoodsReceiptTest::aFailureMidOperationLeavesNEITHERStockNorLedgerChanged` —
 memakai `FailOnSecondAppendLedger` untuk gagal tepat setelah baris ledger pertama tertulis,
 lalu memastikan stock, ledger, status order, dan `received_quantity` semuanya kembali.
-**Catatan**: test ini mematikan `wrapsInTransaction()`; lihat `tech-debt.md` TD-1.
+**Catatan**: test ini berjalan di dalam pembungkus transaction harness; rollback Service
+tetap terjadi karena transaction bersarang memakai SAVEPOINT (`tech-debt.md` TD-1).
 
 ### 3. Sales memanggil endpoint approval langsung untuk ordernya sendiri
 
