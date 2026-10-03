@@ -48,27 +48,58 @@ bawah, tidak di atas; image sudah di-pin dan front controller memuat runtime gua
 
 ## Menjalankan
 
-Tiga langkah dari folder bersih:
+Dua langkah dari folder bersih:
 
 ```bash
 cp .env.example .env
-docker compose up --build -d                  # app + MySQL, berjalan di background
-docker compose exec app composer db:migrate   # schema + data seed — WAJIB sekali di awal
+docker compose up -d        # build image bila belum ada, lalu app + MySQL di background
 ```
 
-Buka <http://localhost:8080> dan login dengan salah satu [akun demo](#akun-demo).
+Buka <http://localhost:8080> dan login dengan salah satu [akun demo](#akun-demo). Start
+pertama memakan waktu lebih lama: image di-build dan MySQL menginisialisasi volume-nya.
 
-Langkah ketiga **tidak** berjalan otomatis. Container MySQL yang baru hanya membuat database
-kosong (beserta database test-nya). Tanpa `db:migrate`, halaman login memang terbuka, tetapi
-login gagal karena tabelnya belum ada. Prosedur ini sudah diuji dari salinan bersih: tiga file
-migration diterapkan, login Admin berhasil, dan `composer check` lulus.
+**Schema dan data seed diterapkan otomatis** setiap container `app` naik. Entrypoint
+(`docker/entrypoint.sh`) menjalankan `database/migrate.php` sebelum Apache, dan script itu hanya
+menerapkan file `.sql` yang belum tercatat di tabel `schema_migration`. Akibatnya seed masuk
+tepat sekali, saat first boot, dan restart berikutnya tidak menyentuh data. Progresnya terlihat
+di `docker compose logs app`.
 
-Perintah migration lainnya:
+**Kapan perlu `--build`.** Image diberi nama tetap (`ioms-app:local`) dan dipakai ulang di
+setiap `docker compose up`. Source code di-bind-mount ke container, jadi perubahan kode langsung
+berlaku tanpa rebuild. Build ulang hanya diperlukan setelah `Dockerfile`, `composer.lock`, atau
+`docker/entrypoint.sh` berubah:
+
+```bash
+docker compose up -d --build
+```
+
+`docker compose up --build` dari folder bersih (brief §5.1) juga berjalan sama persis.
+
+Prosedur ini sudah diuji dari salinan repo bersih: start pertama berhasil tanpa restart,
+login Admin berhasil, restart tidak menerapkan seed ulang, `up` kedua tidak mem-build ulang, dan
+`composer check` lulus.
+
+Perintah migration manual tetap tersedia:
 
 ```bash
 docker compose exec app composer db:migrate   # hanya file .sql yang belum dijalankan
 docker compose exec app composer db:reset     # hapus seluruh tabel lalu bangun ulang + seed
 ```
+
+### Mengubah data seed
+
+`database/002_seed.sql` **di-generate**, bukan ditulis tangan. Generator-nya menyusun riwayat
+pergerakan stock (receipt PO dan issue SO yang Fulfilled) lalu menghitung `product_stock`
+dari riwayat itu, sehingga `SUM(stock_ledger) = product_stock` sudah berlaku sejak seed.
+Generator juga menolak data demo yang melanggar aturan, misalnya stock negatif atau approver
+SO yang sama dengan pembuatnya. Ubah data demo di generator, lalu:
+
+```bash
+docker compose exec app php database/generate-seed.php   # tulis ulang 002_seed.sql
+docker compose exec app composer db:reset                # terapkan ke database demo
+```
+
+Output-nya deterministik: tanpa perubahan data, file yang dihasilkan identik byte demi byte.
 
 ## Akun demo
 
