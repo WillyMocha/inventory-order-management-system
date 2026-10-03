@@ -63,6 +63,12 @@ final class InMemoryProductStockRepository implements ProductStockRepositoryInte
         return $this->lockCallCount;
     }
 
+    public function ensureRow(int $productId, int $warehouseId): void
+    {
+        $key = $this->key($productId, $warehouseId);
+        $this->quantities[$key] ??= 0;
+    }
+
     public function adjust(int $productId, int $warehouseId, int $delta): void
     {
         $key = $this->key($productId, $warehouseId);
