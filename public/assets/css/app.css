@@ -592,12 +592,18 @@ a.row-entity:hover .cell-primary {
     font: inherit;
 }
 
+/* Outline memakai --accent, bukan --accent-wash: wash (#eff6ff) di atas latar
+   putih hampir tidak terlihat (rasio ~1.1:1), sehingga fokus pada field hanya
+   ditandai perubahan warna border 1px. :focus-within ikut dicakup karena
+   tombol kalender di dalam input tanggal menerima fokus di shadow DOM, dan
+   saat itu :focus pada input-nya sendiri tidak berlaku. */
 .input:focus,
+.input:focus-within,
 .select:focus,
 .textarea:focus {
     border-color: var(--accent);
-    outline: 2px solid var(--accent-wash);
-    outline-offset: 0;
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
 }
 
 .input[aria-invalid="true"],

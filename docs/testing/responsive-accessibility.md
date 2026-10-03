@@ -8,7 +8,43 @@ Sasaran NFR-006 dan SC-009: seluruh layar utama dapat dipakai pada **360px** mau
 | --- | --- |
 | Statis — terhadap CSS dan markup | **Selesai**, hasilnya di bawah |
 | Terender — screenshot desktop dan 360px | **Selesai 2026-10-03**, lihat [Pemeriksaan terender](#pemeriksaan-terender-2026-10-03) |
-| Keyboard-only dan rasio kontras | **Belum dilakukan**, lihat [Yang tersisa](#yang-tersisa-untuk-dikerjakan-manusia) |
+| Keyboard-only dan rasio kontras WCAG AA | **Selesai 2026-10-03**, lihat [Audit keyboard dan kontras](#audit-keyboard-dan-kontras-2026-10-03) |
+
+## Audit keyboard dan kontras (2026-10-03)
+
+Diukur dengan Chrome headless terhadap stack Docker. Hasil mentahnya ada di
+[`a11y-audit.json`](./a11y-audit.json).
+
+**Kontras.** Untuk setiap elemen teks yang terlihat dihitung rasio WCAG antara warna teks dan
+latar efektifnya (lapisan latar semi-transparan ikut dihitung). Ambangnya 4.5:1 untuk teks
+normal dan 3:1 untuk teks besar. Ada 481 elemen di 8 halaman: login, dashboard Admin dan
+Warehouse Staff, daftar product (berisi dan kosong), detail Sales Order, form Sales Order, dan
+report.
+
+| | Sebelum | Sesudah |
+| --- | --- | --- |
+| Elemen gagal | 47, seluruhnya badge status | **0** |
+| Rasio terendah | 3.07:1 (Pending / Low stock) | **4.55:1** |
+
+Penyebabnya: teks badge memakai warna status 500/600 (`--warning`, `--success`, …) di atas
+latar pucatnya. Perbaikannya adalah token teks status satu tingkat lebih gelap
+(`--warning-text`, `--success-text`, `--info-text`, `--danger-text`, dan `--neutral-600` untuk
+Draft) di `tokens.css`. Warna status aslinya tetap dipakai untuk ikon dan aksen non-teks,
+sehingga makna warnanya tidak berubah.
+
+**Keyboard-only.** Tab ditekan berulang kali melalui halaman login, form Sales Order, dan
+daftar product. Setiap titik fokus dicatat beserta indikatornya.
+
+- Urutan fokusnya logis: navigasi, lalu aksi halaman, field form, line order, dan tombol
+  submit. Tidak ada elemen yang terlewat atau terjebak.
+- **Ditemukan dan diperbaiki:** outline fokus input memakai `--accent-wash` (#eff6ff) di atas
+  putih, dengan rasio ~1.1:1. Fokus pada field praktis hanya ditandai perubahan warna border
+  1px. Outline-nya kini `--accent` 2px (5.2:1), sama dengan indikator global. Lihat
+  [`screenshots/19-input-focus-ring-desktop.png`](./screenshots/19-input-focus-ring-desktop.png).
+- **Ditemukan dan diperbaiki:** tombol kalender di dalam input tanggal menerima fokus di
+  shadow DOM tanpa indikator apa pun. Selector `.input:focus-within` kini ikut mencakupnya.
+- Sesudah perbaikan, **setiap** titik fokus di ketiga halaman memiliki indikator yang
+  terlihat.
 
 ## Pemeriksaan terender (2026-10-03)
 
@@ -132,8 +168,7 @@ Dicari `width` dan `min-width` bernilai ≥ 370px di seluruh stylesheet — tida
 Seluruh warna merujuk custom property pada `tokens.css`. Tidak ada hex langsung di `app.css` —
 dinyatakan pada header file dan diperiksa ulang pada pass ini.
 
-**Kontras belum diukur.** Nilai token-nya dipilih untuk kontras yang memadai, tetapi rasio
-WCAG-nya belum dihitung dengan alat.
+**Kontras sudah diukur** — lihat [Audit keyboard dan kontras](#audit-keyboard-dan-kontras-2026-10-03).
 
 ### Gerak yang dikurangi
 
@@ -144,7 +179,7 @@ memintanya.
 
 1. ~~Buka keempat layar utama pada 360px dan desktop, ambil screenshot.~~ Selesai
    2026-10-03, lihat [Pemeriksaan terender](#pemeriksaan-terender-2026-10-03).
-2. Telusuri form dengan keyboard saja — pastikan urutan fokus masuk akal dan focus ring
-   selalu terlihat.
-3. Ukur rasio kontras teks terhadap latarnya, terutama `.stat-delta--flat` dan `.muted` yang
-   memakai `--text-muted`.
+2. ~~Telusuri form dengan keyboard saja.~~ Selesai 2026-10-03.
+3. ~~Ukur rasio kontras teks terhadap latarnya.~~ Selesai 2026-10-03.
+4. Uji dengan screen reader sungguhan (NVDA atau VoiceOver). Belum dilakukan: audit di atas
+   memeriksa label dan fokus, bukan pengalaman membaca halaman secara utuh.
