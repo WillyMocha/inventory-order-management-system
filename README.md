@@ -81,7 +81,15 @@ juga berlaku untuk Admin. Sales Order yang dibuat `admin@ioms.test` disetujui ol
 
 ## Test dan quality gate
 
-Satu perintah per suite:
+Seluruh gate dalam **satu perintah**: membangun ulang schema database test, lalu unit,
+integration, PHPStan, dan PHPCS. Perintah ini berhenti pada kegagalan pertama dan keluar
+dengan kode bukan nol, sehingga tidak ada suite yang terlewat diam-diam:
+
+```bash
+docker compose exec app composer check
+```
+
+Atau satu perintah per suite:
 
 ```bash
 docker compose exec app composer test              # unit + integration
@@ -91,13 +99,20 @@ docker compose exec app composer analyse           # PHPStan level 6
 docker compose exec app composer cs                # PHP_CodeSniffer PSR-12
 ```
 
+Test JavaScript (`node --test` bawaan Node, tanpa dependency) dijalankan lewat image Node
+resmi, sehingga tidak perlu Node di komputer:
+
+```bash
+docker run --rm -v "$PWD":/app -w /app node:22-alpine node --test "tests/js/*.test.mjs"
+```
+
 Integration test memakai database terpisah. Schema-nya dibangun **sekali** dengan:
 
 ```bash
 docker compose exec app composer db:test
 ```
 
-Hasil terakhir: **445 test, 1235 assertion, seluruhnya lulus** — lihat
+Hasil terakhir: **505 test PHP (1444 assertion) dan 11 test JavaScript, seluruhnya lulus** — lihat
 [`docs/testing/test-results.md`](docs/testing/test-results.md).
 
 ## Low-stock check di luar request cycle (JOB-01)
@@ -135,19 +150,16 @@ scope. Prosedur verifikasi lengkap ada di
 
 Dicatat apa adanya. Rinciannya di [`docs/quality/tech-debt.md`](docs/quality/tech-debt.md).
 
-- **Keyboard-only dan rasio kontras belum diperiksa.** Screenshot desktop dan 360px sudah
-  diambil dan diperiksa (lihat
-  [`docs/testing/responsive-accessibility.md`](docs/testing/responsive-accessibility.md)),
-  tetapi penelusuran form dengan keyboard saja dan pengukuran kontras WCAG belum dilakukan.
-- **Tidak ada CI.** Kedua suite dijalankan manual. Selama enam phase, integration suite tidak
-  pernah dijalankan sama sekali — dan menyembunyikan satu bug yang membuat setiap goods issue
-  gagal. Ini keterbatasan proses yang paling mahal di project ini.
-- **Tidak ada test otomatis untuk JavaScript.** `stock-lookup.js` dan `validation.js` hanya
-  diperiksa sintaksisnya. Keduanya murni progressive enhancement — aplikasi tetap berfungsi
-  penuh tanpa JavaScript.
-- **Jalur filesystem upload tidak ter-unit-test.** Keputusannya (tipe dari `finfo`, batas
-  ukuran, nama acak, penyimpanan di luar document root) teruji; pembungkus filesystem-nya
-  tidak.
+- **Tidak ada CI.** Seluruh gate dijalankan manual lewat `composer check` — CI berada di luar
+  scope brief (§4.3). Selama enam phase integration suite tidak pernah dijalankan dan
+  menyembunyikan bug yang membuat setiap goods issue gagal; `composer check` kini membangun
+  schema test lebih dulu agar hal itu tidak terulang.
+- **`validation.js` belum memiliki test otomatis.** `stock-lookup.js` sudah diuji dengan
+  `node --test`; keduanya murni progressive enhancement — aplikasi tetap berfungsi penuh tanpa
+  JavaScript.
+- **Jalur sukses upload image tidak teruji otomatis.** `move_uploaded_file()` hanya menerima
+  upload HTTP sungguhan, sehingga tidak dapat dijalankan dari CLI. Penolakan file palsu,
+  pembacaan, dan penghapusan file teruji di `ProductImageStorageTest`.
 - **Tidak ada penjadwalan otomatis.** Routine low-stock dijalankan manual, sesuai scope.
 - **Tidak ada password reset.** Brief tidak menyediakan registrasi publik; Admin yang
   mengatur ulang password.

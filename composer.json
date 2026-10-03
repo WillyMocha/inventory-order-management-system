@@ -37,7 +37,14 @@
         "cs:fix": "phpcbf",
         "db:migrate": "php database/migrate.php",
         "db:reset": "php database/migrate.php --fresh",
-        "db:test": "APP_ENV=testing php database/migrate.php --fresh --schema-only"
+        "db:test": "APP_ENV=testing php database/migrate.php --fresh --schema-only",
+        "check": [
+            "@db:test",
+            "@test:unit",
+            "@test:integration",
+            "@analyse",
+            "@cs"
+        ]
     },
     "scripts-descriptions": {
         "test": "Menjalankan seluruh test suite (unit + integration)",
@@ -48,6 +55,7 @@
         "cs:fix": "Perbaikan otomatis pelanggaran PSR-12",
         "db:migrate": "Menerapkan file SQL yang belum dijalankan",
         "db:reset": "Menghapus lalu membangun ulang database dari nol",
-        "db:test": "Membangun ulang schema pada database test (tanpa data seed)"
+        "db:test": "Membangun ulang schema pada database test (tanpa data seed)",
+        "check": "Seluruh quality gate: schema test, unit, integration, PHPStan, PHPCS - berhenti pada kegagalan pertama"
     }
 }
