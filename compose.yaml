@@ -45,8 +45,10 @@ services:
     restart: unless-stopped
     # Port publikasi ke host memakai key sendiri, bukan DB_PORT. Default 3307
     # agar tidak bentrok dengan MySQL yang sudah berjalan di host (mis. Laragon).
+    # Di-bind ke 127.0.0.1 saja: cukup untuk menjalankan test dari host, tanpa
+    # membuka MySQL — dengan kredensial development-nya — ke jaringan lain.
     ports:
-      - "${DB_HOST_PORT:-3307}:3306"
+      - "127.0.0.1:${DB_HOST_PORT:-3307}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-root_secret}"
       MYSQL_DATABASE: "${DB_DATABASE:-ioms}"

@@ -31,9 +31,9 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 
 | Role | Tanggung jawab |
 | --- | --- |
-| **Admin** | User management, master data, approval Sales Order, seluruh report |
-| **Sales** | Membuat Sales Order — **tidak boleh approve**, termasuk order miliknya sendiri |
-| **Warehouse Staff** | Goods receipt, goods issue, antrean fulfillment |
+| **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order, seluruh report |
+| **Sales** | Membuat dan mengajukan Sales Order miliknya, export CSV order miliknya — **tidak boleh approve**, termasuk order miliknya sendiri |
+| **Warehouse Staff** | Membuat Purchase Order, goods receipt, goods issue, antrean fulfillment, report stock |
 
 Pemisahan tanggung jawab ditegakkan **di server**, bukan dengan menyembunyikan tombol di UI.
 `SalesOrderService::approve()` memeriksa role Admin **dan** `approved_by <> created_by`.
@@ -48,17 +48,26 @@ bawah, tidak di atas; image sudah di-pin dan front controller memuat runtime gua
 
 ## Menjalankan
 
+Tiga langkah dari folder bersih:
+
 ```bash
 cp .env.example .env
-docker compose up --build        # http://localhost:8080
+docker compose up --build -d                  # app + MySQL, berjalan di background
+docker compose exec app composer db:migrate   # schema + data seed — WAJIB sekali di awal
 ```
 
-Migration dan data seed diterapkan otomatis saat container pertama kali naik. Untuk
-menerapkannya ulang secara manual:
+Buka <http://localhost:8080> dan login dengan salah satu [akun demo](#akun-demo).
+
+Langkah ketiga **tidak** berjalan otomatis. Container MySQL yang baru hanya membuat database
+kosong (beserta database test-nya). Tanpa `db:migrate`, halaman login memang terbuka, tetapi
+login gagal karena tabelnya belum ada. Prosedur ini sudah diuji dari salinan bersih: tiga file
+migration diterapkan, login Admin berhasil, dan `composer check` lulus.
+
+Perintah migration lainnya:
 
 ```bash
-docker compose exec app composer db:migrate   # file yang belum dijalankan
-docker compose exec app composer db:reset     # hapus lalu bangun ulang dari nol
+docker compose exec app composer db:migrate   # hanya file .sql yang belum dijalankan
+docker compose exec app composer db:reset     # hapus seluruh tabel lalu bangun ulang + seed
 ```
 
 ## Akun demo
@@ -103,23 +112,30 @@ Test JavaScript (`node --test` bawaan Node, tanpa dependency) dijalankan lewat i
 resmi, sehingga tidak perlu Node di komputer:
 
 ```bash
-docker run --rm -v "$PWD":/app -w /app node:22-alpine node --test "tests/js/*.test.mjs"
+# bash / PowerShell
+docker run --rm -v "${PWD}:/app" -w /app node:22-alpine node --test "tests/js/*.test.mjs"
+# cmd.exe
+docker run --rm -v "%cd%:/app" -w /app node:22-alpine node --test "tests/js/*.test.mjs"
 ```
 
-Integration test memakai database terpisah. Schema-nya dibangun **sekali** dengan:
+Integration test memakai database terpisah (`ioms_test`), sehingga data demo tidak pernah
+tersentuh. `composer check` membangun schema-nya sendiri; bila suite dijalankan terpisah,
+bangun dulu dengan:
 
 ```bash
 docker compose exec app composer db:test
 ```
 
-Hasil terakhir: **505 test PHP (1444 assertion) dan 11 test JavaScript, seluruhnya lulus** — lihat
+Hasil terakhir: **512 test PHP (1454 assertion) dan 11 test JavaScript, seluruhnya lulus** — lihat
 [`docs/testing/test-results.md`](docs/testing/test-results.md).
 
 ## Low-stock check di luar request cycle (JOB-01)
 
-Routine mandiri yang meringkas product pada atau di bawah reorder point. Berjalan tanpa HTTP,
-tanpa session, dan memakai `ProductService` **yang sama** dengan dashboard — sehingga script
-dan layar tidak bisa memberi jawaban berbeda.
+Routine mandiri yang meringkas product pada atau di bawah reorder point. Berjalan tanpa HTTP
+dan tanpa session. Script ini memanggil `ProductService::lowStock()`, yang menjalankan query
+**yang sama** (`ProductRepositoryInterface::lowStock()`) dengan daftar low-stock di dashboard
+dan endpoint `/api/dashboard/low-stock`. Karena itu script dan layar tidak bisa memberi jawaban
+berbeda.
 
 ```bash
 docker compose exec app php scripts/check-low-stock.php
@@ -144,7 +160,7 @@ scope. Prosedur verifikasi lengkap ada di
 | [`docs/planning/`](docs/planning/) | User story, scope, backlog, ERD, class diagram initial, dan [catatan keputusan](docs/planning/decisions.md) atas requirement yang ambigu |
 | [`docs/architecture/`](docs/architecture/) | Class diagram as-built dan dua ADR |
 | [`docs/quality/`](docs/quality/) | Refactor log, tech debt, kritik desain, laporan PHPStan dan PHPCS |
-| [`docs/testing/`](docs/testing/) | Hasil test, pemetaan coverage, sweep jalur kegagalan |
+| [`docs/testing/`](docs/testing/) | Skenario dan hasil test, pemetaan coverage, sweep jalur kegagalan, screenshot, audit aksesibilitas, [bug yang diketahui](docs/testing/known-bugs.md) |
 
 ## Keterbatasan yang diketahui
 
@@ -154,9 +170,12 @@ Dicatat apa adanya. Rinciannya di [`docs/quality/tech-debt.md`](docs/quality/tec
   scope brief (§4.3). Selama enam phase integration suite tidak pernah dijalankan dan
   menyembunyikan bug yang membuat setiap goods issue gagal; `composer check` kini membangun
   schema test lebih dulu agar hal itu tidak terulang.
-- **`validation.js` belum memiliki test otomatis.** `stock-lookup.js` sudah diuji dengan
-  `node --test`; keduanya murni progressive enhancement — aplikasi tetap berfungsi penuh tanpa
-  JavaScript.
+- **Hanya `stock-lookup.js` yang memiliki test JavaScript otomatis.** Modul lain
+  (`validation.js`, `order-lines.js`, dll.) belum; seluruhnya progressive enhancement, sehingga
+  aplikasi tetap berfungsi penuh tanpa JavaScript.
+- **Append-only `stock_ledger` dijaga aplikasi, bukan database.** Tidak ada trigger yang menolak
+  `UPDATE` manual lewat SQL client (`tech-debt.md` TD-9).
+- Bug yang diketahui beserta workaround-nya: [`docs/testing/known-bugs.md`](docs/testing/known-bugs.md).
 - **Jalur sukses upload image tidak teruji otomatis.** `move_uploaded_file()` hanya menerima
   upload HTTP sungguhan, sehingga tidak dapat dijalankan dari CLI. Penolakan file palsu,
   pembacaan, dan penghapusan file teruji di `ProductImageStorageTest`.
