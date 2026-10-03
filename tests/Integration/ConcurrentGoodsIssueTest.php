@@ -367,6 +367,7 @@ final class ConcurrentGoodsIssueTest extends IntegrationTestCase
             new MysqlProductStockRepository($database),
             new MysqlStockLedgerRepository($database),
             new MysqlProductRepository($database),
+            new MysqlWarehouseRepository($database),
             $database,
         );
     }

@@ -26,6 +26,7 @@ use Tests\Unit\Fake\InMemoryProductStockRepository;
 use Tests\Unit\Fake\InMemoryPurchaseOrderRepository;
 use Tests\Unit\Fake\InMemorySalesOrderRepository;
 use Tests\Unit\Fake\InMemoryStockLedgerRepository;
+use Tests\Unit\Fake\InMemoryWarehouseRepository;
 
 /**
  * Unit test StockService — goods issue (SO-01, FR-019 s/d FR-022).
@@ -92,6 +93,7 @@ final class StockServiceTest extends TestCase
                 new Product(self::PRODUCT_A, 'SKU-A', 'Product A', 1, 'pcs', '1000.00', '1500.00', 5, null, true),
                 new Product(self::PRODUCT_B, 'SKU-B', 'Product B', 1, 'pcs', '2000.00', '2500.00', 5, null, true),
             ]),
+            new InMemoryWarehouseRepository(),
             $this->transactions,
         );
     }
@@ -183,6 +185,7 @@ final class StockServiceTest extends TestCase
             new InMemoryProductRepository([
                 new Product(self::PRODUCT_A, 'SKU-A', 'Product A', 1, 'pcs', '1000.00', '1500.00', 5, null, true),
             ]),
+            new InMemoryWarehouseRepository(),
             $this->transactions,
         );
 

@@ -17,9 +17,13 @@ use App\Repository\ProductStockRepositoryInterface;
 use App\Repository\PurchaseOrderRepositoryInterface;
 use App\Repository\SalesOrderRepositoryInterface;
 use App\Repository\StockLedgerRepositoryInterface;
+use App\Repository\WarehouseRepositoryInterface;
 use App\Support\Exception\DomainException;
+use App\Support\Exception\ForbiddenException;
 use App\Support\Exception\NotFoundException;
+use App\Support\Exception\ValidationException;
 use App\Support\TransactionRunner;
+use App\Support\Validator;
 
 /**
  * SATU-SATUNYA jalan quantity stock boleh berubah (ARCH-02).
@@ -57,12 +61,19 @@ use App\Support\TransactionRunner;
  */
 final class StockService
 {
+    /** Panjang maksimum alasan koreksi, sama dengan kolom stock_ledger.note. */
+    private const int NOTE_MAX_LENGTH = 255;
+
+    /** Jumlah koreksi terbaru pada detail product; riwayat penuh lewat export CSV (spec A-007). */
+    private const int RECENT_ADJUSTMENTS = 10;
+
     public function __construct(
         private readonly SalesOrderRepositoryInterface $salesOrders,
         private readonly PurchaseOrderRepositoryInterface $purchaseOrders,
         private readonly ProductStockRepositoryInterface $stocks,
         private readonly StockLedgerRepositoryInterface $ledger,
         private readonly ProductRepositoryInterface $products,
+        private readonly WarehouseRepositoryInterface $warehouses,
         private readonly TransactionRunner $transactions,
     ) {
     }
@@ -153,6 +164,78 @@ final class StockService
                 $this->receiveWithinTransaction($order, $quantitiesByItemId, $actingUser);
             },
         );
+    }
+
+    /**
+     * Koreksi stock dari hasil hitung fisik (spec 003, research R-004).
+     *
+     * User memasukkan quantity yang BENAR-BENAR dihitung; selisihnya terhadap
+     * quantity sistem ditulis sebagai satu baris ledger Adjustment (reference
+     * Manual, beserta alasannya) dan stock diubah di transaction yang sama.
+     *
+     * `$input` adalah body request mentah. Validasi format dilakukan DI SINI,
+     * bukan di controller, agar "2.5" atau field kosong menjadi pesan field,
+     * bukan angka yang diam-diam terpotong oleh cast.
+     *
+     * Hanya satu baris product_stock yang dikunci dan tidak ada baris order,
+     * sehingga koreksi tidak dapat membentuk siklus lock dengan goods issue
+     * (order -> product_stock) maupun goods receipt (ADR-002).
+     *
+     * @param array<string, mixed> $input warehouse_id, counted_quantity, expected_quantity, note
+     * @return array{before: int, after: int, delta: int}
+     *
+     * @throws ForbiddenException  acting user bukan Admin maupun Warehouse Staff
+     * @throws NotFoundException   product tidak ada
+     * @throws ValidationException input tidak sah, quantity sudah berubah, atau selisih nol
+     */
+    public function adjustStock(int $productId, array $input, User $actor): array
+    {
+        // Pertahanan berlapis di belakang route table (constitution V).
+        if (!$actor->isAdmin() && !$actor->isWarehouseStaff()) {
+            throw new ForbiddenException('Only Admin and Warehouse Staff can adjust stock.');
+        }
+
+        $this->validateAdjustment($input);
+
+        if ($this->products->findById($productId) === null) {
+            throw new NotFoundException();
+        }
+
+        $warehouseId = (int) $input['warehouse_id'];
+        $counted = (int) $input['counted_quantity'];
+        $expected = (int) $input['expected_quantity'];
+        $note = trim((string) $input['note']);
+
+        return $this->transactions->transaction(
+            fn (): array => $this->adjustWithinTransaction(
+                $productId,
+                $warehouseId,
+                $counted,
+                $expected,
+                $note,
+                $actor,
+            ),
+        );
+    }
+
+    /**
+     * Koreksi stock terbaru untuk halaman detail product (spec 003 FR-009).
+     *
+     * Controller hanya memanggilnya untuk Admin dan Warehouse Staff (spec
+     * A-009); riwayat ini menyebut nama staf dan alasannya.
+     *
+     * @return list<array{
+     *     createdAt: string,
+     *     warehouseName: string,
+     *     quantity: int,
+     *     balanceAfter: int,
+     *     performedByName: string,
+     *     note: string
+     * }>
+     */
+    public function recentAdjustments(int $productId): array
+    {
+        return $this->ledger->recentAdjustmentsForProduct($productId, self::RECENT_ADJUSTMENTS);
     }
 
     /**
@@ -434,6 +517,83 @@ final class StockService
             $name,
             $item->outstandingQuantity(),
         );
+    }
+
+    /**
+     * Aturan format koreksi stock. Warehouse harus ada dan aktif; product
+     * nonaktif tetap boleh dikoreksi karena barang fisiknya mungkin masih ada
+     * (spec A-006).
+     *
+     * @param array<string, mixed> $input
+     *
+     * @throws ValidationException
+     */
+    private function validateAdjustment(array $input): void
+    {
+        $warehouseId = $input['warehouse_id'] ?? null;
+        $warehouse = is_string($warehouseId) && ctype_digit($warehouseId)
+            ? $this->warehouses->findById((int) $warehouseId)
+            : null;
+
+        // Alasan dinilai SETELAH di-trim, sama dengan nilai yang disimpan.
+        Validator::make(['note' => trim((string) ($input['note'] ?? ''))] + $input)
+            ->required('warehouse_id', 'Warehouse')
+            ->rule('warehouse_id', $warehouse !== null && $warehouse->isActive, 'Choose an active warehouse.')
+            ->required('counted_quantity', 'Counted quantity')
+            ->integerMin('counted_quantity', 'Counted quantity', 0)
+            ->required('expected_quantity', 'System quantity')
+            ->integerMin('expected_quantity', 'System quantity', 0)
+            ->required('note', 'Reason')
+            ->maxLength('note', 'Reason', self::NOTE_MAX_LENGTH)
+            ->validate();
+    }
+
+    /**
+     * Inti koreksi stock, sudah berada di dalam transaction.
+     *
+     * Baris dipastikan ada LEBIH DULU agar FOR UPDATE benar-benar mengunci satu
+     * baris, juga untuk gudang yang belum pernah menyimpan product ini
+     * (research R-002). Quantity dibaca ulang di bawah lock itu, lalu
+     * dibandingkan dengan quantity yang dilihat user: bila berbeda, stock
+     * berubah selama penghitungan dan koreksi ditolak, bukan diterapkan buta
+     * (spec FR-004).
+     *
+     * @return array{before: int, after: int, delta: int}
+     *
+     * @throws ValidationException
+     */
+    private function adjustWithinTransaction(
+        int $productId,
+        int $warehouseId,
+        int $counted,
+        int $expected,
+        string $note,
+        User $actor,
+    ): array {
+        $this->stocks->ensureRow($productId, $warehouseId);
+        $current = $this->stocks->lockForUpdate($productId, $warehouseId)->quantity ?? 0;
+
+        if ($current !== $expected) {
+            throw new ValidationException(['stock' => sprintf(
+                'The stock in this warehouse changed to %d while you were counting. '
+                . 'Check your count and submit again.',
+                $current,
+            )]);
+        }
+
+        $delta = $counted - $current;
+
+        if ($delta === 0) {
+            throw new ValidationException([
+                'counted_quantity' => 'The count matches the system quantity — nothing to adjust.',
+            ]);
+        }
+
+        // Ledger lebih dulu, lalu stock — keduanya ada atau keduanya tidak ada.
+        $this->ledger->append(StockLedger::adjustment($productId, $warehouseId, $delta, $note, (int) $actor->id));
+        $this->stocks->adjust($productId, $warehouseId, $delta);
+
+        return ['before' => $current, 'after' => $counted, 'delta' => $delta];
     }
 
     /**

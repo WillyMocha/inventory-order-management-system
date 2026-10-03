@@ -26,6 +26,7 @@ use App\Controller\ProfileController;
 use App\Controller\ReportController;
 use App\Controller\PurchaseOrderController;
 use App\Controller\SalesOrderController;
+use App\Controller\StockAdjustmentController;
 use App\Controller\SupplierController;
 use App\Controller\UserController;
 use App\Controller\WarehouseController;
@@ -139,6 +140,7 @@ return static function (array $config): array {
         $productStockRepository,
         $stockLedgerRepository,
         $productRepository,
+        $warehouseRepository,
         $database,
     );
 
@@ -234,6 +236,17 @@ return static function (array $config): array {
             $productService,
             $productImageService,
             $masterDataService,
+            $stockService,
+            $session,
+            $csrf,
+        ),
+        // Koreksi stock dari hasil hitung fisik (spec 003).
+        'StockAdjustmentController' => static fn (): StockAdjustmentController => new StockAdjustmentController(
+            $view,
+            $stockService,
+            $productService,
+            $masterDataService,
+            $userService,
             $session,
             $csrf,
         ),

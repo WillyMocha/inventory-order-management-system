@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use App\Entity\Enum\Role;
+use App\Entity\StockLedger;
+use App\Entity\Warehouse;
 use App\Repository\Mysql\MysqlCategoryRepository;
 use App\Repository\Mysql\MysqlCustomerRepository;
 use App\Repository\Mysql\MysqlProductRepository;
@@ -198,6 +200,49 @@ final class RepositoryCoverageTest extends IntegrationTestCase
         self::assertNull($products->findById($this->productId)?->imagePath);
     }
 
+    /**
+     * ensureRow() (spec 003, research R-002): pasangan baru mendapat baris
+     * bernilai 0, pasangan yang sudah ada tidak berubah sedikit pun.
+     */
+    #[Test]
+    public function ensureRowCreatesAZeroRowOnlyWhenTheStockRowIsMissing(): void
+    {
+        $stocks = new MysqlProductStockRepository($this->database);
+        $newWarehouseId = (new MysqlWarehouseRepository($this->database))
+            ->save(new Warehouse(null, 'Fixture EnsureRow Warehouse', 'Bandung', true));
+
+        self::assertNull($stocks->findFor($this->productId, $newWarehouseId));
+
+        $stocks->ensureRow($this->productId, $newWarehouseId);
+        self::assertSame(0, $stocks->findFor($this->productId, $newWarehouseId)?->quantity);
+
+        $this->setStock($this->productId, $this->warehouseId, 7);
+        $stocks->ensureRow($this->productId, $this->warehouseId);
+        self::assertSame(7, $this->stockQuantity($this->productId, $this->warehouseId));
+    }
+
+    /** recentAdjustmentsForProduct() (spec 003): query window function dieksekusi MySQL. */
+    #[Test]
+    public function recentAdjustmentsAreReadFromMySql(): void
+    {
+        $ledger = new MysqlStockLedgerRepository($this->database);
+        self::assertCount(0, $ledger->recentAdjustmentsForProduct($this->productId, 10));
+
+        $ledger->append(StockLedger::adjustment(
+            $this->productId,
+            $this->warehouseId,
+            4,
+            'Fixture count',
+            (int) $this->warehouseStaff->id,
+        ));
+        (new MysqlProductStockRepository($this->database))->adjust($this->productId, $this->warehouseId, 4);
+
+        $recent = $ledger->recentAdjustmentsForProduct($this->productId, 10);
+        self::assertCount(1, $recent);
+        self::assertSame(4, $recent[0]['balanceAfter']);
+        self::assertSame('Fixture count', $recent[0]['note']);
+    }
+
     #[Test]
     public function stockTotalsAndLedgerHistoryReflectARealReceipt(): void
     {
@@ -213,6 +258,7 @@ final class RepositoryCoverageTest extends IntegrationTestCase
             $stocks,
             $ledger,
             new MysqlProductRepository($this->database),
+            new MysqlWarehouseRepository($this->database),
             $this->database,
         ))->receiveGoods($orderId, [$itemId => 6], $this->warehouseStaff);
 
