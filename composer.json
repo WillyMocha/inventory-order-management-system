@@ -37,7 +37,10 @@
         "cs:fix": "phpcbf",
         "db:migrate": "php database/migrate.php",
         "db:reset": "php database/migrate.php --fresh",
-        "db:test": "APP_ENV=testing php database/migrate.php --fresh --schema-only",
+        "db:test": [
+            "@putenv APP_ENV=testing",
+            "php database/migrate.php --fresh --schema-only"
+        ],
         "check": [
             "@db:test",
             "@test:unit",
