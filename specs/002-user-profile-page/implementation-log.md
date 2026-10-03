@@ -2,7 +2,9 @@
 
 ## Session 2026-10-03 — /rudis.implement
 
-- **Checkpoint HEAD**: `e0928f8a1a8aede17c1adc4ba10847b79f343680` (branch `fix/correct-business-flow`)
+- **Checkpoint HEAD**: `30c1508bb8d0a623c727fe75bc1be5e6ca8cd3ff` (branch `fix/correct-business-flow`;
+  originally `e0928f8`; hashes changed when history was rewritten to remove the brief PDF and the
+  obsolete `specs/001-inventory-order-system/` folder)
 - **Working tree at start**: `README.md` modified (constitution v1.2.0 language note) and
   `specs/002-user-profile-page/` untracked — both are this feature's planning artifacts, left as is.
 - **Tasks targeted**: T001–T032

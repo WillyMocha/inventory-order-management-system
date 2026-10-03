@@ -58,8 +58,19 @@ token yang pernah masuk history.
 **Satu temuan, tingkat INFO.** File `Project Brief - Programmer.pdf` pernah ter-commit di
 `specs/001-inventory-order-management/inputs/`, lalu terhapus dari tree oleh commit
 pembersihan berikutnya. Isinya bukan secret maupun PII, melainkan materi brief dari trainer.
-Tetapi itu bukan karya peserta, dan masih dapat diambil dari history. Kini `*.pdf` di-ignore.
-Menghapusnya dari history menuntut penulisan ulang history (`git filter-repo`) dan force push,
-jadi diputuskan oleh pemilik repository, bukan dilakukan diam-diam.
+Tetapi itu bukan karya peserta.
+
+**Ditindaklanjuti 2026-10-03 atas keputusan pemilik repository.** File itu dihapus dari seluruh
+history dengan `git filter-branch --index-filter` pada `main`, `master`, dan
+`fix/correct-business-flow`, lalu di-force-push. Dengan cara yang sama, folder spec lama yang
+sudah usang, `specs/001-inventory-order-system/`, juga dihapus dari history. Isi tree di ujung
+setiap branch identik dengan sebelumnya, dan jumlah commit-nya tetap. Seluruh hash commit
+berubah (misalnya `e0928f8` → `30c1508`). Setelah itu `git log --all -- '*.pdf'` dan
+`git rev-list --all --objects` tidak lagi menemukan PDF apa pun.
+
+Sisa yang berada di luar kendali repository: commit lama masih dapat dibuka lewat hash
+langsung di GitHub sampai dibersihkan GitHub (lewat GitHub Support bila perlu), dan clone lain
+harus di-clone ulang, jangan di-merge. PDF brief tidak lagi disimpan di folder project, dan
+jangan ditambahkan kembali ke repository.
 
 Ulangi pemeriksaan ini sesaat sebelum membuat tag rilis final.
