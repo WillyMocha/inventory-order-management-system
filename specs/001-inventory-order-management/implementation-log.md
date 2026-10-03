@@ -1887,3 +1887,51 @@ Ini memperbesar utang yang sudah tercatat pada T133/T149 dan `tech-debt.md` TD-7
 - Di luar scope: tidak ada perubahan pada Service, Repository, view, route, maupun schema
 
 **UNRESOLVED**: tidak ada. Bagian A `critique.md` menunggu cuplikan dari assessor (bukan cacat).
+
+---
+
+## Redesign 2026-10-03 — migration otomatis dan image yang dipakai ulang
+
+**Checkpoint (rollback point)**: `cbd6133` — working tree bersih.
+**Target**: (1) schema + seed diterapkan otomatis saat container `app` naik; (2) `compose.yaml`
+memakai image yang sudah ada, bukan build ulang setiap dijalankan.
+
+**File yang direncanakan**
+- `docker/entrypoint.sh` — baru: `migrate.php` lalu `docker-php-entrypoint apache2-foreground`
+- `Dockerfile` — `ENTRYPOINT` + `CMD`
+- `compose.yaml` — `image: ioms-app:local`
+- `README.md`, `specs/001-inventory-order-management/quickstart.md` — prosedur setup
+
+**File yang diubah**
+- `docker/entrypoint.sh` — baru; `migrate.php` lalu `exec docker-php-entrypoint "$@"`
+- `Dockerfile` — salin entrypoint (strip CR), `ENTRYPOINT ["ioms-entrypoint"]`, `CMD ["apache2-foreground"]`
+- `compose.yaml` — `image: ioms-app:local`, `pull_policy: never`; healthcheck MySQL lewat TCP (`-h127.0.0.1 --protocol=tcp`)
+- `README.md`, `quickstart.md` — prosedur dua langkah, kapan perlu `--build`, troubleshooting
+
+**Ditemukan saat verifikasi dan diperbaiki**
+- Compose mencoba pull image lokal dari Docker Hub ("pull access denied") sebelum build → `pull_policy: never`.
+- Healthcheck lewat socket lulus selama server sementara inisialisasi MySQL, padahal TCP belum
+  terbuka → migration "Connection refused", app restart 6 kali → healthcheck lewat TCP; restart 0.
+
+**Verifikasi (salinan bersih, project/container/image/port terpisah)**
+- `docker compose up -d` tanpa `--build`: image di-build sekali, tanpa pull, 3 migration diterapkan, restart 0
+- Login Admin → 302 /dashboard; restart app → "Tidak ada migration baru", data hasil edit tetap
+- `down` + `up -d` kedua → tidak ada build; `up -d --build` tetap berjalan
+- `composer check` OK; stack lokal pengguna: data identik sebelum/sesudah (31 product, 17 SO, 6 user)
+
+**UNRESOLVED**: tidak ada.
+
+---
+
+## 2026-10-03 — generator seed di-port dari Python ke PHP
+
+`database/generate-seed.py` (dirujuk T013 di atas) diganti `database/generate-seed.php` agar
+seluruh tooling project berbahasa PHP dan dapat dijalankan di dalam container
+(`docker compose exec app php database/generate-seed.php`) tanpa Python di host.
+
+- Output diverifikasi **identik byte demi byte** dengan `002_seed.sql` hasil versi Python
+  (`git diff` kosong), termasuk ringkasan di stdout.
+- Pengaman dipertahankan: stock negatif dan approver = creator menghentikan generator dengan
+  exit 1 tanpa menulis file (diuji dengan data yang sengaja dilanggar).
+- PHPStan level 6 dan PHPCS PSR-12 bersih; `database/` termasuk cakupan keduanya.
+- `generate-seed.py` dihapus; cara pakai didokumentasikan di README ("Mengubah data seed").

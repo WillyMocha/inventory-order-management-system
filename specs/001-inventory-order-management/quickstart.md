@@ -23,13 +23,17 @@ tanpa bertanya (SC-001).
 
 ```bash
 cp .env.example .env
-docker compose up --build -d                  # image PHP 8.4 + MySQL 8, menunggu healthcheck
-docker compose exec app composer db:migrate   # schema + seed — WAJIB sekali di awal
+docker compose up -d        # build image bila belum ada; app menunggu healthcheck MySQL
 ```
 
-Schema dan seed **tidak** diterapkan otomatis. Container MySQL yang baru hanya membuat database
-kosong (beserta database test). Tanpa `db:migrate`, halaman login terbuka tetapi login gagal
-karena tabelnya belum ada. Prosedur ini diuji ulang dari salinan bersih pada 2026-10-03.
+Container `app` menjalankan migration otomatis sebelum Apache (`docker/entrypoint.sh` →
+`database/migrate.php`). Hanya file yang belum tercatat di `schema_migration` yang diterapkan,
+jadi schema dan seed masuk sekali saat first boot, dan restart tidak menyentuh data.
+
+Image `ioms-app:local` dipakai ulang di setiap `up`. Rebuild (`docker compose up -d --build`)
+hanya perlu setelah `Dockerfile`, `composer.lock`, atau `docker/entrypoint.sh` berubah;
+perubahan kode tidak butuh rebuild karena source di-bind-mount. Prosedur ini diuji dari salinan
+bersih pada 2026-10-03.
 
 Buka **http://localhost:8080**.
 
@@ -199,9 +203,10 @@ HAVING ps.quantity <> ledger_sum;
 
 | Gejala | Penyebab & solusi |
 | --- | --- |
-| `port is already allocated` | Ubah port host pada `.env` (`APP_PORT`, `DB_HOST_PORT`), lalu `docker compose up --build -d` lagi |
-| Halaman login terbuka, tetapi login menghasilkan error 500 | Schema dan seed belum diterapkan. Jalankan `docker compose exec app composer db:migrate` |
-| Aplikasi menampilkan error koneksi database saat pertama kali start | MySQL masih melakukan inisialisasi. Service `app` menunggu healthcheck; tunggu sekitar 20 detik atau jalankan `docker compose logs -f db` |
+| `port is already allocated` | Ubah port host pada `.env` (`APP_PORT`, `DB_HOST_PORT`), lalu `docker compose up -d` lagi |
+| `localhost:8080` belum merespons saat pertama kali start | Image sedang di-build dan MySQL masih menginisialisasi volume. Service `app` menunggu healthcheck MySQL (lewat TCP), lalu menjalankan migration. Pantau dengan `docker compose logs -f app` sampai muncul `migration diterapkan` |
+| Container `app` berhenti dan log menunjukkan `GAGAL pada …sql` | Migration gagal, dan aplikasi sengaja tidak dijalankan di atas schema setengah jadi. Perbaiki penyebabnya, lalu `docker compose up -d` lagi |
+| Perubahan `Dockerfile` atau `docker/entrypoint.sh` tidak berlaku | Image lama masih dipakai ulang. Jalankan `docker compose up -d --build` |
 | Integration test gagal seluruhnya | Schema database test belum dibangun. Jalankan `docker compose exec app composer db:test` (atau `composer check`, yang membangunnya lebih dulu). **Bukan** `db:reset` — perintah itu membangun ulang database demo |
-| Ingin mengulang dari data bersih | `docker compose down -v`, lalu `docker compose up --build -d` dan `docker compose exec app composer db:migrate` — flag `-v` menghapus volume database |
+| Ingin mengulang dari data bersih | `docker compose down -v`, lalu `docker compose up -d` — flag `-v` menghapus volume database, dan migration + seed berjalan lagi otomatis |
 | Ingin memastikan versi PHP | `docker compose exec app php -v` → harus 8.4.x (spec C-001) |

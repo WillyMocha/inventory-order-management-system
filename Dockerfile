@@ -48,4 +48,16 @@ RUN composer dump-autoload --optimize \
     && chown -R www-data:www-data storage \
     && chmod -R 755 storage
 
+# Migration dan data seed diterapkan otomatis setiap container naik; hanya file
+# yang belum tercatat di schema_migration yang dijalankan, jadi seed masuk sekali
+# saat first boot. Script disalin ke luar /var/www/html agar tidak tertimpa bind
+# mount di compose.yaml. sed membuang CR: checkout Windows tanpa .gitattributes
+# menghasilkan CRLF, dan shebang dengan CR membuat container gagal start.
+COPY docker/entrypoint.sh /usr/local/bin/ioms-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/ioms-entrypoint \
+    && chmod +x /usr/local/bin/ioms-entrypoint
+
 EXPOSE 80
+
+ENTRYPOINT ["ioms-entrypoint"]
+CMD ["apache2-foreground"]
