@@ -1,0 +1,39 @@
+PHP_CodeSniffer PSR-12 — laporan lengkap
+Dijalankan: 2026-10-03, di dalam Docker (PHP 8.4.26)
+Perintah:   docker compose exec app composer cs
+Konfigurasi: phpcs.xml (PSR12 + Generic.PHP.RequireStrictTypes)
+
+Cakupan: app, config, database, scripts, tests (140 file).
+declare(strict_types=1) ditegakkan sniff, bukan hanya konvensi.
+
+Hasil: NOL error, SATU warning.
+
+Penjelasan warning yang tersisa (TEST-03: warning boleh ada bila dijelaskan):
+
+  config/database.php:1 — PSR1.Files.SideEffects
+  File ini memanggil require_once (side effect) sekaligus mendefinisikan
+  function ioms_pdo(). Bukan critical error. File ini adalah PDO factory
+  prosedural dari tahap awal yang TIDAK lagi dipanggil di mana pun —
+  aplikasi dan test memakai App\Support\Database. Perbaikan idealnya
+  menghapus file ini; dicatat di docs/quality/tech-debt.md (TD-8).
+
+----------------------------------------------------------------------
+............................................................  60 / 140 (43%)
+...........................W................................ 120 / 140 (86%)
+....................                                         140 / 140 (100%)
+
+
+
+FILE: /var/www/html/config/database.php
+--------------------------------------------------------------------------------
+FOUND 0 ERRORS AND 1 WARNING AFFECTING 1 LINE
+--------------------------------------------------------------------------------
+ 1 | WARNING | A file should declare new symbols (classes, functions,
+   |         | constants, etc.) and cause no other side effects, or it should
+   |         | execute logic with side effects, but should not do both. The
+   |         | first symbol is defined on line 40 and the first side effect is
+   |         | on line 25.
+--------------------------------------------------------------------------------
+
+Time: 1.87 secs; Memory: 16MB
+

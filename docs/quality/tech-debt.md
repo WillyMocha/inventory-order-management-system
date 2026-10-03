@@ -139,3 +139,18 @@ benar-benar dilihat** — tidak ada browser tooling pada sesi pengerjaan.
 
 **Perbaikan ideal.** T133 dan T149 menuntut pemeriksaan dan screenshot sungguhan pada 360px
 dan desktop. Itu harus dijalankan manusia di browser sebelum submission.
+
+---
+
+## TD-8 — `config/database.php` adalah PDO factory yang sudah tidak dipakai
+
+**Keadaan.** `ioms_pdo()` di `config/database.php` tidak dipanggil di mana pun; aplikasi dan
+test membuat koneksi lewat `App\Support\Database`. File ini satu-satunya sumber warning
+PHP_CodeSniffer yang tersisa (`PSR1.Files.SideEffects`, lihat
+[`phpcs-report.txt`](./phpcs-report.txt)).
+
+**Mengapa belum dihapus.** Ditemukan saat membuat ulang laporan static analysis, di luar scope
+perubahan yang sedang dikerjakan.
+
+**Perbaikan ideal.** Hapus file-nya. Dua factory PDO membuka peluang konfigurasi koneksi yang
+berbeda (mis. `ATTR_EMULATE_PREPARES`) tanpa ada yang menyadari.

@@ -1,15 +1,15 @@
 # Hasil test suite
 
-Bukti untuk T145 dan SC-006. Dijalankan **2026-09-14** di dalam Docker terhadap PHP 8.4.25
-dan MySQL 8.0.46.
+Bukti untuk T145 dan SC-006. Dijalankan ulang **2026-10-03** di dalam Docker terhadap
+PHP 8.4.26 dan MySQL 8.0.46.
 
 ## Ringkasan
 
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
-| Unit | `composer test:unit` | **OK — 363 test, 917 assertion** |
-| Integration | `composer test:integration` | **OK — 82 test, 318 assertion** |
-| Gabungan | `composer test` | **OK — 445 test, 1235 assertion** |
+| Unit | `composer test:unit` | **OK — 363 test, 948 assertion** |
+| Integration | `composer test:integration` | **OK — 114 test, 382 assertion** |
+| Gabungan | `composer test` | **OK — 477 test, 1330 assertion** |
 
 **Nol test yang di-skip, incomplete, atau risky.** `phpunit.xml` menyetel `failOnWarning`,
 `failOnRisky`, dan `failOnNotice` ke `true`, sehingga test yang diam-diam tidak menguji apa
@@ -25,7 +25,7 @@ case ada di [`use-case-coverage.md`](./use-case-coverage.md).
 | Database | tidak ada — seluruhnya `InMemory*Repository` | MySQL 8 sungguhan |
 | Session, network, filesystem | tidak ada | session di-set langsung untuk menguji guard |
 | Waktu | `FixedClock` — deterministik | `SystemClock` |
-| Kecepatan | ± 10 detik | ± 42 detik |
+| Kecepatan | ± 10 detik | ± 60 detik |
 
 Pemisahan ini yang membuat aturan bisnis dapat diuji tanpa infrastruktur: acting user
 di-**pass sebagai argument** ke Service, tidak pernah dibaca dari session, sehingga aturan
@@ -36,6 +36,7 @@ seperti segregation of duties dapat diuji tanpa session sama sekali.
 | Jaminan | Test |
 | --- | --- |
 | Oversell tidak dapat direproduksi (ARCH-02, SC-003) | `ConcurrentGoodsIssueTest` — dua connection MySQL yang benar-benar terpisah; connection kedua terbukti MENUNGGU lewat lock wait timeout, bukan lewat `sleep` |
+| Satu Sales Order tidak dapat di-issue dua kali; cancel tidak menimpa order yang sudah Fulfilled; receipt kedua tidak merencanakan dari outstanding basi | `ConcurrentGoodsIssueTest` — connection kedua memegang snapshot REPEATABLE READ yang basi, keputusan harus diambil dari pembacaan di bawah lock |
 | `SUM(stock_ledger.quantity) = product_stock.quantity` (NFR-002, SC-004) | `LedgerReconciliationTest` |
 | Ledger bersifat append-only | `LedgerReconciliationTest::noLedgerRowIsEverUpdatedOrDeleted` |
 | `adjust()` menerapkan delta negatif, dan menolak hasil negatif | `StockAdjustmentTest` |

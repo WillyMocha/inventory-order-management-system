@@ -11,8 +11,8 @@
 !/storage/uploads/.gitkeep
 
 # Output tool
-/docs/quality/*.txt
-/docs/quality/*.xml
+# Laporan static analysis di docs/quality/ SENGAJA di-commit: brief TEST-03
+# mewajibkannya sebagai bukti submission.
 .phpunit.result.cache
 .phpunit.cache/
 /coverage/
