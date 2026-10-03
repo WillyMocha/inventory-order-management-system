@@ -57,6 +57,20 @@ final class Session
     }
 
     /**
+     * Memperbarui session id tanpa mengubah isinya. Dipanggil setelah
+     * perubahan sensitif seperti ganti password sendiri, agar session id lama
+     * yang mungkin sudah bocor tidak berlaku lagi (002 FR-007).
+     */
+    public function regenerate(): void
+    {
+        // Tanpa session aktif (misalnya integration test di CLI) tidak ada id
+        // yang perlu diperbarui.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
+    }
+
+    /**
      * Menghapus seluruh data session dan mengadaluarsakan cookie, sehingga
      * URL terlindungi tidak dapat dibuka lagi (AUTH-02).
      */

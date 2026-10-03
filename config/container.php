@@ -22,6 +22,7 @@ use App\Controller\CategoryController;
 use App\Controller\CustomerController;
 use App\Controller\HealthController;
 use App\Controller\ProductController;
+use App\Controller\ProfileController;
 use App\Controller\ReportController;
 use App\Controller\PurchaseOrderController;
 use App\Controller\SalesOrderController;
@@ -214,6 +215,14 @@ return static function (array $config): array {
             $productService,
         ),
         'UserController' => static fn (): UserController => new UserController(
+            $view,
+            $userService,
+            $authService,
+            $session,
+            $csrf,
+        ),
+        // Profil sendiri untuk seluruh role (002-user-profile-page).
+        'ProfileController' => static fn (): ProfileController => new ProfileController(
             $view,
             $userService,
             $authService,

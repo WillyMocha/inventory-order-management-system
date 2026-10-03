@@ -12,6 +12,7 @@ declare(strict_types=1);
  * Stack trace TIDAK PERNAH sampai ke user (ERR-01, constitution Principle V).
  */
 
+use App\Service\AuthService;
 use App\Support\Authorization;
 use App\Support\Csrf;
 use App\Support\Exception\DomainException;
@@ -89,6 +90,31 @@ try {
 
     // Deny by default: guard membaca daftar role dari route table.
     $authorization->authorizeRoute($route['roles']);
+
+    // Validasi ulang akun pada setiap request terautentikasi (002 FR-012).
+    // Session hanya mencatat id dan role saat login, sehingga akun yang
+    // dinonaktifkan atau diganti role-nya oleh Admin harus diputus di sini.
+    // Pemeriksaan ini sengaja diletakkan di front controller, bukan di
+    // Authorization: guard hanya membaca session dan tidak menyentuh database,
+    // sedangkan aturan "akun masih boleh dipakai" adalah business rule milik
+    // AuthService (research R-008).
+    if ($route['roles'] !== null) {
+        $sessionUserId = $session->userId();
+        $sessionRole = $session->role();
+
+        /** @var AuthService $authService */
+        $authService = $container['authService'];
+
+        if (
+            $sessionUserId === null
+            || $sessionRole === null
+            || $authService->activeSessionUser($sessionUserId, $sessionRole) === null
+        ) {
+            $session->logout();
+
+            throw new UnauthenticatedException();
+        }
+    }
 
     // CSRF wajib pada setiap method non-GET (security standard §2).
     if ($request->method() !== 'GET' && $request->method() !== 'HEAD') {

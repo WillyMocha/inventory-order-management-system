@@ -49,6 +49,16 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('GET', '/dashboard', 'DashboardController', 'index', $all);
 
     // ---------------------------------------------------------------------
+    // Profil sendiri (002-user-profile-page) - seluruh role
+    // Tidak ada parameter id: pemilik profil SELALU diambil dari session,
+    // sehingga user tidak dapat membuka profil milik orang lain (FR-003).
+    // ---------------------------------------------------------------------
+    $router->add('GET', '/profile', 'ProfileController', 'show', $all);
+    // Ganti password sendiri. Password saat ini menjadi re-auth, dan batas
+    // percobaannya berbagi counter dengan login (FR-005, FR-008).
+    $router->add('POST', '/profile/password', 'ProfileController', 'changePassword', $all);
+
+    // ---------------------------------------------------------------------
     // User management (USR-01) - Admin saja
     // ---------------------------------------------------------------------
     $router->add('GET', '/users', 'UserController', 'index', $adminOnly);
