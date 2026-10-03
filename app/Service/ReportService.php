@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Enum\PurchaseOrderStatus;
 use App\Entity\Enum\Role;
 use App\Entity\Enum\SalesOrderStatus;
+use App\Repository\PurchaseOrderRepositoryInterface;
 use App\Repository\SalesOrderRepositoryInterface;
 use App\Repository\StockLedgerRepositoryInterface;
 use App\Support\ClockInterface;
@@ -96,9 +98,36 @@ final class ReportService
         'Total Value (IDR)',
     ];
 
+    /** @var list<string> */
+    public const array PURCHASE_ORDER_FIELDS = [
+        'order_number',
+        'order_date',
+        'status',
+        'supplier_name',
+        'warehouse_name',
+        'created_by_name',
+        'ordered_quantity',
+        'received_quantity',
+        'total_value',
+    ];
+
+    /** @var list<string> */
+    public const array PURCHASE_ORDER_HEADER = [
+        'Order Number',
+        'Order Date',
+        'Status',
+        'Supplier',
+        'Warehouse',
+        'Created By',
+        'Ordered Qty',
+        'Received Qty',
+        'Total Value (IDR)',
+    ];
+
     public function __construct(
         private readonly StockLedgerRepositoryInterface $ledger,
         private readonly SalesOrderRepositoryInterface $salesOrders,
+        private readonly PurchaseOrderRepositoryInterface $purchaseOrders,
         private readonly ClockInterface $clock,
     ) {
     }
@@ -209,11 +238,69 @@ final class ReportService
      */
     public function statusTotals(array $rows): array
     {
-        $totals = [];
+        return $this->tally($rows, array_map(
+            static fn (SalesOrderStatus $status): string => $status->value,
+            SalesOrderStatus::cases(),
+        ));
+    }
 
-        foreach (SalesOrderStatus::cases() as $status) {
-            $totals[$status->value] = 0;
-        }
+    /**
+     * Baris Purchase Order pada rentang tersebut.
+     *
+     * Tanpa scoping: PO tidak dimiliki Sales, dan route export-nya hanya
+     * terbuka untuk Admin dan Warehouse Staff (§1.2).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function purchaseOrders(string $startDate, string $endDate): array
+    {
+        return $this->purchaseOrders->ordersBetween($startDate, $endDate);
+    }
+
+    /**
+     * Tally status PO, dihitung dari baris yang diekspor — sama seperti
+     * statusTotals(), agar layar dan file tidak dapat berbeda.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @return array<string, int>
+     */
+    public function purchaseOrderStatusTotals(array $rows): array
+    {
+        return $this->tally($rows, array_map(
+            static fn (PurchaseOrderStatus $status): string => $status->value,
+            PurchaseOrderStatus::cases(),
+        ));
+    }
+
+    /**
+     * Satu baris CSV Purchase Order, urutannya mengikuti PURCHASE_ORDER_HEADER.
+     *
+     * @param array<string, mixed> $row
+     * @return list<string>
+     */
+    public function purchaseOrderCsvRow(array $row): array
+    {
+        $cells = array_map(
+            fn (string $field): string => $this->cell($row[$field] ?? null),
+            self::PURCHASE_ORDER_FIELDS,
+        );
+
+        $cells[8] = Money::formatPlain($cells[8] === '' ? '0' : $cells[8]);
+
+        return $cells;
+    }
+
+    /**
+     * Setiap status mendapat angka, termasuk nol, agar layar tidak
+     * menyembunyikan status yang kosong.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @param list<string>               $statuses
+     * @return array<string, int>
+     */
+    private function tally(array $rows, array $statuses): array
+    {
+        $totals = array_fill_keys($statuses, 0);
 
         foreach ($rows as $row) {
             $status = (string) $row['status'];

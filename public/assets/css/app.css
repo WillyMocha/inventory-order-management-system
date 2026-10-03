@@ -348,6 +348,13 @@ img {
     overflow-x: auto;
 }
 
+/* Tanpa batas bawah, select di dalam sel tabel menyusut hingga beberapa
+   huruf pada 360px dan product tidak terbaca saat dipilih (UI-01). Tabel
+   sudah berada di .table-wrap, jadi baris yang lebih lebar cukup di-scroll. */
+.table .select {
+    min-width: 14rem;
+}
+
 .table {
     width: 100%;
     border-collapse: collapse;
@@ -848,6 +855,13 @@ a.row-entity:hover .cell-primary {
         position: sticky;
         top: 0;
         z-index: 10;
+        /* Jarak ke judul halaman dipindah ke sini dari padding atas .page,
+           agar topbar menempel di tepi atas layar, bukan turun 24px. */
+        margin-bottom: var(--space-6);
+    }
+
+    .page {
+        padding-top: 0;
     }
 
     .topbar-toggle {

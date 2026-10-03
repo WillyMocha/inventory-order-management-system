@@ -20,10 +20,13 @@ declare(strict_types=1);
  * @var array<string, int> $statusTotals
  * @var int $movementCount
  * @var bool $canSeeStockMovement
+ * @var int $purchaseOrderCount
+ * @var array<string, int> $purchaseOrderTotals
  * @var bool $isScoped
  * @var int $maxRangeDays
  */
 
+use App\Entity\Enum\PurchaseOrderStatus;
 use App\Entity\Enum\SalesOrderStatus;
 use App\Support\View;
 
@@ -38,6 +41,20 @@ $badges = [
     SalesOrderStatus::Approved->value => 'badge--approved',
     SalesOrderStatus::Fulfilled->value => 'badge--fulfilled',
     SalesOrderStatus::Cancelled->value => 'badge--cancelled',
+];
+
+$poLabels = [];
+foreach (PurchaseOrderStatus::cases() as $status) {
+    $poLabels[$status->value] = $status->label();
+}
+
+// Warna sama dengan dashboard Admin dan daftar Purchase Order.
+$poBadges = [
+    PurchaseOrderStatus::Draft->value => 'badge--draft',
+    PurchaseOrderStatus::Ordered->value => 'badge--approved',
+    PurchaseOrderStatus::PartiallyReceived->value => 'badge--pending',
+    PurchaseOrderStatus::Received->value => 'badge--received',
+    PurchaseOrderStatus::Cancelled->value => 'badge--cancelled',
 ];
 
 $exportQuery = http_build_query(['start_date' => $range['start'], 'end_date' => $range['end']]);
@@ -203,6 +220,42 @@ $exportQuery = http_build_query(['start_date' => $range['start'], 'end_date' => 
                     <span class="tabular"><?= (int) $movementCount ?></span>
                     ledger entries will be exported, one row per movement, in date order.
                 </p>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Purchase order status report</h2>
+            <a class="btn btn--primary btn--sm"
+               href="/reports/purchase-orders.csv?<?= View::e($exportQuery) ?>">
+                <svg class="icon" aria-hidden="true">
+                    <use href="/assets/icons/lucide-sprite.svg#file-text"></use>
+                </svg>
+                <span>Export CSV</span>
+            </a>
+        </div>
+        <div class="card-body">
+            <?php if ($purchaseOrderCount === 0) : ?>
+                <?= $view->renderPartial('layout/_empty-state', [
+                    'icon'        => 'truck',
+                    'heading'     => 'No purchase orders in this date range',
+                    'text'        => 'No purchase orders were placed between these two dates. '
+                        . 'Exporting produces a headers-only file.',
+                    'actionLabel' => '',
+                    'actionHref'  => '',
+                ]) ?>
+            <?php else : ?>
+                <p class="muted">
+                    These are the same records the CSV will contain, including ordered and received
+                    quantities so partial receipts stay visible.
+                </p>
+                <?= $view->renderPartial('dashboard/_status-tally', [
+                    'tally'    => $purchaseOrderTotals,
+                    'labels'   => $poLabels,
+                    'badges'   => $poBadges,
+                    'linkBase' => '/purchase-orders',
+                ]) ?>
             <?php endif; ?>
         </div>
     </div>

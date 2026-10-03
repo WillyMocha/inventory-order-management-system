@@ -189,6 +189,26 @@ final class MysqlPurchaseOrderRepository extends MysqlRepository implements Purc
         return array_map(fn (array $row): PurchaseOrder => $this->hydrate($row, []), $rows);
     }
 
+    public function ordersBetween(string $startDate, string $endDate): array
+    {
+        return $this->fetchAll(
+            'SELECT po.order_number, po.order_date, po.status, s.name AS supplier_name,
+                    w.name AS warehouse_name, creator.name AS created_by_name,
+                    COALESCE(SUM(poi.quantity), 0) AS ordered_quantity,
+                    COALESCE(SUM(poi.received_quantity), 0) AS received_quantity,
+                    COALESCE(SUM(poi.quantity * poi.purchase_price), 0) AS total_value
+               FROM purchase_order po
+               JOIN supplier s ON s.id = po.supplier_id
+               JOIN warehouse w ON w.id = po.warehouse_id
+               JOIN `user` creator ON creator.id = po.created_by
+          LEFT JOIN purchase_order_item poi ON poi.purchase_order_id = po.id
+              WHERE po.order_date >= :start_date AND po.order_date <= :end_date
+           GROUP BY po.id, po.order_number, po.order_date, po.status, s.name, w.name, creator.name
+           ORDER BY po.order_date ASC, po.id ASC',
+            ['start_date' => $startDate, 'end_date' => $endDate],
+        );
+    }
+
     /** @return list<PurchaseOrderItem> */
     private function loadItems(int $orderId, bool $forUpdate = false): array
     {

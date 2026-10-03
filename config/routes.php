@@ -149,6 +149,14 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('GET', '/reports', 'ReportController', 'index', $all);
     $router->add('GET', '/reports/stock-movement.csv', 'ReportController', 'stockMovementCsv', $adminWarehouse);
     $router->add('GET', '/reports/orders.csv', 'ReportController', 'ordersCsv', $all);
+    // PO bukan bagian Sales (§1.2) - Sales menerima 403.
+    $router->add(
+        'GET',
+        '/reports/purchase-orders.csv',
+        'ReportController',
+        'purchaseOrdersCsv',
+        $adminWarehouse,
+    );
 
     // ---------------------------------------------------------------------
     // JSON API (API-01) - contracts/openapi.yaml

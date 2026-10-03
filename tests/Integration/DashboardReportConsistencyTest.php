@@ -15,6 +15,7 @@ use App\Repository\Mysql\MysqlSalesOrderRepository;
 use App\Repository\Mysql\MysqlStockLedgerRepository;
 use App\Service\DashboardService;
 use App\Service\ReportService;
+use App\Support\Router;
 use App\Support\SystemClock;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -55,6 +56,7 @@ final class DashboardReportConsistencyTest extends IntegrationTestCase
         $this->report = new ReportService(
             new MysqlStockLedgerRepository($this->database),
             $this->salesOrders,
+            $purchaseOrders,
             new SystemClock(),
         );
     }
@@ -179,6 +181,45 @@ final class DashboardReportConsistencyTest extends IntegrationTestCase
         }
 
         self::assertCount(count(ReportService::ORDER_HEADER), $this->report->orderCsvRow($row));
+    }
+
+    #[Test]
+    public function exportedPurchaseOrderRowsCarryEveryDocumentedColumn(): void
+    {
+        $orderId = $this->orderedPurchaseOrder([[$this->productId, 4], [$this->secondProductId, 6]]);
+        $orderNumber = (new MysqlPurchaseOrderRepository($this->database))->findById($orderId)?->orderNumber;
+
+        $rows = array_values(array_filter(
+            $this->report->purchaseOrders(self::RANGE_START, self::RANGE_END),
+            static fn (array $row): bool => $row['order_number'] === $orderNumber,
+        ));
+
+        self::assertCount(1, $rows, 'Satu PO harus menjadi satu baris, bukan satu baris per item.');
+
+        foreach (ReportService::PURCHASE_ORDER_FIELDS as $field) {
+            self::assertArrayHasKey($field, $rows[0], 'Kolom ' . $field . ' hilang dari query MySQL.');
+        }
+
+        $cells = $this->report->purchaseOrderCsvRow($rows[0]);
+
+        self::assertCount(count(ReportService::PURCHASE_ORDER_HEADER), $cells);
+        self::assertSame('Ordered', $cells[2]);
+        self::assertSame('10', $cells[6], 'Ordered Qty dijumlahkan dari seluruh item');
+        self::assertSame('0', $cells[7]);
+    }
+
+    #[Test]
+    public function thePurchaseOrderExportIsClosedToSalesInTheRouteTable(): void
+    {
+        $router = new Router();
+        /** @var callable(Router): void $register */
+        $register = require dirname(__DIR__, 2) . '/config/routes.php';
+        $register($router);
+
+        $matched = $router->match('GET', '/reports/purchase-orders.csv');
+
+        self::assertSame('purchaseOrdersCsv', $matched['action']);
+        self::assertSame([Role::Admin, Role::WarehouseStaff], $matched['roles']);
     }
 
     #[Test]

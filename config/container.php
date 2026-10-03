@@ -150,7 +150,12 @@ return static function (array $config): array {
         $purchaseOrderRepository,
     );
 
-    $reportService = new ReportService($stockLedgerRepository, $salesOrderRepository, $clock);
+    $reportService = new ReportService(
+        $stockLedgerRepository,
+        $salesOrderRepository,
+        $purchaseOrderRepository,
+        $clock,
+    );
 
     /** @var array{path: string, max_bytes: int, allowed_mimes: list<string>} $uploadConfig */
     $uploadConfig = $config['upload'];

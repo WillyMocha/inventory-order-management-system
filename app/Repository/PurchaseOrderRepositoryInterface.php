@@ -54,4 +54,14 @@ interface PurchaseOrderRepositoryInterface
      * @return list<PurchaseOrder>
      */
     public function awaitingReceipt(int $limit): array;
+
+    /**
+     * Data Purchase Order untuk report CSV dalam rentang tanggal (REPORT-01).
+     *
+     * Satu baris per order: nama supplier/warehouse/pembuat, total qty dipesan
+     * dan diterima (agar sisa partial receipt terlihat), serta nilai order.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function ordersBetween(string $startDate, string $endDate): array;
 }
