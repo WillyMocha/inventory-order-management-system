@@ -1,6 +1,6 @@
 # Class Diagram — As-built (setelah implementasi)
 
-**Diperbarui**: 2026-10-03 · **Pasangannya**: [`../planning/class-diagram-initial.md`](../planning/class-diagram-initial.md)
+**Diperbarui**: 2026-10-03 (+ 002-user-profile-page) · **Pasangannya**: [`../planning/class-diagram-initial.md`](../planning/class-diagram-initial.md)
 
 Diagram ini menggambarkan kode yang **benar-benar ada**, bukan rancangan awalnya. Setiap panah
 dependency di bawah sesuai dengan parameter constructor class-nya, yang dirangkai di
@@ -233,6 +233,7 @@ classDiagram
     class DashboardController
     class ReportController
     class StockApiController
+    class ProfileController
 
     class SalesOrderService
     class PurchaseOrderService
@@ -243,6 +244,7 @@ classDiagram
     class PartyService
     class MasterDataService
     class UserService
+    class AuthService
     class View
     class Session
     class Csrf
@@ -277,6 +279,12 @@ classDiagram
 
     StockApiController --> ProductService
     StockApiController --> MasterDataService
+
+    ProfileController --> AuthService
+    ProfileController --> UserService
+    ProfileController --> View
+    ProfileController --> Session
+    ProfileController --> Csrf
 ```
 
 Ini **disengaja**. Service adalah class final tanpa interface: tidak ada implementasi kedua,
@@ -287,6 +295,48 @@ di sanalah ada dua implementasi sungguhan, dan di sanalah interface-nya ada.
 `StockApiController` sengaja **tidak** menerima `Session`: authentication dan authorization
 sudah selesai di route table dan guard sebelum request sampai ke controller, sehingga bentuk
 responsnya dapat di-unit-test penuh tanpa session.
+
+### Profil sendiri dan validasi ulang session (002-user-profile-page)
+
+`ProfileController` membaca identitas pemilik profil **hanya** dari `Session`; tidak ada id pada
+route. Dua aturan barunya tinggal di `AuthService`, yang tetap bergantung pada interface
+repository saja. `activeSessionUser()` juga dipanggil front controller (`public/index.php`) pada
+setiap request terautentikasi, sehingga akun yang dinonaktifkan atau diganti role-nya kehilangan
+akses pada request berikutnya.
+
+```mermaid
+classDiagram
+    direction LR
+
+    class ProfileController {
+        +show(Request) Response
+        +changePassword(Request) Response
+    }
+    class AuthService {
+        +attempt(string, string, string) ?User
+        +verifyPasswordFor(User, string) bool
+        +changeOwnPassword(User, string, string, string, string) void
+        +activeSessionUser(int, Role) ?User
+    }
+    class UserRepositoryInterface {
+        <<interface>>
+    }
+    class LoginAttemptRepositoryInterface {
+        <<interface>>
+    }
+    class User {
+        +MIN_PASSWORD_LENGTH$ int
+    }
+
+    ProfileController --> AuthService
+    AuthService ..> UserRepositoryInterface
+    AuthService ..> LoginAttemptRepositoryInterface
+    AuthService ..> User
+```
+
+`changeOwnPassword()` memakai counter `login_attempt` yang sama dengan `attempt()`, jadi tebakan
+password di halaman login dan di halaman profil dihitung bersama. Panjang minimum password
+kini satu konstanta di `User`, dipakai `AuthService` dan `UserService` (refactor-log R-7).
 
 ## Yang berubah dari diagram awal, dan mengapa
 

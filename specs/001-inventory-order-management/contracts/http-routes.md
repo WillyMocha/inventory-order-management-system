@@ -25,6 +25,12 @@ merupakan sumber kebenaran bagi authorization guard.
   karena hal itu tidak membocorkan apa pun.
 - **Belum login** pada route HTML → redirect ke `/login`. Pada route `/api/*` → JSON 401
   (API-01).
+- **Akun divalidasi ulang pada setiap request terautentikasi** (002 FR-012). Setelah guard,
+  front controller memeriksa bahwa user di session masih ada, masih aktif, dan role-nya masih
+  sama dengan yang tercatat di session (`AuthService::activeSessionUser`). Bila tidak, session
+  diakhiri dan request diperlakukan seperti belum login (redirect `/login` atau JSON 401).
+  Akun yang dinonaktifkan atau diganti role-nya oleh Admin kehilangan akses pada request
+  berikutnya, bukan saat logout.
 
 Singkatan role: **A** = Admin, **S** = Sales, **W** = WarehouseStaff.
 
@@ -46,6 +52,16 @@ Tidak ada route registrasi publik dan tidak ada password reset (spec A-012, USR-
 | --- | --- | --- | --- | --- |
 | GET | `/` | wajib | A S W | Dialihkan ke dashboard sesuai role |
 | GET | `/dashboard` | wajib | A S W | Isi berbeda per role. Sales hanya melihat ringkasan order miliknya — di-scope lewat `created_by` di dalam query (§1.2) |
+
+## Profil sendiri (002-user-profile-page)
+
+| Method | Path | Auth | Role | Authorization / catatan |
+| --- | --- | --- | --- | --- |
+| GET | `/profile` | wajib | A S W | Pemilik profil **selalu** dari session; `id`/`user_id` pada query diabaikan. Read-only kecuali password |
+| POST | `/profile/password` | wajib | A S W | CSRF (gagal → 403). Password saat ini wajib (re-auth). Validasi gagal → 422 dengan pesan per field, password tidak pernah dikembalikan. Batas percobaan **berbagi counter dengan `POST /login`** (5 / 15 menit per email + IP) → 429 di halaman profil. Berhasil → session id diperbarui, 302 `/profile` dengan flash |
+
+Rincian kontrak ada di
+[`specs/002-user-profile-page/contracts/http-routes.md`](../../002-user-profile-page/contracts/http-routes.md).
 
 ## User management (USR-01)
 
@@ -144,6 +160,8 @@ Didefinisikan lengkap pada [`openapi.yaml`](./openapi.yaml). Ringkasan:
 | Route atau record tidak ada | 404 |
 | CSRF token tidak valid | 403 |
 | Rate limit login terlampaui | 429 dengan pesan seragam |
+| Rate limit ganti password sendiri terlampaui | 429, halaman profil dirender ulang dengan pesan umum (counter yang sama dengan login) |
+| Akun di session sudah tidak aktif, terhapus, atau role-nya berubah | Session diakhiri → redirect `/login` (HTML) atau JSON 401 (`/api/*`) |
 | Exception tak tertangani | 500, halaman aman. Detail hanya ke server log — tidak pernah ke user (ERR-01) |
 
 ---
@@ -155,6 +173,7 @@ Dipakai `/rudis.implement` sebagai acuan security gate.
 | Kemampuan | Admin | Sales | Warehouse Staff |
 | --- | --- | --- | --- |
 | Mengelola user | ✅ | ❌ 403 | ❌ 403 |
+| Melihat profil & ganti password sendiri | ✅ miliknya | ✅ miliknya | ✅ miliknya |
 | Menulis master data | ✅ | ❌ 403 | ❌ 403 |
 | Melihat katalog product & stock | ✅ | ✅ | ✅ |
 | Membuat Purchase Order | ✅ | ❌ 403 | ✅ |

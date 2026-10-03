@@ -10,7 +10,7 @@ Dibuat pada T144 dengan menyilangkan seluruh method `public` di `app/Service/` t
 
 | Service | Method ber-rule tertutup | Tanpa test langsung |
 | --- | --- | --- |
-| `AuthService` | 2/2 | — |
+| `AuthService` | 4/4 | — |
 | `DashboardService` | 4/4 | — |
 | `MasterDataService` | 10/10 | — |
 | `PartyService` | 16/16 | — |
@@ -32,6 +32,15 @@ Audit ini menemukan kekurangan yang nyata, bukan sekadar mencatat keadaan:
 | `AuthService::verifyPasswordFor` tidak teruji padahal ia adalah step-up re-auth sebelum aksi sensitif (security standard §7) | 4 test pada `AuthServiceTest` |
 | `PartyService` sisi Customer tertinggal dari sisi Supplier — `updateCustomer`, `countCustomers`, `activeCustomers`, `countSuppliers` | 3 test pada `PartyServiceTest` |
 | `ProductService::stockBreakdownBySku` dan `availableQuantity` hanya teruji tidak langsung lewat controller API | 5 test pada `ProductServiceTest` |
+
+## Yang ditambahkan pada 002-user-profile-page
+
+| Method baru | Unit test (`AuthServiceTest`) |
+| --- | --- |
+| `AuthService::activeSessionUser` | 4 test: user valid, id tidak dikenal, akun nonaktif, role berubah |
+| `AuthService::changeOwnPassword` | 11 test: berhasil, password saat ini salah, terlalu pendek, konfirmasi beda, field kosong, sama dengan password lama, nilai disimpan apa adanya; lockout menolak password yang benar, satu kegagalan per tebakan salah, kesalahan format tidak dihitung, keberhasilan menghapus hitungan |
+
+Setiap penolakan juga memeriksa bahwa hash tersimpan tidak berubah.
 
 ## Method tanpa test langsung, beserta alasannya
 
@@ -95,6 +104,8 @@ integration test terhadap MySQL sungguhan:
 | Rollback nested transaction lewat SAVEPOINT | `NestedTransactionTest`, `GoodsReceiptTest` |
 | Seluruh 116 method repository MySQL benar-benar dieksekusi | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
 | Jalur filesystem upload | `ProductImageStorageTest` |
+| Akun yang dinonaktifkan atau diganti role-nya langsung kehilangan session (002 FR-012) | `SessionRevalidationTest` |
+| Profil hanya milik user di session; `id` pada request diabaikan; batas percobaan dihitung bersama login (002 FR-003, FR-008) | `ProfileFlowTest` |
 
 ## Cara mengulang audit ini
 

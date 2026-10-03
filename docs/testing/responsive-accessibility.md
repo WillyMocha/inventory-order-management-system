@@ -17,9 +17,10 @@ Diukur dengan Chrome headless terhadap stack Docker. Hasil mentahnya ada di
 
 **Kontras.** Untuk setiap elemen teks yang terlihat dihitung rasio WCAG antara warna teks dan
 latar efektifnya (lapisan latar semi-transparan ikut dihitung). Ambangnya 4.5:1 untuk teks
-normal dan 3:1 untuk teks besar. Ada 481 elemen di 8 halaman: login, dashboard Admin dan
-Warehouse Staff, daftar product (berisi dan kosong), detail Sales Order, form Sales Order, dan
-report.
+normal dan 3:1 untuk teks besar. Ada 570 elemen di 11 pengukuran: login, dashboard Admin dan
+Warehouse Staff, daftar product (berisi dan kosong), detail Sales Order, form Sales Order,
+report, serta **My profile** dalam tiga state (berisi, gagal validasi 422, dan flash sukses).
+Diukur ulang setelah 002-user-profile-page, karena setiap sidebar mendapat item baru.
 
 | | Sebelum | Sesudah |
 | --- | --- | --- |
@@ -32,8 +33,10 @@ latar pucatnya. Perbaikannya adalah token teks status satu tingkat lebih gelap
 Draft) di `tokens.css`. Warna status aslinya tetap dipakai untuk ikon dan aksen non-teks,
 sehingga makna warnanya tidak berubah.
 
-**Keyboard-only.** Tab ditekan berulang kali melalui halaman login, form Sales Order, dan
-daftar product. Setiap titik fokus dicatat beserta indikatornya.
+**Keyboard-only.** Tab ditekan berulang kali melalui halaman login, form Sales Order, daftar
+product, dan My profile. Setiap titik fokus dicatat beserta indikatornya. Pada My profile
+urutannya: navigasi (termasuk "My profile" dan blok nama yang kini berupa link), Sign out,
+ketiga field password, lalu tombol "Change password"; seluruhnya memiliki indikator fokus.
 
 - Urutan fokusnya logis: navigasi, lalu aksi halaman, field form, line order, dan tombol
   submit. Tidak ada elemen yang terlewat atau terjebak.
@@ -64,9 +67,11 @@ Selain gambarnya, setiap halaman diukur dengan dua cara:
 - `clipped`: tabel yang lebih lebar dari wadahnya **tanpa** ancestor `overflow-x: auto/scroll`,
   yaitu isi yang terpotong dan tidak dapat dijangkau user.
 
-**Hasil: 34 dari 34 tangkapan berstatus 200, `overflow` = 0px, `clipped` = 0.** Tabel yang lebih
-lebar dari 360px (daftar product/PO/SO, antrean dashboard, line order) digeser di dalam
-`.table-wrap` masing-masing.
+**Hasil: 38 dari 38 tangkapan sesuai harapan (36 berstatus 200, dua tangkapan state gagal
+validasi berstatus 422), `overflow` = 0px, `clipped` = 0.** Tabel yang lebih lebar dari 360px
+(daftar product/PO/SO, antrean dashboard, line order) digeser di dalam `.table-wrap`
+masing-masing. Seluruh tangkapan diambil ulang setelah 002-user-profile-page (sidebar mendapat
+item **My profile**).
 
 | Layar | Desktop | 360px |
 | --- | --- | --- |
@@ -88,6 +93,8 @@ lebar dari 360px (daftar product/PO/SO, antrean dashboard, line order) digeser d
 | Form Sales Order (sebagai Sales) | [16](./screenshots/16-sales-order-form-desktop.png) | [16](./screenshots/16-sales-order-form-mobile.png) |
 | Report dan export CSV | [17](./screenshots/17-reports-desktop.png) | [17](./screenshots/17-reports-mobile.png) |
 | Drawer navigasi terbuka | — | [18](./screenshots/18-mobile-nav-open-mobile.png) |
+| My profile (sebagai Sales) | [20](./screenshots/20-profile-desktop.png) | [20](./screenshots/20-profile-mobile.png) |
+| My profile, ganti password gagal (422) | [21](./screenshots/21-profile-password-error-desktop.png) | [21](./screenshots/21-profile-password-error-mobile.png) |
 
 Empty state ditangkap lewat pencarian yang pasti tidak cocok (`?search=zz-no-such-...`), bukan
 dengan mengosongkan database. Pesan yang tampil sama, dan data demo tetap utuh.
@@ -102,6 +109,17 @@ Ketiganya baru terlihat setelah gambarnya benar-benar dilihat.
 | Dropdown product pada line order menyusut menjadi dua huruf ("Se") pada 360px | Form PO/SO praktis tidak dapat dipakai di mobile (melanggar UI-01) | `.table .select { min-width: 14rem; }`. Baris yang lebih lebar digeser di dalam `.table-wrap` |
 | Label wajib tertulis "Customer \* \*" pada form PO dan SO | Penanda wajib ganda | Form PO/SO memakai `class="field-label field-required"` seperti form lain, bukan `*` literal yang ditambah `::after` |
 | Topbar mobile turun 24px dari tepi atas layar | Celah abu-abu di atas topbar | Pada `max-width: 640px`, padding atas `.page` dipindah menjadi `margin-bottom` topbar |
+
+### Ditemukan saat mengambil ulang bukti (002-user-profile-page)
+
+Keduanya cacat lama di komponen bersama, bukan akibat halaman profil. Keduanya baru terlihat
+karena pengukuran kali ini memakai mode touch penuh dan untuk pertama kalinya merender state
+error.
+
+| Temuan | Dampak | Perbaikan |
+| --- | --- | --- |
+| Pada 360px (mode touch), daftar product/PO/SO dan form SO melebar menjadi 479–661px | Seluruh halaman dapat digeser mendatar di ponsel, bukan hanya tabelnya | Label `.visually-hidden` (`position: absolute`) di dalam sel tabel lolos dari area scroll karena `.table-wrap` tidak positioned. `.table-wrap` kini `position: relative` |
+| Teks `alert--error` hanya 4.41:1 di atas latarnya (`alert--success` lebih rendah lagi) | Ringkasan kesalahan form dan flash gagal WCAG AA | Alert memakai token `--*-text`, sama seperti badge status (perbaikan kontras sebelumnya) |
 
 ### Masih terlihat, belum diperbaiki
 

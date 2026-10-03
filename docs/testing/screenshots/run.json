@@ -33,61 +33,6 @@
     "title": "Dashboard · IOMS"
   },
   {
-    "file": "02-admin-dashboard-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/dashboard",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 1,
-    "title": "Dashboard · IOMS"
-  },
-  {
-    "file": "03-sales-dashboard-desktop.png",
-    "role": "sales1@ioms.test",
-    "url": "/dashboard",
-    "viewport": "desktop",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Dashboard · IOMS"
-  },
-  {
-    "file": "03-sales-dashboard-mobile.png",
-    "role": "sales1@ioms.test",
-    "url": "/dashboard",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Dashboard · IOMS"
-  },
-  {
-    "file": "04-warehouse-dashboard-desktop.png",
-    "role": "warehouse1@ioms.test",
-    "url": "/dashboard",
-    "viewport": "desktop",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Dashboard · IOMS"
-  },
-  {
-    "file": "04-warehouse-dashboard-mobile.png",
-    "role": "warehouse1@ioms.test",
-    "url": "/dashboard",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 3,
-    "title": "Dashboard · IOMS"
-  },
-  {
     "file": "05-products-list-desktop.png",
     "role": "admin@ioms.test",
     "url": "/products",
@@ -96,17 +41,6 @@
     "pageOverflowPx": 0,
     "clippedTables": 0,
     "scrollableTables": 0,
-    "title": "Products · IOMS"
-  },
-  {
-    "file": "05-products-list-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/products",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 1,
     "title": "Products · IOMS"
   },
   {
@@ -132,32 +66,10 @@
     "title": "Products · IOMS"
   },
   {
-    "file": "07-products-empty-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/products?search=zz-no-such-product",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Products · IOMS"
-  },
-  {
     "file": "08-product-detail-desktop.png",
     "role": "admin@ioms.test",
     "url": "/products/1",
     "viewport": "desktop",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Kabel UTP Cat6 305m · IOMS"
-  },
-  {
-    "file": "08-product-detail-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/products/1",
-    "viewport": "mobile",
     "status": 200,
     "pageOverflowPx": 0,
     "clippedTables": 0,
@@ -176,17 +88,6 @@
     "title": "Create product · IOMS"
   },
   {
-    "file": "09-product-form-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/products/create",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Create product · IOMS"
-  },
-  {
     "file": "10-purchase-orders-list-desktop.png",
     "role": "admin@ioms.test",
     "url": "/purchase-orders",
@@ -198,32 +99,10 @@
     "title": "Purchase orders · IOMS"
   },
   {
-    "file": "10-purchase-orders-list-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/purchase-orders",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 1,
-    "title": "Purchase orders · IOMS"
-  },
-  {
     "file": "11-purchase-orders-empty-desktop.png",
     "role": "admin@ioms.test",
     "url": "/purchase-orders?search=zz-no-such-order",
     "viewport": "desktop",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Purchase orders · IOMS"
-  },
-  {
-    "file": "11-purchase-orders-empty-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/purchase-orders?search=zz-no-such-order",
-    "viewport": "mobile",
     "status": 200,
     "pageOverflowPx": 0,
     "clippedTables": 0,
@@ -242,17 +121,6 @@
     "title": "PO-2026-0001 · IOMS"
   },
   {
-    "file": "12-purchase-order-detail-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/purchase-orders/1",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 2,
-    "title": "PO-2026-0001 · IOMS"
-  },
-  {
     "file": "13-sales-orders-list-desktop.png",
     "role": "admin@ioms.test",
     "url": "/sales-orders",
@@ -264,32 +132,10 @@
     "title": "Sales orders · IOMS"
   },
   {
-    "file": "13-sales-orders-list-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/sales-orders",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 1,
-    "title": "Sales orders · IOMS"
-  },
-  {
     "file": "14-sales-orders-empty-desktop.png",
     "role": "admin@ioms.test",
     "url": "/sales-orders?search=zz-no-such-order",
     "viewport": "desktop",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Sales orders · IOMS"
-  },
-  {
-    "file": "14-sales-orders-empty-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/sales-orders?search=zz-no-such-order",
-    "viewport": "mobile",
     "status": 200,
     "pageOverflowPx": 0,
     "clippedTables": 0,
@@ -308,39 +154,6 @@
     "title": "SO-2026-0001 · IOMS"
   },
   {
-    "file": "15-sales-order-detail-mobile.png",
-    "role": "admin@ioms.test",
-    "url": "/sales-orders/1",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 2,
-    "title": "SO-2026-0001 · IOMS"
-  },
-  {
-    "file": "16-sales-order-form-desktop.png",
-    "role": "sales1@ioms.test",
-    "url": "/sales-orders/create",
-    "viewport": "desktop",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 0,
-    "title": "Create sales order · IOMS"
-  },
-  {
-    "file": "16-sales-order-form-mobile.png",
-    "role": "sales1@ioms.test",
-    "url": "/sales-orders/create",
-    "viewport": "mobile",
-    "status": 200,
-    "pageOverflowPx": 0,
-    "clippedTables": 0,
-    "scrollableTables": 1,
-    "title": "Create sales order · IOMS"
-  },
-  {
     "file": "17-reports-desktop.png",
     "role": "admin@ioms.test",
     "url": "/reports",
@@ -350,6 +163,127 @@
     "clippedTables": 0,
     "scrollableTables": 0,
     "title": "Reports · IOMS"
+  },
+  {
+    "file": "02-admin-dashboard-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/dashboard",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Dashboard · IOMS"
+  },
+  {
+    "file": "05-products-list-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/products",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Products · IOMS"
+  },
+  {
+    "file": "07-products-empty-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/products?search=zz-no-such-product",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Products · IOMS"
+  },
+  {
+    "file": "08-product-detail-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/products/1",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Kabel UTP Cat6 305m · IOMS"
+  },
+  {
+    "file": "09-product-form-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/products/create",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Create product · IOMS"
+  },
+  {
+    "file": "10-purchase-orders-list-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/purchase-orders",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Purchase orders · IOMS"
+  },
+  {
+    "file": "11-purchase-orders-empty-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/purchase-orders?search=zz-no-such-order",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Purchase orders · IOMS"
+  },
+  {
+    "file": "12-purchase-order-detail-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/purchase-orders/1",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 2,
+    "title": "PO-2026-0001 · IOMS"
+  },
+  {
+    "file": "13-sales-orders-list-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/sales-orders",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Sales orders · IOMS"
+  },
+  {
+    "file": "14-sales-orders-empty-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/sales-orders?search=zz-no-such-order",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Sales orders · IOMS"
+  },
+  {
+    "file": "15-sales-order-detail-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/sales-orders/1",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 2,
+    "title": "SO-2026-0001 · IOMS"
   },
   {
     "file": "17-reports-mobile.png",
@@ -369,6 +303,118 @@
     "viewport": "mobile",
     "status": 200,
     "pageOverflowPx": 0,
-    "title": "nav drawer open"
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Dashboard · IOMS"
+  },
+  {
+    "file": "03-sales-dashboard-desktop.png",
+    "role": "sales1@ioms.test",
+    "url": "/dashboard",
+    "viewport": "desktop",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Dashboard · IOMS"
+  },
+  {
+    "file": "16-sales-order-form-desktop.png",
+    "role": "sales1@ioms.test",
+    "url": "/sales-orders/create",
+    "viewport": "desktop",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Create sales order · IOMS"
+  },
+  {
+    "file": "20-profile-desktop.png",
+    "role": "sales1@ioms.test",
+    "url": "/profile",
+    "viewport": "desktop",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "My profile · IOMS"
+  },
+  {
+    "file": "21-profile-password-error-desktop.png",
+    "role": "sales1@ioms.test",
+    "url": "/profile",
+    "viewport": "desktop",
+    "status": 422,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "My profile · IOMS"
+  },
+  {
+    "file": "03-sales-dashboard-mobile.png",
+    "role": "sales1@ioms.test",
+    "url": "/dashboard",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Dashboard · IOMS"
+  },
+  {
+    "file": "16-sales-order-form-mobile.png",
+    "role": "sales1@ioms.test",
+    "url": "/sales-orders/create",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Create sales order · IOMS"
+  },
+  {
+    "file": "20-profile-mobile.png",
+    "role": "sales1@ioms.test",
+    "url": "/profile",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "My profile · IOMS"
+  },
+  {
+    "file": "21-profile-password-error-mobile.png",
+    "role": "sales1@ioms.test",
+    "url": "/profile",
+    "viewport": "mobile",
+    "status": 422,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "My profile · IOMS"
+  },
+  {
+    "file": "04-warehouse-dashboard-desktop.png",
+    "role": "warehouse1@ioms.test",
+    "url": "/dashboard",
+    "viewport": "desktop",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Dashboard · IOMS"
+  },
+  {
+    "file": "04-warehouse-dashboard-mobile.png",
+    "role": "warehouse1@ioms.test",
+    "url": "/dashboard",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 3,
+    "title": "Dashboard · IOMS"
   }
 ]

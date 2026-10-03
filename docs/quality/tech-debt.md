@@ -220,6 +220,12 @@ untuknya.
 >   ~1.1:1) praktis tidak terlihat, dan tombol kalender di input tanggal tidak punya
 >   indikator sama sekali. Keduanya sudah diperbaiki, dan kini setiap titik fokus punya
 >   indikator yang terlihat.
+>
+> **Diulang 2026-10-03 setelah 002-user-profile-page** (sidebar mendapat item baru): 38
+> tangkapan termasuk My profile, 570 elemen teks, dan state error untuk pertama kalinya. Dua
+> cacat lama komponen bersama ikut terungkap dan diperbaiki: label `.visually-hidden` di dalam
+> tabel melebarkan halaman mobile (`.table-wrap` kini `position: relative`), dan teks alert
+> di bawah 4.5:1 (kini memakai token `--*-text`).
 
 **Keadaan awal.** Seluruh halaman sudah dipastikan mengembalikan 200 lewat HTTP, tetapi
 spacing, warna, kontras, dan perilaku responsive pada 360px belum pernah benar-benar dilihat

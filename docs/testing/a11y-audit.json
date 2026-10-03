@@ -10,51 +10,72 @@
     {
       "url": "/dashboard",
       "role": "admin@ioms.test",
-      "checked": 82,
+      "checked": 83,
       "failing": [],
       "minRatio": 4.55
     },
     {
       "url": "/products",
       "role": "admin@ioms.test",
-      "checked": 120,
+      "checked": 121,
       "failing": [],
       "minRatio": 4.75
     },
     {
       "url": "/products?search=zz-none",
       "role": "admin@ioms.test",
-      "checked": 32,
+      "checked": 33,
       "failing": [],
       "minRatio": 4.75
     },
     {
       "url": "/sales-orders/1",
       "role": "admin@ioms.test",
-      "checked": 64,
+      "checked": 65,
       "failing": [],
       "minRatio": 4.75
     },
     {
       "url": "/reports",
       "role": "admin@ioms.test",
-      "checked": 59,
+      "checked": 60,
       "failing": [],
       "minRatio": 4.55
     },
     {
       "url": "/sales-orders/create",
       "role": "sales1@ioms.test",
-      "checked": 31,
+      "checked": 32,
       "failing": [],
       "minRatio": 4.75
     },
     {
       "url": "/dashboard",
       "role": "warehouse1@ioms.test",
-      "checked": 87,
+      "checked": 88,
       "failing": [],
       "minRatio": 4.55
+    },
+    {
+      "url": "/profile",
+      "role": "sales1@ioms.test",
+      "checked": 26,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/profile (422)",
+      "role": "sales1@ioms.test",
+      "checked": 29,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/profile (success flash)",
+      "role": "sales1@ioms.test",
+      "checked": 27,
+      "failing": [],
+      "minRatio": 4.75
     }
   ],
   "keyboard": [
@@ -96,13 +117,6 @@
           "label": "Sign in",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
-        },
-        {
-          "tag": "input",
-          "name": "email",
-          "label": "Email",
-          "visibleIndicator": true,
-          "indicator": "outline 2px solid rgb(37, 99, 235)"
         }
       ],
       "missingIndicator": 0
@@ -113,43 +127,57 @@
       "stops": [
         {
           "tag": "a",
-          "name": "/dashboard",
+          "name": "",
           "label": "IOMS",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/dashboard",
+          "name": "",
           "label": "Dashboard",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/products",
+          "name": "",
           "label": "Products",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/sales-orders",
+          "name": "",
           "label": "Sales Orders",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/customers",
+          "name": "",
           "label": "Customers",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/reports",
+          "name": "",
           "label": "Reports",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "My profile",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Bagus Prakoso · Sales",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
@@ -162,7 +190,7 @@
         },
         {
           "tag": "a",
-          "name": "/sales-orders",
+          "name": "",
           "label": "Cancel",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
@@ -211,7 +239,7 @@
         },
         {
           "tag": "button",
-          "name": "add-line",
+          "name": "",
           "label": "Add line",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
@@ -288,29 +316,8 @@
         },
         {
           "tag": "a",
-          "name": "/sales-orders",
+          "name": "",
           "label": "Cancel",
-          "visibleIndicator": true,
-          "indicator": "outline 2px solid rgb(37, 99, 235)"
-        },
-        {
-          "tag": "a",
-          "name": "/dashboard",
-          "label": "IOMS",
-          "visibleIndicator": true,
-          "indicator": "outline 2px solid rgb(37, 99, 235)"
-        },
-        {
-          "tag": "a",
-          "name": "/dashboard",
-          "label": "Dashboard",
-          "visibleIndicator": true,
-          "indicator": "outline 2px solid rgb(37, 99, 235)"
-        },
-        {
-          "tag": "a",
-          "name": "/products",
-          "label": "Products",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         }
@@ -323,64 +330,78 @@
       "stops": [
         {
           "tag": "a",
-          "name": "/dashboard",
+          "name": "",
           "label": "IOMS",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/dashboard",
+          "name": "",
           "label": "Dashboard",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/products",
+          "name": "",
           "label": "Products",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/purchase-orders",
+          "name": "",
           "label": "Purchase Orders",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/sales-orders",
+          "name": "",
           "label": "Sales Orders",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/customers",
+          "name": "",
           "label": "Customers",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/suppliers",
+          "name": "",
           "label": "Suppliers",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/users",
+          "name": "",
           "label": "Users",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/reports",
+          "name": "",
           "label": "Reports",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "My profile",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Rina Kusuma · Admin",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
@@ -393,7 +414,7 @@
         },
         {
           "tag": "a",
-          "name": "/products/create",
+          "name": "",
           "label": "Create product",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
@@ -428,64 +449,141 @@
         },
         {
           "tag": "a",
-          "name": "/products",
+          "name": "",
           "label": "Clear",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/products",
+          "name": "",
           "label": "Clear filters",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/dashboard",
+          "name": "",
           "label": "IOMS",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/dashboard",
+          "name": "",
           "label": "Dashboard",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/products",
+          "name": "",
           "label": "Products",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/purchase-orders",
+          "name": "",
           "label": "Purchase Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        }
+      ],
+      "missingIndicator": 0
+    },
+    {
+      "url": "/profile",
+      "role": "sales1@ioms.test",
+      "stops": [
+        {
+          "tag": "a",
+          "name": "",
+          "label": "IOMS",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/sales-orders",
+          "name": "",
+          "label": "Dashboard",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Products",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
           "label": "Sales Orders",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/customers",
+          "name": "",
           "label": "Customers",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         },
         {
           "tag": "a",
-          "name": "/suppliers",
-          "label": "Suppliers",
+          "name": "",
+          "label": "Reports",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "My profile",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Bagus Prakoso · Sales",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Sign out",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "current_password",
+          "label": "Current password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "new_password",
+          "label": "New password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "new_password_confirmation",
+          "label": "Confirm new password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Change password",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         }

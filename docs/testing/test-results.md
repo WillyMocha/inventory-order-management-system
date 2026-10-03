@@ -1,15 +1,15 @@
 # Hasil test suite
 
-Bukti untuk T145 dan SC-006. Dijalankan ulang **2026-10-03** di dalam Docker terhadap
+Bukti untuk T145 dan SC-006. Dijalankan ulang **2026-10-03** (setelah 002-user-profile-page) di dalam Docker terhadap
 PHP 8.4.26 dan MySQL 8.0.46.
 
 ## Ringkasan
 
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
-| Unit | `composer test:unit` | **OK — 374 test, 972 assertion** |
-| Integration | `composer test:integration` | **OK — 138 test, 482 assertion** |
-| Gabungan | `composer test` | **OK — 512 test, 1454 assertion** |
+| Unit | `composer test:unit` | **OK — 389 test, 1037 assertion** |
+| Integration | `composer test:integration` | **OK — 153 test, 551 assertion** |
+| Gabungan | `composer test` | **OK — 542 test, 1588 assertion** |
 | JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 11 test** |
 | Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning; lulus di Docker, dari `cmd.exe` Windows, dan dari salinan repo bersih |
 
@@ -54,6 +54,8 @@ seperti segregation of duties dapat diuji tanpa session sama sekali.
 | Rollback nested transaction lewat SAVEPOINT, termasuk di bawah pembungkus transaction harness | `NestedTransactionTest`, `GoodsReceiptTest` |
 | Seluruh method repository MySQL benar-benar dieksekusi (116/116) | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
 | Jalur filesystem upload: baca, hapus, dan penolakan file palsu | `ProductImageStorageTest` |
+| Akun yang dinonaktifkan atau diganti role-nya kehilangan session pada request berikutnya (002 FR-012, SC-007) | `SessionRevalidationTest` |
+| Profil sendiri: `id` yang diselipkan ke request diabaikan; password lama berhenti berlaku; penolakan tidak mengubah hash; tebakan di profil dan di login berbagi satu counter (002 SC-002, SC-004, SC-005, FR-008) | `ProfileFlowTest` |
 
 ## Catatan penting — suite ini pernah tidak pernah dijalankan
 

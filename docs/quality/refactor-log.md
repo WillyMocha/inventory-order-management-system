@@ -249,6 +249,44 @@ membawa filter dan sort yang sama.
 
 ---
 
+## R-7 — Aturan panjang minimum password terkunci di `UserService`
+
+**Smell**: *Duplicate Code* (risiko) dan aturan domain yang salah tempat. Panjang minimum
+password adalah `private const` milik `UserService`. Fitur ganti password sendiri
+(002-user-profile-page) menempatkan aturan yang sama di `AuthService`. Menyalin angka `8`
+berarti dua jalur (Admin menyetel password user lain, dan user mengganti password sendiri) dapat
+diam-diam berbeda aturan.
+
+**Teknik**: Move Field → `User::MIN_PASSWORD_LENGTH`. Aturan tentang password akun adalah
+milik entity akun, dan konstanta publik di sana dapat dibaca kedua Service.
+
+**Sebelum** (`UserService`)
+
+```php
+/** Panjang minimum password. Cukup untuk demo, tidak melemahkan hashing. */
+private const int MIN_PASSWORD_LENGTH = 8;
+
+->minLength('password', 'Password', self::MIN_PASSWORD_LENGTH)
+```
+
+**Sesudah**
+
+```php
+// app/Entity/User.php
+public const int MIN_PASSWORD_LENGTH = 8;
+
+// UserService dan AuthService
+->minLength('password', 'Password', User::MIN_PASSWORD_LENGTH)
+->minLength('new_password', 'New password', User::MIN_PASSWORD_LENGTH)
+```
+
+**Mengapa**: mengubah kebijakan password kini cukup di satu tempat, dan kedua jalur pasti
+ikut berubah. Petunjuk "At least 8 characters." di halaman profil juga membaca konstanta yang
+sama. Perilaku tidak berubah: `UserServiceTest` tetap hijau **tanpa diubah**, dan unit test
+`changeOwnPassword` memeriksa pesannya menyebut panjang dari konstanta itu.
+
+---
+
 ## Catatan audit SRP
 
 **`StockService` — satu class, dua alur, dan itu benar.**

@@ -9,13 +9,15 @@ vanilla JavaScript tanpa build step. Tidak ada ORM, DI container, CSS framework,
 admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 
 > **Bahasa**: seluruh string UI berbahasa Inggris. Comment dan dokumentasi berbahasa
-> Indonesia dengan istilah teknis tetap bahasa Inggris.
+> Indonesia dengan istilah teknis tetap bahasa Inggris. Pengecualian: artefak spesifikasi di
+> `specs/` (spec, plan, research, tasks, contracts) ditulis dalam bahasa Inggris.
 
 ## Fitur
 
 | Area | Isi |
 | --- | --- |
-| **Authentication** | Login dengan session, rate limit percobaan gagal, regenerasi session id, step-up re-auth sebelum aksi sensitif |
+| **Authentication** | Login dengan session, rate limit percobaan gagal, regenerasi session id, step-up re-auth sebelum aksi sensitif; akun divalidasi ulang pada setiap request, sehingga user yang dinonaktifkan atau diganti role-nya langsung kehilangan akses |
+| **Profil sendiri** | Setiap role melihat profilnya (nama, email, role, status) dan mengganti password sendiri dengan password saat ini; batas percobaannya berbagi counter dengan login |
 | **User management** | Admin membuat dan menonaktifkan user; tidak ada registrasi publik |
 | **Master data** | Category, Warehouse, Supplier, Customer — dinonaktifkan, tidak pernah dihapus |
 | **Product** | Katalog dengan SKU unik, harga beli/jual, reorder point, dan upload image |
@@ -34,6 +36,9 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 | **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order, seluruh report |
 | **Sales** | Membuat dan mengajukan Sales Order miliknya, export CSV order miliknya — **tidak boleh approve**, termasuk order miliknya sendiri |
 | **Warehouse Staff** | Membuat Purchase Order, goods receipt, goods issue, antrean fulfillment, report stock |
+
+Ketiga role memiliki menu **My profile** untuk melihat data akunnya dan mengganti password
+sendiri. Nama, email, dan role tetap hanya dapat diubah Admin.
 
 Pemisahan tanggung jawab ditegakkan **di server**, bukan dengan menyembunyikan tombol di UI.
 `SalesOrderService::approve()` memeriksa role Admin **dan** `approved_by <> created_by`.

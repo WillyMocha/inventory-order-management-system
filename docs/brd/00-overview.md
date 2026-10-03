@@ -49,7 +49,7 @@
 
 | Module | Slug | Description | Map |
 | ------ | ---- | ------------ | --- |
-| Authentication | `auth` | Login/logout, session, rate limit, guard per route | [modules/auth.md](modules/auth.md) |
+| Authentication | `auth` | Login/logout, session, rate limit, validasi ulang session, profil sendiri | [modules/auth.md](modules/auth.md) |
 | User Management | `users` | CRUD terbatas akun oleh Admin | [modules/users.md](modules/users.md) |
 | Master Data | `master-data` | Category, Warehouse, Supplier, Customer | [modules/master-data.md](modules/master-data.md) |
 | Product Catalog | `product` | Product, image, stock per warehouse, low-stock, JSON availability, JOB-01 | [modules/product.md](modules/product.md) |
@@ -127,7 +127,6 @@ flowchart LR
 
 - Di luar scope (brief §4.3): microservices, queue, CI/CD, cron otomatis, real-time notification,
   E2E test, password reset, dan registrasi publik.
-- **Halaman profil sendiri belum dibuat** — celah terhadap brief §1.2 ([auth](modules/auth.md) AUTH-CAP-006).
 - **Koreksi stock manual (`Adjustment`) tertunda** — schema dan enum siap, alurnya belum ada
   ([stock](modules/stock.md) STOCK-CAP-005).
 - Daftar tech debt lengkap ada di `docs/quality/tech-debt.md`, dan bug yang diketahui di
@@ -148,8 +147,8 @@ flowchart LR
 
 ## Assumptions & Open Questions
 
-- **Q1 (terjawab 2026-10-03)**: Halaman "profil sendiri" (brief §1.2) **diharapkan** dan saat ini
-  merupakan celah yang perlu dibuat — [auth](modules/auth.md) AUTH-CAP-006.
+- **Q1 (terjawab 2026-10-03, kini terpenuhi)**: Halaman "profil sendiri" (brief §1.2)
+  **diharapkan**. Sudah dibuat lewat spec 002 — [auth](modules/auth.md) AUTH-CAP-006.
 - **Q2 (terjawab 2026-10-03)**: Koreksi stock manual (`Adjustment`) adalah **fitur yang tertunda**,
   bukan di luar scope — [stock](modules/stock.md) STOCK-CAP-005.
 - Asumsi (sudah diputuskan, `docs/planning/decisions.md`): D-01 Admin juga tidak boleh approve SO
@@ -158,5 +157,8 @@ flowchart LR
 
 ## Change Log
 
+- **2026-10-03**: Modul `auth` diperbarui setelah 002-user-profile-page: profil sendiri dan ganti
+  password sendiri (AUTH-CAP-006/007), serta validasi ulang session pada setiap request
+  (AUTH-CAP-008). Celah "profil sendiri" dihapus dari Known Gaps.
 - **2026-10-03**: Initial version generated from codebase survey (10 modul domain, dipetakan lintas
   lapisan). 2 clarification diajukan dan terjawab: Q1 profil sendiri = celah, Q2 Adjustment = tertunda.
