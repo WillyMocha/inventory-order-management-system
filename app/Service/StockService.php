@@ -41,8 +41,15 @@ use App\Support\TransactionRunner;
  *
  * Request kedua untuk baris yang sama menunggu di langkah 2 sampai request
  * pertama commit, lalu membaca quantity yang sudah benar dan ditolak bila tak
- * lagi cukup. Melepas transaction atau FOR UPDATE membuat oversell dapat
- * direproduksi — itu critical failure, bukan bug biasa.
+ * lagi cukup.
+ *
+ * Sebelum stock, baris ORDER-nya lebih dulu dikunci dan statusnya dibaca ulang
+ * di bawah lock. Tanpa itu, dua request untuk order yang SAMA dapat sama-sama
+ * melihat Approved, dan bila stock masih cukup order itu keluar dua kali.
+ * Urutan lock selalu order -> product_stock, sehingga tidak membentuk siklus.
+ *
+ * Melepas transaction atau FOR UPDATE membuat oversell dapat direproduksi —
+ * itu critical failure, bukan bug biasa.
  *
  * Lock diambil urut product_id lalu warehouse_id agar dua issue multi-line
  * tidak dapat saling deadlock dengan mengambil baris yang sama dalam urutan
@@ -73,24 +80,22 @@ final class StockService
      */
     public function issueGoods(int $orderId, User $actingUser): void
     {
-        $order = $this->salesOrders->findById($orderId);
+        $this->transactions->transaction(function () use ($orderId, $actingUser): void {
+            // Status diperiksa DI DALAM transaction, di bawah lock order.
+            // Pembacaan di luar transaction bisa sudah basi saat lock didapat.
+            $order = $this->salesOrders->lockForUpdate($orderId);
 
-        if ($order === null) {
-            throw new NotFoundException();
-        }
+            if ($order === null) {
+                throw new NotFoundException();
+            }
 
-        // Diperiksa di luar transaction agar order yang jelas tidak memenuhi
-        // syarat ditolak tanpa membuka transaction sama sekali. Pemeriksaan
-        // yang menentukan — kecukupan stock — tetap dilakukan DI DALAM
-        // transaction, di bawah lock.
-        if (!$order->canIssueGoods()) {
-            throw new DomainException(sprintf(
-                'Only an approved order can be issued. This order is %s.',
-                $order->status->label(),
-            ));
-        }
+            if (!$order->canIssueGoods()) {
+                throw new DomainException(sprintf(
+                    'Only an approved order can be issued. This order is %s.',
+                    $order->status->label(),
+                ));
+            }
 
-        $this->transactions->transaction(function () use ($order, $actingUser): void {
             $this->issueWithinTransaction($order, $actingUser);
         });
     }
@@ -127,21 +132,24 @@ final class StockService
      */
     public function receiveGoods(int $orderId, array $quantitiesByItemId, User $actingUser): void
     {
-        $order = $this->purchaseOrders->findById($orderId);
-
-        if ($order === null) {
-            throw new NotFoundException();
-        }
-
-        if (!$order->canReceiveGoods()) {
-            throw new DomainException(sprintf(
-                'Goods can only be received for an ordered or partially received order. This order is %s.',
-                $order->status->label(),
-            ));
-        }
-
         $this->transactions->transaction(
-            function () use ($order, $quantitiesByItemId, $actingUser): void {
+            function () use ($orderId, $quantitiesByItemId, $actingUser): void {
+                // Status DAN received_quantity dibaca ulang di bawah lock, agar
+                // dua receipt bersamaan tidak sama-sama merencanakan dari
+                // outstanding yang sudah basi.
+                $order = $this->purchaseOrders->lockForUpdate($orderId);
+
+                if ($order === null) {
+                    throw new NotFoundException();
+                }
+
+                if (!$order->canReceiveGoods()) {
+                    throw new DomainException(sprintf(
+                        'Goods can only be received for an ordered or partially received order. This order is %s.',
+                        $order->status->label(),
+                    ));
+                }
+
                 $this->receiveWithinTransaction($order, $quantitiesByItemId, $actingUser);
             },
         );
@@ -257,7 +265,10 @@ final class StockService
             $this->stocks->adjust($productId, $warehouseId, -$quantity);
         }
 
-        $this->salesOrders->updateStatus($orderId, SalesOrderStatus::Fulfilled);
+        // Order sudah dikunci, jadi compare-and-set ini hanya jaring pengaman.
+        if (!$this->salesOrders->updateStatus($orderId, $order->status, SalesOrderStatus::Fulfilled)) {
+            throw new DomainException('This order was changed by someone else. Reload the page and try again.');
+        }
     }
 
     /**
@@ -310,7 +321,11 @@ final class StockService
             $this->purchaseOrders->addReceivedQuantity($line['itemId'], $line['quantity']);
         }
 
-        $this->purchaseOrders->updateStatus($orderId, $this->statusAfterReceipt($order, $planned));
+        $newStatus = $this->statusAfterReceipt($order, $planned);
+
+        if (!$this->purchaseOrders->updateStatus($orderId, $order->status, $newStatus)) {
+            throw new DomainException('This order was changed by someone else. Reload the page and try again.');
+        }
     }
 
     /**

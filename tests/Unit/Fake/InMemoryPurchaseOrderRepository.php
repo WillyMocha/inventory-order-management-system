@@ -29,6 +29,12 @@ final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryIn
         return $this->rows[$id] ?? null;
     }
 
+    /** Tanpa konkurensi di memory, lock cukup berupa pembacaan biasa. */
+    public function lockForUpdate(int $id): ?PurchaseOrder
+    {
+        return $this->findById($id);
+    }
+
     public function orderNumberExists(string $orderNumber): bool
     {
         foreach ($this->rows as $order) {
@@ -63,15 +69,18 @@ final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryIn
         return $id;
     }
 
-    public function updateStatus(int $id, PurchaseOrderStatus $status): void
+    public function updateStatus(int $id, PurchaseOrderStatus $expected, PurchaseOrderStatus $status): bool
     {
         $order = $this->rows[$id] ?? null;
 
-        if ($order === null) {
-            return;
+        // Compare-and-set, sama seperti WHERE status = :expected di MySQL.
+        if ($order === null || $order->status !== $expected) {
+            return false;
         }
 
         $this->rows[$id] = $this->withId($order, $id, $status, $order->items);
+
+        return true;
     }
 
     public function addReceivedQuantity(int $itemId, int $quantity): void

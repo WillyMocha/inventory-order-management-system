@@ -8,6 +8,7 @@ use App\Entity\Enum\PurchaseOrderStatus;
 use App\Entity\PurchaseOrder;
 use App\Entity\PurchaseOrderItem;
 use App\Repository\PurchaseOrderRepositoryInterface;
+use RuntimeException;
 
 final class MysqlPurchaseOrderRepository extends MysqlRepository implements PurchaseOrderRepositoryInterface
 {
@@ -31,6 +32,28 @@ final class MysqlPurchaseOrderRepository extends MysqlRepository implements Purc
         }
 
         return $this->hydrate($row, $this->loadItems($id));
+    }
+
+    /**
+     * Item ikut dikunci karena received_quantity-nya yang diperebutkan dua
+     * receipt bersamaan. Locking read juga selalu membaca versi terbaru yang
+     * sudah commit, bukan snapshot lama transaction ini.
+     *
+     * @throws RuntimeException bila dipanggil di luar transaction.
+     */
+    public function lockForUpdate(int $id): ?PurchaseOrder
+    {
+        if (!$this->pdo()->inTransaction()) {
+            throw new RuntimeException('lockForUpdate() wajib dipanggil di dalam transaction.');
+        }
+
+        $row = $this->fetchOne(self::SELECT . ' WHERE id = :id FOR UPDATE', ['id' => $id]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return $this->hydrate($row, $this->loadItems($id, true));
     }
 
     public function orderNumberExists(string $orderNumber): bool
@@ -121,12 +144,13 @@ final class MysqlPurchaseOrderRepository extends MysqlRepository implements Purc
         return $orderId;
     }
 
-    public function updateStatus(int $id, PurchaseOrderStatus $status): void
+    public function updateStatus(int $id, PurchaseOrderStatus $expected, PurchaseOrderStatus $status): bool
     {
-        $this->run(
-            'UPDATE purchase_order SET status = :status, updated_at = NOW() WHERE id = :id',
-            ['id' => $id, 'status' => $status->value],
-        );
+        return $this->run(
+            'UPDATE purchase_order SET status = :status, updated_at = NOW()
+              WHERE id = :id AND status = :expected',
+            ['id' => $id, 'status' => $status->value, 'expected' => $expected->value],
+        )->rowCount() === 1;
     }
 
     public function addReceivedQuantity(int $itemId, int $quantity): void
@@ -166,13 +190,13 @@ final class MysqlPurchaseOrderRepository extends MysqlRepository implements Purc
     }
 
     /** @return list<PurchaseOrderItem> */
-    private function loadItems(int $orderId): array
+    private function loadItems(int $orderId, bool $forUpdate = false): array
     {
         $rows = $this->fetchAll(
             'SELECT id, purchase_order_id, product_id, quantity, received_quantity, purchase_price
                FROM purchase_order_item
               WHERE purchase_order_id = :order_id
-           ORDER BY id ASC',
+           ORDER BY id ASC' . ($forUpdate ? ' FOR UPDATE' : ''),
             ['order_id' => $orderId],
         );
 

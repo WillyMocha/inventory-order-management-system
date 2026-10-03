@@ -51,6 +51,12 @@ final class Database implements TransactionRunner
                     // Prepared statement yang sesungguhnya, bukan emulasi.
                     PDO::ATTR_EMULATE_PREPARES   => false,
                     PDO::ATTR_STRINGIFY_FETCHES  => false,
+                    // rowCount() pada UPDATE menghitung baris yang COCOK, bukan
+                    // hanya yang nilainya berubah. Perubahan status bersyarat
+                    // (WHERE status = :expected) bergantung pada ini: transisi
+                    // PartiallyReceived -> PartiallyReceived tetap sah walau
+                    // tidak ada kolom yang berubah.
+                    PDO::MYSQL_ATTR_FOUND_ROWS   => true,
                 ],
             );
         } catch (PDOException $e) {

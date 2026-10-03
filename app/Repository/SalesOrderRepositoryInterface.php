@@ -12,6 +12,16 @@ interface SalesOrderRepositoryInterface
     /** Memuat order beserta seluruh item-nya. */
     public function findById(int $id): ?SalesOrder;
 
+    /**
+     * Memuat order sambil mengunci baris header-nya (SELECT ... FOR UPDATE)
+     * sampai transaction berjalan selesai.
+     *
+     * Dipakai goods issue agar status dibaca ulang di bawah lock: request
+     * kedua untuk order yang sama menunggu, lalu melihat order yang sudah
+     * Fulfilled dan ditolak (ARCH-02). Wajib dipanggil di dalam transaction.
+     */
+    public function lockForUpdate(int $id): ?SalesOrder;
+
     public function orderNumberExists(string $orderNumber): bool;
 
     /**
@@ -29,10 +39,21 @@ interface SalesOrderRepositoryInterface
 
     public function save(SalesOrder $order): int;
 
-    public function updateStatus(int $id, SalesOrderStatus $status): void;
+    /**
+     * Mengubah status HANYA bila status tersimpan masih $expected
+     * (compare-and-set).
+     *
+     * Mengembalikan false bila order sudah diubah request lain sejak dibaca —
+     * misalnya cancel yang datang setelah order terlanjur Fulfilled. Tanpa
+     * syarat ini, request yang membaca status lama akan menimpa status baru.
+     */
+    public function updateStatus(int $id, SalesOrderStatus $expected, SalesOrderStatus $status): bool;
 
-    /** Mencatat siapa yang menyetujui dan kapan. */
-    public function markApproved(int $id, int $approvedBy, string $approvedAt): void;
+    /**
+     * Mencatat siapa yang menyetujui dan kapan. Berlaku hanya bila order masih
+     * PendingApproval; false bila sudah diubah request lain.
+     */
+    public function markApproved(int $id, int $approvedBy, string $approvedAt): bool;
 
     /**
      * @param int|null $createdBy bila diisi, hitungan dibatasi milik user itu

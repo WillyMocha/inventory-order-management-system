@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
+use App\Entity\Enum\PurchaseOrderStatus;
+use App\Entity\Enum\ReferenceType;
 use App\Entity\Enum\SalesOrderStatus;
+use App\Repository\Mysql\MysqlCustomerRepository;
 use App\Repository\Mysql\MysqlProductRepository;
 use App\Repository\Mysql\MysqlProductStockRepository;
 use App\Repository\Mysql\MysqlPurchaseOrderRepository;
 use App\Repository\Mysql\MysqlSalesOrderRepository;
 use App\Repository\Mysql\MysqlStockLedgerRepository;
+use App\Repository\Mysql\MysqlWarehouseRepository;
+use App\Service\SalesOrderService;
 use App\Service\StockService;
 use App\Support\Database;
 use App\Support\Exception\DomainException;
+use App\Support\SystemClock;
 use PDO;
 use PDOException;
 use PHPUnit\Framework\Attributes\Test;
@@ -33,6 +39,13 @@ use PHPUnit\Framework\Attributes\Test;
  *
  * Kalau `FOR UPDATE` atau transaction-nya dilepas, B akan membaca stock lama
  * dan keduanya berhasil — itulah oversell yang harus tidak dapat direproduksi.
+ *
+ * Tiga test terakhir memakai teknik "pembacaan basi": B membuka transaction
+ * dan membaca order SEBELUM A commit. Pada REPEATABLE READ, snapshot B tetap
+ * melihat status lama — persis keadaan request kedua yang datang bersamaan.
+ * Yang diuji: keputusan B tidak boleh diambil dari snapshot itu, melainkan
+ * dari pembacaan di bawah lock (FOR UPDATE / UPDATE ... WHERE status = ...).
+ * Deterministik, tanpa thread dan tanpa sleep.
  */
 final class ConcurrentGoodsIssueTest extends IntegrationTestCase
 {
@@ -216,6 +229,133 @@ final class ConcurrentGoodsIssueTest extends IntegrationTestCase
             $ledger->sumQuantity($this->productId, $this->warehouseId),
             $this->stockQuantity($this->productId, $this->warehouseId) - 2,
             'SUM(ledger) harus menjelaskan tepat selisih dari stock awal',
+        );
+    }
+
+    #[Test]
+    public function theSameOrderIsNeverIssuedTwiceFromAStaleRead(): void
+    {
+        // Stock cukup untuk DUA kali issue — jadi yang mencegah issue kedua
+        // bukan kekurangan stock, melainkan status order yang dibaca ulang.
+        $this->setStock($this->productId, $this->warehouseId, 2);
+        $orderId = $this->approvedOrder([[$this->productId, 1]]);
+
+        $this->beginStaleReadOnB($orderId, SalesOrderStatus::Approved);
+
+        $this->serviceOn($this->database)->issueGoods($orderId, $this->warehouseStaff);
+
+        $refused = false;
+
+        try {
+            $this->serviceOn($this->connectionB)->issueGoods($orderId, $this->warehouseStaff);
+        } catch (DomainException) {
+            $refused = true;
+        }
+
+        // Commit, bukan rollback: bila B sempat menulis, hasilnya harus
+        // terlihat oleh assertion di bawah.
+        $this->pdoB->commit();
+
+        self::assertTrue($refused, 'Issue kedua untuk order yang sudah Fulfilled harus ditolak');
+        self::assertSame(
+            1,
+            $this->stockQuantity($this->productId, $this->warehouseId),
+            'Stock hanya boleh berkurang satu kali untuk satu order',
+        );
+        self::assertCount(
+            1,
+            (new MysqlStockLedgerRepository($this->database))->forReference(ReferenceType::SalesOrder, $orderId),
+            'Satu order hanya boleh menghasilkan satu baris ledger Issue',
+        );
+    }
+
+    #[Test]
+    public function aCancelNeverOverwritesAnOrderFulfilledMeanwhile(): void
+    {
+        $this->setStock($this->productId, $this->warehouseId, 1);
+        $orderId = $this->approvedOrder([[$this->productId, 1]]);
+
+        $this->beginStaleReadOnB($orderId, SalesOrderStatus::Approved);
+
+        $this->serviceOn($this->database)->issueGoods($orderId, $this->warehouseStaff);
+
+        $refused = false;
+
+        try {
+            $this->salesOrderServiceOn($this->connectionB)->cancel($orderId, $this->admin);
+        } catch (DomainException) {
+            $refused = true;
+        }
+
+        $this->pdoB->commit();
+
+        self::assertTrue($refused, 'Cancel yang membaca status lama harus ditolak');
+        self::assertSame(
+            SalesOrderStatus::Fulfilled,
+            $this->orderStatus($orderId),
+            'Order yang stock-nya sudah keluar tidak boleh tercatat Cancelled',
+        );
+    }
+
+    #[Test]
+    public function aSecondReceiptNeverPlansFromAStaleOutstanding(): void
+    {
+        $this->setStock($this->productId, $this->warehouseId, 0);
+        $orderId = $this->orderedPurchaseOrder([[$this->productId, 5]]);
+        $itemId = $this->purchaseItemIds($orderId)[0];
+
+        // B membaca PO saat outstanding masih 5.
+        $this->pdoB->beginTransaction();
+        self::assertSame(
+            PurchaseOrderStatus::Ordered,
+            (new MysqlPurchaseOrderRepository($this->connectionB))->findById($orderId)?->status,
+        );
+
+        $this->serviceOn($this->database)->receiveGoods($orderId, [$itemId => 5], $this->warehouseStaff);
+
+        // Tanpa lock, B merencanakan dari outstanding 5 yang sudah basi dan
+        // baru dihentikan CHECK constraint sebagai PDOException (error 500).
+        // Yang benar: ditolak dengan DomainException yang dapat ditampilkan.
+        $refused = false;
+
+        try {
+            $this->serviceOn($this->connectionB)->receiveGoods($orderId, [$itemId => 5], $this->warehouseStaff);
+        } catch (DomainException) {
+            $refused = true;
+        }
+
+        $this->pdoB->commit();
+
+        self::assertTrue($refused, 'Receipt kedua untuk PO yang sudah Received harus ditolak');
+        self::assertSame(5, $this->stockQuantity($this->productId, $this->warehouseId));
+        self::assertCount(
+            1,
+            (new MysqlStockLedgerRepository($this->database))->forReference(ReferenceType::PurchaseOrder, $orderId),
+        );
+    }
+
+    /**
+     * Membuka transaction pada B dan membaca order, sehingga snapshot B
+     * terkunci pada status saat ini — sebelum A mengubahnya.
+     */
+    private function beginStaleReadOnB(int $orderId, SalesOrderStatus $expected): void
+    {
+        $this->pdoB->beginTransaction();
+
+        self::assertSame(
+            $expected,
+            (new MysqlSalesOrderRepository($this->connectionB))->findById($orderId)?->status,
+        );
+    }
+
+    private function salesOrderServiceOn(Database $database): SalesOrderService
+    {
+        return new SalesOrderService(
+            new MysqlSalesOrderRepository($database),
+            new MysqlCustomerRepository($database),
+            new MysqlWarehouseRepository($database),
+            new MysqlProductRepository($database),
+            new SystemClock(),
         );
     }
 
