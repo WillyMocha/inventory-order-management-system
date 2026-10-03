@@ -22,7 +22,7 @@ def q(s):
 w("-- =============================================================================")
 w("-- Seed data demo.")
 w("--")
-w("-- Memenuhi NFR-011 / brief §7.1: 1 Admin, 2 Sales, 2 Warehouse Staff,")
+w("-- Memenuhi NFR-011 / brief §7.1: 2 Admin, 2 Sales, 2 Warehouse Staff,")
 w("-- 2 warehouse, 30 product dengan reorder point bervariasi (7 di antaranya")
 w("-- berada pada atau di bawah reorder point), dan 32 order gabungan PO/SO")
 w("-- dengan seluruh status terwakili, termasuk PendingApproval dan Cancelled.")
@@ -43,8 +43,13 @@ users = [
     (3, 'Dewi Anggraini', 'sales2@ioms.test', 'Sales'),
     (4, 'Tono Wijaya', 'warehouse1@ioms.test', 'WarehouseStaff'),
     (5, 'Sari Melati', 'warehouse2@ioms.test', 'WarehouseStaff'),
+    # Admin kedua: approve menuntut approved_by <> created_by, sehingga Sales
+    # Order yang dibuat seorang Admin hanya dapat disetujui Admin LAIN.
+    # Dengan satu Admin saja, order seperti itu buntu (docs/planning/decisions.md).
+    # Diberi id 6 agar id user lain tidak bergeser.
+    (6, 'Hendra Saputra', 'admin2@ioms.test', 'Admin'),
 ]
-w("-- User: 1 Admin, 2 Sales, 2 Warehouse Staff (§7.1)")
+w("-- User: 2 Admin, 2 Sales, 2 Warehouse Staff (§7.1 meminta minimal 1 Admin)")
 w("INSERT INTO `user` (id, name, email, password_hash, role, is_active, created_at, updated_at) VALUES")
 w(",\n".join(
     f"({i}, {q(n)}, {q(e)}, {q(HASH)}, {q(r)}, 1, NOW(), NOW())" for i, n, e, r in users) + ";")

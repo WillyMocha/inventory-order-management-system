@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Seed data demo.
 --
--- Memenuhi NFR-011 / brief §7.1: 1 Admin, 2 Sales, 2 Warehouse Staff,
+-- Memenuhi NFR-011 / brief §7.1: 2 Admin, 2 Sales, 2 Warehouse Staff,
 -- 2 warehouse, 30 product dengan reorder point bervariasi (7 di antaranya
 -- berada pada atau di bawah reorder point), dan 32 order gabungan PO/SO
 -- dengan seluruh status terwakili, termasuk PendingApproval dan Cancelled.
@@ -14,13 +14,14 @@
 -- File ini di-generate oleh script; perbarui generator-nya, bukan file ini.
 -- =============================================================================
 
--- User: 1 Admin, 2 Sales, 2 Warehouse Staff (§7.1)
+-- User: 2 Admin, 2 Sales, 2 Warehouse Staff (§7.1 meminta minimal 1 Admin)
 INSERT INTO `user` (id, name, email, password_hash, role, is_active, created_at, updated_at) VALUES
 (1, 'Rina Kusuma', 'admin@ioms.test', '$2y$12$fzyqGMIurudUFOEQ8veiJOf6oy7UroymDYZSNirOaJK43ua6.uN06', 'Admin', 1, NOW(), NOW()),
 (2, 'Bagus Prakoso', 'sales1@ioms.test', '$2y$12$fzyqGMIurudUFOEQ8veiJOf6oy7UroymDYZSNirOaJK43ua6.uN06', 'Sales', 1, NOW(), NOW()),
 (3, 'Dewi Anggraini', 'sales2@ioms.test', '$2y$12$fzyqGMIurudUFOEQ8veiJOf6oy7UroymDYZSNirOaJK43ua6.uN06', 'Sales', 1, NOW(), NOW()),
 (4, 'Tono Wijaya', 'warehouse1@ioms.test', '$2y$12$fzyqGMIurudUFOEQ8veiJOf6oy7UroymDYZSNirOaJK43ua6.uN06', 'WarehouseStaff', 1, NOW(), NOW()),
-(5, 'Sari Melati', 'warehouse2@ioms.test', '$2y$12$fzyqGMIurudUFOEQ8veiJOf6oy7UroymDYZSNirOaJK43ua6.uN06', 'WarehouseStaff', 1, NOW(), NOW());
+(5, 'Sari Melati', 'warehouse2@ioms.test', '$2y$12$fzyqGMIurudUFOEQ8veiJOf6oy7UroymDYZSNirOaJK43ua6.uN06', 'WarehouseStaff', 1, NOW(), NOW()),
+(6, 'Hendra Saputra', 'admin2@ioms.test', '$2y$12$fzyqGMIurudUFOEQ8veiJOf6oy7UroymDYZSNirOaJK43ua6.uN06', 'Admin', 1, NOW(), NOW());
 
 -- Warehouse: 2 lokasi agar stock multi-lokasi dapat didemokan (WH-01)
 INSERT INTO warehouse (id, name, location, is_active, created_at, updated_at) VALUES

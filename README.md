@@ -23,7 +23,7 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 | **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap |
 | **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue |
 | **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation |
-| **Report** | Export CSV stock movement dan status order untuk rentang tanggal pilihan |
+| **Report** | Export CSV stock movement, status Sales Order, dan status Purchase Order untuk rentang tanggal pilihan |
 | **JSON API** | Ketersediaan stock per warehouse, dengan session auth yang sama dengan halaman |
 | **Job** | Routine low-stock yang berjalan di luar request cycle |
 
@@ -68,11 +68,16 @@ dibuat oleh Admin.
 
 | Role | Email |
 | --- | --- |
-| Admin | `admin@ioms.test` |
+| Admin | `admin@ioms.test`, `admin2@ioms.test` |
 | Sales | `sales1@ioms.test`, `sales2@ioms.test` |
 | Warehouse Staff | `warehouse1@ioms.test`, `warehouse2@ioms.test` |
 
 Kredensial di atas hanya untuk data seed demo di lingkungan lokal.
+
+Ada dua akun Admin karena approver Sales Order tidak boleh sama dengan pembuatnya — aturan ini
+juga berlaku untuk Admin. Sales Order yang dibuat `admin@ioms.test` disetujui oleh
+`admin2@ioms.test`, dan sebaliknya. Lihat
+[`docs/planning/decisions.md`](docs/planning/decisions.md).
 
 ## Test dan quality gate
 
@@ -121,6 +126,7 @@ scope. Prosedur verifikasi lengkap ada di
 | [`specs/001-inventory-order-management/data-model.md`](specs/001-inventory-order-management/data-model.md) | Schema, mirror dari resource model sumber |
 | [`specs/001-inventory-order-management/contracts/`](specs/001-inventory-order-management/contracts/) | Route table, matriks authorization, dan JSON API |
 | [`specs/001-inventory-order-management/quickstart.md`](specs/001-inventory-order-management/quickstart.md) | Prosedur verifikasi lengkap dan skenario demo |
+| [`docs/planning/`](docs/planning/) | User story, scope, backlog, ERD, class diagram initial, dan [catatan keputusan](docs/planning/decisions.md) atas requirement yang ambigu |
 | [`docs/architecture/`](docs/architecture/) | Class diagram as-built dan dua ADR |
 | [`docs/quality/`](docs/quality/) | Refactor log, tech debt, kritik desain, laporan PHPStan dan PHPCS |
 | [`docs/testing/`](docs/testing/) | Hasil test, pemetaan coverage, sweep jalur kegagalan |
@@ -129,9 +135,10 @@ scope. Prosedur verifikasi lengkap ada di
 
 Dicatat apa adanya. Rinciannya di [`docs/quality/tech-debt.md`](docs/quality/tech-debt.md).
 
-- **Pemeriksaan visual di browser belum dilakukan.** Seluruh halaman sudah dipastikan
-  mengembalikan 200 dengan isi yang benar lewat HTTP, tetapi spacing, keselarasan grid, dan
-  perilaku responsive pada 360px belum pernah benar-benar dilihat.
+- **Keyboard-only dan rasio kontras belum diperiksa.** Screenshot desktop dan 360px sudah
+  diambil dan diperiksa (lihat
+  [`docs/testing/responsive-accessibility.md`](docs/testing/responsive-accessibility.md)),
+  tetapi penelusuran form dengan keyboard saja dan pengukuran kontras WCAG belum dilakukan.
 - **Tidak ada CI.** Kedua suite dijalankan manual. Selama enam phase, integration suite tidak
   pernah dijalankan sama sekali — dan menyembunyikan satu bug yang membuat setiap goods issue
   gagal. Ini keterbatasan proses yang paling mahal di project ini.
