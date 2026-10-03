@@ -125,7 +125,8 @@ Empat layar utama, masing-masing pada **desktop** dan **360px**:
 | Form Sales Order | [`16-sales-order-form-desktop.png`](./screenshots/16-sales-order-form-desktop.png) | [`16-sales-order-form-mobile.png`](./screenshots/16-sales-order-form-mobile.png) |
 
 > **Diambil 2026-10-03** dengan Chrome headless terhadap stack Docker dan data seed. Set
-> lengkapnya (34 gambar, termasuk detail, empty state, dan drawer navigasi), cara pengambilan,
+> lengkapnya (34 gambar ditambah satu screenshot ring fokus, termasuk detail, empty state, dan
+> drawer navigasi), cara pengambilan,
 > hasil pengukuran overflow, dan tiga cacat yang ditemukan lalu diperbaiki ada di
 > [`responsive-accessibility.md`](./responsive-accessibility.md).
 >

@@ -7,11 +7,11 @@ PHP 8.4.26 dan MySQL 8.0.46.
 
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
-| Unit | `composer test:unit` | **OK — 367 test, 962 assertion** |
+| Unit | `composer test:unit` | **OK — 374 test, 972 assertion** |
 | Integration | `composer test:integration` | **OK — 138 test, 482 assertion** |
-| Gabungan | `composer test` | **OK — 505 test, 1444 assertion** |
+| Gabungan | `composer test` | **OK — 512 test, 1454 assertion** |
 | JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 11 test** |
-| Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning |
+| Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning; lulus di Docker, dari `cmd.exe` Windows, dan dari salinan repo bersih |
 
 **Coverage repository MySQL oleh integration suite: 116 dari 116 method** (diukur dengan pcov di
 container sekali pakai; lihat `docs/quality/tech-debt.md` TD-2b). Ini bukti bahwa setiap query
@@ -51,6 +51,9 @@ seperti segregation of duties dapat diuji tanpa session sama sekali.
 | Resource di luar scope menghasilkan 404, bukan 403 | `ApprovalAuthorizationTest` |
 | Dashboard dan CSV export sepakat (FR-027) | `DashboardReportConsistencyTest` |
 | Kontrak JSON: 200 / **401 JSON, bukan halaman login** / 404 (FR-028) | `StockApiTest` |
+| Rollback nested transaction lewat SAVEPOINT, termasuk di bawah pembungkus transaction harness | `NestedTransactionTest`, `GoodsReceiptTest` |
+| Seluruh method repository MySQL benar-benar dieksekusi (116/116) | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
+| Jalur filesystem upload: baca, hapus, dan penolakan file palsu | `ProductImageStorageTest` |
 
 ## Catatan penting — suite ini pernah tidak pernah dijalankan
 
@@ -62,7 +65,8 @@ Yang terungkap bukan sekadar masalah harness, melainkan **satu bug production ya
 `MysqlProductStockRepository::adjust()` memakai `INSERT ... ON DUPLICATE KEY UPDATE` dengan
 delta sebagai nilai kandidat insert. MySQL memeriksa CHECK `quantity >= 0` terhadap baris
 kandidat itu lebih dulu, sehingga **setiap goods issue gagal** — di test maupun di aplikasi
-sungguhan. Rinciannya ada di `implementation-log.md` dan `docs/quality/refactor-log.md`.
+sungguhan. Rinciannya ada di `specs/001-inventory-order-management/implementation-log.md` dan
+`docs/quality/refactor-log.md` R-1.
 
 Pelajarannya dicatat di `docs/quality/tech-debt.md`: test yang tidak dijalankan tidak
 memberikan jaminan apa pun.
@@ -71,9 +75,10 @@ memberikan jaminan apa pun.
 
 ```bash
 docker compose up -d
-docker compose exec app composer db:test        # sekali, membangun schema database test
-docker compose exec app composer test
+docker compose exec app composer check          # membangun schema test, lalu seluruh gate
 ```
+
+Atau per langkah: `composer db:test` (sekali), lalu `composer test`.
 
 Integration test dijalankan dua kali berturut-turut untuk memastikan sifat repeatable-nya —
 tidak ada sisa fixture yang membuat run kedua berbeda.

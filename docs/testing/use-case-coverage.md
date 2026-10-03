@@ -4,7 +4,7 @@ Bukti untuk constitution Principle III dan SC-006: **setiap method yang memuat b
 punya sekurang-kurangnya satu unit test.**
 
 Dibuat pada T144 dengan menyilangkan seluruh method `public` di `app/Service/` terhadap
-`tests/Unit/`. Terakhir diperbarui 2026-09-14.
+`tests/Unit/`. Terakhir diperbarui **2026-10-03** (audit dijalankan ulang terhadap kode).
 
 ## Ringkasan
 
@@ -17,7 +17,7 @@ Dibuat pada T144 dengan menyilangkan seluruh method `public` di `app/Service/` t
 | `ProductImageService` | 3/6 | `store` `read` `delete` |
 | `ProductService` | 11/15 | `totalInventoryValue` `totalStockFor` `updateImagePath` `requireProduct` |
 | `PurchaseOrderService` | 7/7 | — |
-| `ReportService` | 8/8 | — |
+| `ReportService` | 11/11 | — |
 | `SalesOrderService` | 10/10 | — |
 | `StockService` | 3/6 | `availableFor` `movementsForSalesOrder` `movementsForPurchaseOrder` |
 | `UserService` | 6/7 | `requireUser` |
@@ -41,7 +41,11 @@ disembunyikan.
 ### `ProductImageService::store` / `read` / `delete`
 
 Menyentuh filesystem. Unit suite dijalankan **tanpa filesystem** (lihat `phpunit.xml`),
-sehingga ketiganya tidak dapat diuji di sana.
+sehingga ketiganya tidak diuji di sana, tetapi diuji di suite Integration:
+`ProductImageStorageTest` memakai direktori sementara untuk `read`, `delete`, dan seluruh jalur
+penolakan `store` (termasuk file lokal yang disodorkan sebagai upload). Hanya jalur **sukses**
+`store()` yang tidak teruji otomatis, karena `move_uploaded_file()` hanya menerima upload HTTP
+sungguhan (`docs/quality/tech-debt.md` TD-3).
 
 Bagian yang memuat keputusannya justru sudah teruji terpisah dan itulah yang penting:
 `validate()` (tipe dari isi file lewat `finfo`, batas ukuran), `generateStoredName()` (nama
@@ -61,6 +65,19 @@ acak `bin2hex(random_bytes(16))`), dan `pathFor()` (penyimpanan di luar document
 **Tidak ada satu pun method ber-rule yang masuk daftar ini.** Bila kelak salah satunya
 memperoleh aturan, ia berpindah ke kolom "tertutup" beserta test-nya.
 
+### Support yang memuat aturan
+
+`app/Support` adalah plumbing, tetapi dua method di `Request` memuat aturan FIND-01 dan
+karena itu diperlakukan seperti use case:
+
+| Method | Test |
+| --- | --- |
+| `Request::queryState` | `RequestTest` — key kosong dibuang, nilai non-string diabaikan, urutan key dipertahankan |
+| `Request::sortCriteria` | `RequestTest` — key di luar allowlist ditolak, arah tidak sah jatuh ke default |
+
+Accessor lain di `Request` (`queryString`, `input`, `routeParam`, …) hanya membaca superglobal
+tanpa keputusan.
+
 ## Cakupan di luar unit test
 
 Beberapa jaminan memang tidak dapat dibuktikan unit test dan karena itu diuji sebagai
@@ -74,6 +91,10 @@ integration test terhadap MySQL sungguhan:
 | Segregation of duties ditegakkan di server (FR-018) | `ApprovalAuthorizationTest` |
 | Dashboard dan CSV export sepakat (FR-027) | `DashboardReportConsistencyTest` |
 | Kontrak JSON, termasuk 401 JSON bukan halaman HTML (FR-028) | `StockApiTest` |
+| Satu order tidak keluar dua kali; cancel tidak menimpa order `Fulfilled` | `ConcurrentGoodsIssueTest` — tiga test snapshot basi |
+| Rollback nested transaction lewat SAVEPOINT | `NestedTransactionTest`, `GoodsReceiptTest` |
+| Seluruh 116 method repository MySQL benar-benar dieksekusi | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
+| Jalur filesystem upload | `ProductImageStorageTest` |
 
 ## Cara mengulang audit ini
 
@@ -81,7 +102,9 @@ integration test terhadap MySQL sungguhan:
 for svc in app/Service/*.php; do
   name=$(basename "$svc" .php)
   for m in $(grep -oE "public function [a-zA-Z]+" "$svc" | sed 's/public function //' | grep -v '^__construct$'); do
-    grep -rq -- "->$m(" tests/Unit/ || echo "TANPA TEST LANGSUNG  $name::$m"
+    # Fake/ sengaja tidak ikut: pemanggilan dari fake bukan test.
+    grep -rq -- "->$m(" tests/Unit/Service tests/Unit/Support tests/Unit/Controller \
+      || echo "TANPA TEST LANGSUNG  $name::$m"
   done
 done
 ```

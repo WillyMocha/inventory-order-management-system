@@ -1,6 +1,7 @@
 # ERD — As-built (diturunkan dari DDL)
 
-**Sumber**: [`../../database/001_schema.sql`](../../database/001_schema.sql) ·
+**Sumber**: [`../../database/001_schema.sql`](../../database/001_schema.sql) dan
+[`../../database/003_date_indexes.sql`](../../database/003_date_indexes.sql) ·
 **Pasangannya**: [`../../specs/001-inventory-order-management/data-model.md`](../../specs/001-inventory-order-management/data-model.md)
 
 Diagram ini menggambarkan schema yang **benar-benar dibuat** MySQL, bukan rancangannya. ERD
@@ -10,7 +11,8 @@ ditinggalkan itu — tabel operasional, index, nullability, dan perilaku `ON DEL
 
 Bila keduanya berbeda, **DDL yang benar** dan diagram inilah yang harus diperbaiki.
 
-DBMS: MySQL 8.0, InnoDB, `utf8mb4_unicode_ci`. Seluruh PK `BIGINT UNSIGNED AUTO_INCREMENT`.
+DBMS: MySQL 8.0, InnoDB, `utf8mb4_unicode_ci`. Seluruh PK tabel domain `BIGINT UNSIGNED
+AUTO_INCREMENT`; `schema_migration` memakai `filename` sebagai PK.
 
 ---
 
@@ -19,7 +21,7 @@ DBMS: MySQL 8.0, InnoDB, `utf8mb4_unicode_ci`. Seluruh PK `BIGINT UNSIGNED AUTO_
 ```mermaid
 erDiagram
     USER ||--o{ SALES_ORDER : "creates (created_by)"
-    USER ||--o| SALES_ORDER : "approves (approved_by, nullable)"
+    USER |o--o{ SALES_ORDER : "approves (approved_by, nullable)"
     USER ||--o{ PURCHASE_ORDER : "creates (created_by)"
     USER ||--o{ STOCK_LEDGER : "performs (performed_by)"
 
@@ -177,7 +179,7 @@ erDiagram
     LOGIN_ATTEMPT {
         bigint id PK
         varchar-190 email "dicatat walau tidak terdaftar"
-        varbinary-16 ip_address "INET6_ATON, bukan string"
+        varbinary-16 ip_address "biner hasil inet_pton di PHP, bukan string"
         datetime attempted_at
         tinyint succeeded "default 0"
     }
@@ -235,8 +237,8 @@ CONSTRAINT ck_ledger_reference_id CHECK (
 | `RESTRICT` | **seluruh FK lainnya** | Master data yang sudah dipakai tidak boleh hilang dan membuat riwayat menjadi yatim |
 
 Konsekuensinya: master data **tidak pernah dihapus**, hanya dinonaktifkan lewat `is_active`.
-`ProductRepository::isReferencedByOrder()` ada justru agar UI dapat menjelaskan *mengapa* hanya
-deaktivasi yang ditawarkan, bukan penghapusan.
+`isReferencedByOrder()` pada repository product, supplier, dan customer ada justru agar UI
+dapat menjelaskan *mengapa* hanya deaktivasi yang ditawarkan, bukan penghapusan.
 
 ---
 
@@ -266,9 +268,16 @@ deaktivasi yang ditawarkan, bukan penghapusan.
 | `stock_ledger` | `ix_ledger_reference (reference_type, reference_id)` | Composite | Riwayat pergerakan per order |
 | `login_attempt` | `ix_login_attempt_email_time (email, attempted_at)` | Composite | Rate limit 5 kegagalan / 15 menit |
 
+Tabel di atas memuat index yang punya alasan desain. Index satu kolom pada FK lainnya
+(`ix_purchase_order_supplier`, `ix_po_item_order`, `ix_so_item_product`, `ix_ledger_performed_by`,
+`ix_login_attempt_ip_time`, dan sejenisnya) tidak dicantumkan satu per satu; daftar lengkapnya
+ada di DDL.
+
 Urutan kolom pada composite index mengikuti predicate equality lebih dulu, baru kolom ordering
-— left-prefix. Belum ada bukti `EXPLAIN` untuk keputusan ini; lihat
-[`../quality/sql-training-coverage.md`](../quality/sql-training-coverage.md) §3.3.
+— left-prefix. Index tanggal di `003_date_indexes.sql` ditambahkan **setelah diukur** dengan
+`EXPLAIN` terhadap data seed: sebelumnya tiga query memindai seluruh index lalu filesort
+(lihat [`../quality/tech-debt.md`](../quality/tech-debt.md) TD-6). Index lain belum diukur
+terpisah.
 
 ---
 
@@ -288,7 +297,8 @@ transaction yang sama**. Diverifikasi `tests/Integration/LedgerReconciliationTes
 **INV-2 — Ledger append-only.** Baris `stock_ledger` tidak pernah di-`UPDATE` atau `DELETE`.
 Saat ini dijaga konvensi service saja — **tidak** oleh trigger maupun privilege database,
 sehingga satu `UPDATE` manual lewat SQL client tetap dapat merusaknya. Kelemahan ini tercatat
-di [`../quality/sql-training-coverage.md`](../quality/sql-training-coverage.md) C-2.
+di [`../quality/tech-debt.md`](../quality/tech-debt.md) TD-9. Yang mendeteksinya bila terjadi
+adalah `LedgerReconciliationTest::noLedgerRowIsEverUpdatedOrDeleted` dan pemeriksaan INV-1.
 
 ---
 

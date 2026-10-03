@@ -158,8 +158,10 @@ tinggal sebagai `private` di salah satu pemakainya.
 dua belas tabel yang di-seed trait itu, urut menghormati foreign key.
 
 **Mengapa**: helper itu membersihkan persis apa yang di-seed trait, jadi tempatnya memang di
-trait. Ketika `GoodsReceiptTest` juga perlu mematikan pembungkus transaction, ia dapat memakai
-helper yang sama — bukan menyalinnya, dan bukan pula mewarisi versi yang tidak lengkap.
+trait. Setiap test yang mematikan pembungkus transaction memakai helper yang sama — bukan
+menyalinnya, dan bukan pula mewarisi versi yang tidak lengkap. Saat ini hanya
+`ConcurrentGoodsIssueTest` (dua connection). `GoodsReceiptTest` dulu juga memakainya, tetapi
+tidak lagi memerlukannya sejak transaction bersarang memakai SAVEPOINT (`tech-debt.md` TD-1).
 
 ---
 

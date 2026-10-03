@@ -20,6 +20,7 @@ perbaikannya.
 | TD-6 | Index untuk sort dan rentang tanggal | **Selesai.** Diukur dengan `EXPLAIN`, lalu `003_date_indexes.sql` |
 | TD-7 | Pemeriksaan visual di browser | **Selesai.** Screenshot, keyboard-only, dan kontras WCAG AA |
 | TD-8 | `config/database.php` tidak dipakai | **Selesai.** Dihapus beserta `config/env.php` |
+| TD-9 | Append-only `stock_ledger` hanya dijaga konvensi | **Terbuka.** Dicatat 2026-10-03 |
 
 ---
 
@@ -155,7 +156,9 @@ filesystem. Yang teruji hanya bagian keputusannya: `validate()`, `generateStored
 >
 > **Yang tersisa.** Perkabelan event DOM di `initStockLookup()` diperiksa di browser
 > sungguhan (Chrome headless: memilih warehouse dan product memunculkan "28 available"
-> bertanda low), bukan oleh test otomatis. `validation.js` belum memiliki test.
+> bertanda low), bukan oleh test otomatis. Modul JavaScript lain (`validation.js`,
+> `order-lines.js`, `filters.js`, `confirm.js`, `nav-drawer.js`, `main.js`) belum memiliki test.
+> Seluruhnya progressive enhancement: aplikasi tetap berfungsi tanpa JavaScript.
 
 **Keadaan awal.** Diperiksa hanya dengan `node --check`; alur fetch, pembatalan request yang
 saling menyusul, dan debounce-nya belum pernah diuji.
@@ -206,7 +209,8 @@ untuknya.
 > **Selesai 2026-10-03.** Rinciannya ada di
 > [`../testing/responsive-accessibility.md`](../testing/responsive-accessibility.md):
 >
-> - **Screenshot.** 34 screenshot desktop dan 360px dengan Chrome headless. Hasilnya nol
+> - **Screenshot.** 34 screenshot desktop dan 360px dengan Chrome headless, ditambah satu
+>   screenshot ring fokus input. Hasilnya nol
 >   halaman yang bergeser mendatar, dan tiga cacat UI ditemukan lalu diperbaiki.
 > - **Kontras WCAG AA.** 481 elemen teks di 8 halaman diukur. Seluruh badge status ternyata
 >   **gagal** (3.07–4.41:1, minimum 4.5:1). Setelah token teks status digelapkan satu
@@ -233,3 +237,25 @@ spacing, warna, kontras, dan perilaku responsive pada 360px belum pernah benar-b
 **Keadaan awal.** `ioms_pdo()` tidak dipanggil di mana pun; aplikasi dan test membuat koneksi
 lewat `App\Support\Database`. Dua factory PDO membuka peluang konfigurasi koneksi yang berbeda
 (mis. `ATTR_EMULATE_PREPARES`) tanpa ada yang menyadari.
+
+---
+
+## TD-9 — Append-only `stock_ledger` hanya dijaga konvensi, bukan database
+
+**Keadaan.** Baris `stock_ledger` tidak pernah di-`UPDATE` atau `DELETE` oleh aplikasi: hanya
+`StockService` yang menulis ledger, dan repository-nya tidak punya method update maupun delete.
+Tetapi tidak ada trigger maupun pembatasan privilege di MySQL. Satu `UPDATE` manual lewat SQL
+client dengan user aplikasi tetap dapat mengubah riwayat stock tanpa jejak.
+
+**Yang sudah ada.** `LedgerReconciliationTest::noLedgerRowIsEverUpdatedOrDeleted` memastikan
+jalur aplikasi tidak pernah mengurangi jumlah baris, dan invariant
+`SUM(stock_ledger.quantity) = product_stock.quantity` akan menunjukkan ketidakcocokan bila baris
+ledger diubah di luar aplikasi.
+
+**Perbaikan ideal.** Trigger `BEFORE UPDATE` dan `BEFORE DELETE` pada `stock_ledger` yang
+menolak perubahan, atau user database aplikasi yang hanya diberi `INSERT, SELECT` pada tabel
+itu. Belum dikerjakan karena menambah migration dan konfigurasi privilege di luar kebutuhan
+brief. Dicatat agar tidak dianggap sudah dijamin.
+
+Sebelumnya kelemahan ini dirujuk dari `erd.md` ke dokumen `sql-training-coverage.md` yang tidak
+pernah ada di repository. Rujukan itu kini menunjuk ke sini.
