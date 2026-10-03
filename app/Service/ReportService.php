@@ -19,13 +19,15 @@ use DateTimeImmutable;
  * Report stock movement dan status order untuk rentang tanggal pilihan user
  * (REPORT-01, FR-027).
  *
- * FR-027 mewajibkan isi export SEPAKAT dengan angka dashboard. Cara menjaganya
- * di sini bukan dengan mencocokkan dua perhitungan, melainkan dengan
- * menghapus kemungkinan keduanya berbeda: Service ini dan DashboardService
- * memanggil METHOD QUERY YANG SAMA pada repository yang sama — tidak ada satu
- * pun SQL yang ditulis dua kali (research R-008). Angka yang tampil di layar
- * report dihitung dari baris yang PERSIS akan ditulis ke file, lewat
- * statusTotals(), sehingga layar dan file tidak punya jalur untuk berbeda.
+ * FR-027 mewajibkan isi export SEPAKAT dengan angka dashboard. Keduanya membaca
+ * tabel yang sama lewat repository yang sama, tetapi dengan method berbeda:
+ * dashboard memakai agregasi countByStatus(), report memakai baris
+ * ordersBetween(). Kesepakatan keduanya karena itu dibuktikan, bukan diasumsikan:
+ * DashboardReportConsistencyTest membandingkannya terhadap MySQL sungguhan.
+ *
+ * Di dalam halaman report sendiri, angka yang tampil di layar dihitung dari
+ * baris yang PERSIS akan ditulis ke file, lewat statusTotals(), sehingga layar
+ * dan file tidak punya jalur untuk berbeda.
  *
  * Role acting user di-pass sebagai argument, tidak dibaca dari session, dan
  * scoping Sales diterapkan di dalam WHERE clause repository — bukan dengan
@@ -217,8 +219,8 @@ final class ReportService
     /**
      * Baris sales order pada rentang tersebut.
      *
-     * Method repository yang dipanggil di sini adalah method yang sama dengan
-     * yang menyuplai dashboard — itulah alasan keduanya tidak bisa berbeda.
+     * Dashboard menghitung status yang sama lewat countByStatus(); keduanya
+     * dicocokkan oleh DashboardReportConsistencyTest (FR-027).
      *
      * @param int|null $createdBy hasil scopeFor(); null berarti seluruh pemilik
      * @return list<array<string, mixed>>

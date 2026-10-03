@@ -141,9 +141,9 @@ return static function (array $config): array {
         $database,
     );
 
-    // Dashboard dan Report memanggil METHOD QUERY YANG SAMA pada repository
-    // yang sama — itulah yang membuat angka di layar dan isi file export tidak
-    // punya jalur untuk berbeda (research R-008, FR-027).
+    // Dashboard dan Report menerima instance repository yang sama. Angka
+    // agregasi dashboard dan baris export dicocokkan oleh
+    // DashboardReportConsistencyTest terhadap MySQL (FR-027).
     $dashboardService = new DashboardService(
         $productRepository,
         $salesOrderRepository,

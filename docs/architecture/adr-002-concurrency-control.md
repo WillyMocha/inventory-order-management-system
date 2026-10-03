@@ -35,18 +35,35 @@ CLAUDE.md menyatakan hal ini eksplisit: bila oversell dapat direproduksi assesso
 
 `StockService::issueGoods()` menjalankan, seluruhnya dalam satu transaction:
 
-1. Kunci baris `product_stock` untuk setiap pasangan (product, warehouse) — `SELECT ... FOR UPDATE`
-2. Baca ULANG quantity di bawah lock itu
-3. Verifikasi kecukupan **seluruh** line lebih dulu (fase 1)
-4. Baru menulis: baris `stock_ledger`, lalu pengurangan `product_stock` (fase 2)
-5. Commit
+1. Kunci baris `sales_order` (`SalesOrderRepositoryInterface::lockForUpdate()`) dan periksa
+   status `Approved` **di bawah lock itu**, bukan dari pembacaan sebelum transaction
+2. Kunci baris `product_stock` untuk setiap pasangan (product, warehouse) — `SELECT ... FOR UPDATE`
+3. Baca ULANG quantity di bawah lock itu
+4. Verifikasi kecukupan **seluruh** line lebih dulu (fase 1)
+5. Baru menulis: baris `stock_ledger`, lalu pengurangan `product_stock` (fase 2)
+6. Ubah status menjadi `Fulfilled` lewat compare-and-set
+   (`UPDATE ... WHERE status = 'Approved'`)
+7. Commit
 
-Request kedua **menunggu** di langkah 1 sampai yang pertama commit, lalu membaca sisa yang
-sebenarnya dan ditolak bila tidak lagi mencukupi.
+Request kedua untuk **order yang sama** menunggu di langkah 1, lalu melihat order yang sudah
+`Fulfilled` dan ditolak. Tanpa langkah ini, keduanya dapat sama-sama melihat `Approved` dan
+mengeluarkan barang dua kali selama stock masih cukup. Request kedua untuk order **lain**
+yang memakai product yang sama menunggu di langkah 2, lalu membaca sisa yang sebenarnya dan
+ditolak bila tidak lagi mencukupi.
 
-**Urutan lock**: bila satu order punya beberapa line, baris dikunci urut `product_id` menaik
-lalu `warehouse_id` menaik. Dua issue multi-line karenanya tidak pernah dapat deadlock dengan
-mengambil dua baris yang sama dalam urutan berlawanan.
+Transisi status lain (submit, approve, reject, cancel) juga memakai compare-and-set, sehingga
+cancel yang membaca status lama tidak dapat menimpa order yang sementara itu sudah
+`Fulfilled`.
+
+**Goods receipt** memakai pola yang sama: baris `purchase_order` beserta item-nya dikunci,
+status dan `received_quantity` dibaca ulang di bawah lock, lalu baris `product_stock` dikunci
+dengan urutan `product_id` yang sama seperti issue.
+
+**Urutan lock**: selalu baris order lebih dulu, baru `product_stock`. Bila satu order punya
+beberapa line, baris stock dikunci urut `product_id` menaik lalu `warehouse_id` menaik
+(`StockService::lockOrderFor()`). Receipt mengunci baris stock dengan urutan `product_id` yang
+sama. Dua issue multi-line, maupun issue dan receipt yang menyentuh baris yang sama, karenanya
+tidak pernah dapat deadlock dengan mengambil baris dalam urutan berlawanan.
 
 **Dua fase, bukan satu**: seluruh verifikasi selesai sebelum satu pun penulisan, sehingga
 penolakan pada line terakhir tidak meninggalkan line pertama yang sudah berkurang.
@@ -62,6 +79,13 @@ benar-benar terpisah** — bukan dua object dalam satu connection:
 | `twoConcurrentIssuesForOneUnitNeverOversell` | Satu unit, dua order masing-masing satu unit → tepat satu berhasil |
 | `noUpdateIsLostWhenBothConnectionsIssueDifferentUnits` | Tidak ada lost update |
 | `theLedgerStillReconcilesAfterTheContention` | Invariant NFR-002 bertahan setelah perebutan |
+| `theSameOrderIsNeverIssuedTwiceFromAStaleRead` | Order yang sama tidak keluar dua kali walau stock cukup — keputusan diambil dari pembacaan di bawah lock order, bukan dari snapshot lama |
+| `aCancelNeverOverwritesAnOrderFulfilledMeanwhile` | Compare-and-set: cancel yang membaca `Approved` tidak menimpa order yang sudah `Fulfilled` |
+| `aSecondReceiptNeverPlansFromAStaleOutstanding` | Receipt kedua ditolak dengan pesan yang sah, bukan lolos sampai CHECK constraint (error 500) |
+
+Tiga test terakhir memakai snapshot REPEATABLE READ yang sengaja dibuat basi pada connection
+kedua. Racenya direproduksi secara deterministik, tanpa thread dan tanpa `sleep`. Ketiganya
+sudah dibuktikan **gagal** pada kode sebelum perbaikan.
 
 Kalau `FOR UPDATE` atau transaction-nya dilepas, B akan membaca stock lama dan keduanya
 berhasil — test ini gagal lebih dulu.
