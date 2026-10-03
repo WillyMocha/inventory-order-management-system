@@ -1,99 +1,165 @@
 <?php
 
-/**
- * Single front controller. Every request that is not a real file on disk reaches this
- * file (Apache `FallbackResource /index.php`).
- *
- * Boot order: autoload -> environment -> failure handling -> security headers -> dispatch.
- *
- * Dispatch is not wired yet. The router arrives in T023 and the composition root that
- * builds controllers in T034; until then this file boots the application and reports that
- * it booted. It does not pretend to route.
- */
-
 declare(strict_types=1);
 
-const IOMS_ROOT = __DIR__ . '/..';
+/**
+ * Front controller — satu-satunya entry point aplikasi.
+ *
+ * Tanggung jawab: memastikan versi PHP, bootstrap konfigurasi dan container,
+ * memulai session, memeriksa authorization, mendispatch route, lalu
+ * menerjemahkan setiap exception menjadi respons yang aman.
+ *
+ * Stack trace TIDAK PERNAH sampai ke user (ERR-01, constitution Principle V).
+ */
 
-$autoload = IOMS_ROOT . '/vendor/autoload.php';
+use App\Support\Authorization;
+use App\Support\Csrf;
+use App\Support\Exception\DomainException;
+use App\Support\Exception\ForbiddenException;
+use App\Support\Exception\NotFoundException;
+use App\Support\Exception\RateLimitException;
+use App\Support\Exception\UnauthenticatedException;
+use App\Support\Exception\ValidationException;
+use App\Support\Request;
+use App\Support\Response;
+use App\Support\Router;
+use App\Support\Session;
+use App\Support\View;
 
-if (!is_file($autoload)) {
-    // Before dependencies are installed there is nothing to log with and nothing to
-    // render with, so this one case answers in plain text.
+// -----------------------------------------------------------------------
+// Version guard.
+//
+// Spec C-001 menetapkan PHP 8.4 tepat - tidak boleh di bawah maupun di atas.
+// Gagal cepat dengan pesan jelas jauh lebih baik daripada perilaku aneh yang
+// membingungkan di kemudian hari.
+// -----------------------------------------------------------------------
+if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 4) {
     http_response_code(500);
-    header('Content-Type: text/plain; charset=utf-8');
-    echo "Dependencies are not installed. Run: docker compose exec app composer install\n";
-
-    return;
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo 'Configuration error: this application requires PHP 8.4.x exactly. Detected ' . PHP_VERSION . '.';
+    exit(1);
 }
 
-require_once $autoload;
-require_once IOMS_ROOT . '/config/env.php';
+require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-ioms_load_env(IOMS_ROOT . '/.env');
+/** @var array<string, mixed> $config */
+$config = require dirname(__DIR__) . '/config/app.php';
+
+/** @var callable(array<string, mixed>): array<string, mixed> $buildContainer */
+$buildContainer = require dirname(__DIR__) . '/config/container.php';
+$container = $buildContainer($config);
+
+/** @var Session $session */
+$session = $container['session'];
+/** @var Router $router */
+$router = $container['router'];
+/** @var Authorization $authorization */
+$authorization = $container['authorization'];
+/** @var Csrf $csrf */
+$csrf = $container['csrf'];
+/** @var View $view */
+$view = $container['view'];
+
+$session->start();
+
+$request = Request::fromGlobals();
 
 /**
- * Never show a user the inside of a failure.
- *
- * FR-067 and NFR-006 forbid disclosing the exception class, stack trace, SQL, filesystem
- * paths or credentials. Diagnostics go to the server log (stderr, which Apache forwards
- * to the container's output); the user gets a fixed string.
- *
- * T033 replaces this with the full exception-to-HTTP mapping and the rendered error
- * pages. The rule it enforces is the same, and it applies from the first request.
+ * Merender halaman error yang aman, atau JSON bila request menuju /api/*.
  */
-ini_set('display_errors', '0');
-ini_set('log_errors', '1');
-error_reporting(E_ALL);
-
-set_exception_handler(static function (Throwable $exception): void {
-    error_log(sprintf(
-        '[ioms] uncaught %s: %s at %s:%d',
-        $exception::class,
-        $exception->getMessage(),
-        $exception->getFile(),
-        $exception->getLine()
-    ));
-
-    if (!headers_sent()) {
-        http_response_code(500);
-        header('Content-Type: text/plain; charset=utf-8');
+$errorResponse = static function (
+    Request $request,
+    View $view,
+    int $status,
+    string $code,
+    string $message,
+): Response {
+    if ($request->expectsJson()) {
+        return Response::jsonError($code, $message, $status);
     }
 
-    echo "An unexpected error occurred.\n";
-});
+    return Response::html(
+        $view->render('error/' . $status, ['title' => 'Error ' . $status], 'layout/auth'),
+        $status,
+    );
+};
 
-set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
-    // Promote every notice and warning to an exception so nothing is silently tolerated.
-    throw new ErrorException($message, 0, $severity, $file, $line);
-});
+try {
+    $route = $router->match($request->method(), $request->path());
 
-/*
- * Baseline response headers are set by Apache in docker/apache-hardening.conf, not here.
- *
- * That is deliberate: Apache applies them to every response including static assets that
- * never reach PHP, whereas setting them here would cover only PHP responses and produced
- * duplicate headers on the ones it did cover. One source of truth.
- *
- * A Content-Security-Policy is not set yet either: it belongs with the views and the
- * JavaScript they load (T037-T040, T130), so it is written when there is markup to
- * constrain rather than guessed at now.
- */
+    // Deny by default: guard membaca daftar role dari route table.
+    $authorization->authorizeRoute($route['roles']);
 
-// ---------------------------------------------------------------------------
-// Dispatch — replaced in Phase 2 by:
-//     $container = require IOMS_ROOT . '/config/container.php';
-//     (new Router(require IOMS_ROOT . '/config/routes.php'))->dispatch($container);
-// ---------------------------------------------------------------------------
+    // CSRF wajib pada setiap method non-GET (security standard §2).
+    if ($request->method() !== 'GET' && $request->method() !== 'HEAD') {
+        $submitted = $request->input(Csrf::fieldName());
 
-http_response_code(503);
-header('Content-Type: text/plain; charset=utf-8');
-header('Retry-After: 3600');
+        if (!$csrf->isValid($submitted)) {
+            throw new ForbiddenException('Invalid or expired form token. Please try again.');
+        }
+    }
 
-printf(
-    "Inventory & Order Management System\n"
-    . "Bootstrap OK — PHP %s, autoloader and environment loaded.\n\n"
-    . "No routes are registered yet. Routing is implemented in T023 (router),\n"
-    . "T024 (route table) and T034 (composition root).\n",
-    PHP_VERSION
-);
+    // Controller dibangun oleh container lewat constructor injection manual.
+    // Front controller tidak pernah merakit dependency sendiri - seluruh
+    // object graph ada di config/container.php (ARCH-01).
+    /** @var array<string, callable(): object> $controllers */
+    $controllers = $container['controllers'];
+    $controllerKey = $route['controller'];
+
+    if (!isset($controllers[$controllerKey])) {
+        // Route sudah terdaftar tetapi controller-nya belum dibuat (masih ada
+        // phase implementasi yang tersisa). Dicatat ke server log; user
+        // menerima 404 yang aman.
+        error_log('Route terdaftar tanpa controller: ' . $controllerKey);
+        throw new NotFoundException();
+    }
+
+    $controller = $controllers[$controllerKey]();
+    $action = $route['action'];
+
+    if (!method_exists($controller, $action)) {
+        error_log('Controller tanpa action: ' . $controllerKey . '::' . $action);
+        throw new NotFoundException();
+    }
+
+    /** @var Response $response */
+    $response = $controller->{$action}($request->withRouteParams($route['params']));
+    $response->send();
+} catch (UnauthenticatedException) {
+    // Route HTML dialihkan ke login; /api/* menerima 401 JSON (API-01).
+    if ($request->expectsJson()) {
+        Response::jsonError('unauthorized', 'Authentication required.', 401)->send();
+    } else {
+        Response::redirect('/login')->send();
+    }
+} catch (ForbiddenException $e) {
+    $errorResponse($request, $view, 403, 'forbidden', $e->getMessage())->send();
+} catch (NotFoundException) {
+    $errorResponse($request, $view, 404, 'not_found', 'Resource not found.')->send();
+} catch (RateLimitException $e) {
+    if ($request->expectsJson()) {
+        Response::jsonError('rate_limited', $e->getMessage(), 429)->send();
+    } else {
+        Response::html(
+            $view->render('error/429', ['title' => 'Too Many Requests'], 'layout/auth'),
+            429,
+        )->send();
+    }
+} catch (ValidationException | DomainException $e) {
+    // Kegagalan aturan bisnis yang lolos sampai ke sini berarti controller
+    // tidak menanganinya. Dicatat, lalu dibalas sebagai bad request.
+    error_log('Unhandled domain/validation error: ' . $e->getMessage());
+    $errorResponse($request, $view, 400, 'invalid_request', 'The request could not be processed.')->send();
+} catch (Throwable $e) {
+    // Jaring pengaman terakhir. Detail HANYA ke server log - tidak pernah ke
+    // user (ERR-01, security standard §11).
+    error_log(sprintf(
+        'Unhandled %s: %s in %s:%d',
+        $e::class,
+        $e->getMessage(),
+        $e->getFile(),
+        $e->getLine(),
+    ));
+
+    $errorResponse($request, $view, 500, 'server_error', 'Something went wrong. Please try again.')->send();
+}

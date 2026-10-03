@@ -1,0 +1,254 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Integration;
+
+use App\Entity\Enum\SalesOrderStatus;
+use App\Repository\Mysql\MysqlProductRepository;
+use App\Repository\Mysql\MysqlProductStockRepository;
+use App\Repository\Mysql\MysqlPurchaseOrderRepository;
+use App\Repository\Mysql\MysqlSalesOrderRepository;
+use App\Repository\Mysql\MysqlStockLedgerRepository;
+use App\Service\StockService;
+use App\Support\Database;
+use App\Support\Exception\DomainException;
+use PDO;
+use PDOException;
+use PHPUnit\Framework\Attributes\Test;
+
+/**
+ * NFR-001 dan SC-003: oversell tidak mungkin terjadi (FR-021, FR-022).
+ *
+ * Ini test paling penting di seluruh suite, dan satu-satunya yang TIDAK boleh
+ * dibungkus transaction milik test harness — karena yang diuji justru
+ * perilaku transaction dan lock itu sendiri. Karena itu wrapsInTransaction()
+ * dimatikan dan pembersihannya dilakukan manual.
+ *
+ * Skenarionya: satu unit stock, dua order yang masing-masing meminta satu
+ * unit, dua connection MySQL yang benar-benar terpisah. Connection A memegang
+ * lock, connection B terbukti MENUNGGU (dibuktikan lewat lock wait timeout,
+ * bukan lewat sleep yang hasilnya kebetulan), lalu setelah A commit barulah B
+ * membaca angka yang benar dan ditolak.
+ *
+ * Kalau `FOR UPDATE` atau transaction-nya dilepas, B akan membaca stock lama
+ * dan keduanya berhasil — itulah oversell yang harus tidak dapat direproduksi.
+ */
+final class ConcurrentGoodsIssueTest extends IntegrationTestCase
+{
+    use SalesOrderFixtures;
+
+    /** Detik. Dibuat pendek agar bukti "B menunggu" tidak memperlambat suite. */
+    private const int LOCK_WAIT_TIMEOUT = 2;
+
+    private Database $connectionB;
+    private PDO $pdoB;
+
+    /**
+     * Test ini mengelola transaction-nya sendiri — dua connection tidak dapat
+     * saling melihat data yang belum commit, sehingga fixture harus benar-
+     * benar ter-commit.
+     */
+    protected function wrapsInTransaction(): bool
+    {
+        return false;
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->connectionB = new Database(self::databaseConfig());
+        $this->pdoB = $this->connectionB->pdo();
+
+        // Connection B tidak boleh menunggu tanpa batas: dengan timeout pendek,
+        // "B menunggu" menjadi fakta yang terukur.
+        $this->pdoB->exec('SET SESSION innodb_lock_wait_timeout = ' . self::LOCK_WAIT_TIMEOUT);
+
+        $this->cleanUpSalesOrderFixtures();
+        $this->seedSalesOrderFixtures();
+    }
+
+    protected function tearDown(): void
+    {
+        // Rollback apa pun yang masih menggantung sebelum membersihkan, kalau
+        // tidak DELETE-nya sendiri akan ikut menunggu lock.
+        foreach ([$this->pdo, $this->pdoB] as $connection) {
+            if ($connection->inTransaction()) {
+                $connection->rollBack();
+            }
+        }
+
+        $this->cleanUpSalesOrderFixtures();
+
+        parent::tearDown();
+    }
+
+    #[Test]
+    public function theSecondConnectionBlocksWhileTheFirstHoldsTheLock(): void
+    {
+        $this->setStock($this->productId, $this->warehouseId, 1);
+
+        // Connection A mengunci baris dan MENAHANNYA.
+        $this->pdo->beginTransaction();
+        $this->lockRowOn($this->pdo);
+
+        // Connection B mencoba mengunci baris yang sama.
+        $this->pdoB->beginTransaction();
+
+        $blocked = false;
+        $startedAt = microtime(true);
+
+        try {
+            $this->lockRowOn($this->pdoB);
+        } catch (PDOException $e) {
+            // Lock wait timeout — inilah buktinya B benar-benar menunggu dan
+            // tidak sekadar membaca angka lama.
+            $blocked = true;
+            self::assertStringContainsStringIgnoringCase('lock', $e->getMessage());
+        }
+
+        $waited = microtime(true) - $startedAt;
+
+        $this->pdoB->rollBack();
+        $this->pdo->rollBack();
+
+        self::assertTrue(
+            $blocked,
+            'Connection B TIDAK menunggu — berarti FOR UPDATE tidak menahan baris, dan oversell mungkin terjadi',
+        );
+        self::assertGreaterThanOrEqual(
+            self::LOCK_WAIT_TIMEOUT - 0.5,
+            $waited,
+            'B harus benar-benar menunggu sampai timeout, bukan gagal seketika',
+        );
+    }
+
+    #[Test]
+    public function twoConcurrentIssuesForOneUnitNeverOversell(): void
+    {
+        $this->setStock($this->productId, $this->warehouseId, 1);
+
+        $orderA = $this->approvedOrder([[$this->productId, 1]]);
+        $orderB = $this->approvedOrder([[$this->productId, 1]]);
+
+        $serviceA = $this->serviceOn($this->database);
+        $serviceB = $this->serviceOn($this->connectionB);
+
+        // A berhasil dan commit: stock menjadi 0.
+        $serviceA->issueGoods($orderA, $this->warehouseStaff);
+
+        self::assertSame(0, $this->stockQuantity($this->productId, $this->warehouseId));
+
+        // B sekarang membaca angka yang benar di bawah lock, dan harus ditolak.
+        $refused = false;
+
+        try {
+            $serviceB->issueGoods($orderB, $this->warehouseStaff);
+        } catch (DomainException) {
+            $refused = true;
+        }
+
+        self::assertTrue($refused, 'Order kedua harus ditolak — hanya ada satu unit');
+
+        // Tiga hal yang harus berlaku sekaligus.
+        self::assertSame(
+            0,
+            $this->stockQuantity($this->productId, $this->warehouseId),
+            'Stock harus tepat 0 dan tidak pernah negatif',
+        );
+        self::assertSame(
+            SalesOrderStatus::Fulfilled,
+            $this->orderStatus($orderA),
+            'Order pertama harus Fulfilled',
+        );
+        self::assertSame(
+            SalesOrderStatus::Approved,
+            $this->orderStatus($orderB),
+            'Order kedua harus tetap Approved, bukan Fulfilled',
+        );
+    }
+
+    #[Test]
+    public function noUpdateIsLostWhenBothConnectionsIssueDifferentUnits(): void
+    {
+        // Dua unit, dua order masing-masing satu unit: keduanya harus berhasil
+        // dan hasil akhirnya tepat 0 — bukan 1, yang akan terjadi bila salah
+        // satu update hilang karena read-modify-write tanpa lock.
+        $this->setStock($this->productId, $this->warehouseId, 2);
+
+        $orderA = $this->approvedOrder([[$this->productId, 1]]);
+        $orderB = $this->approvedOrder([[$this->productId, 1]]);
+
+        $this->serviceOn($this->database)->issueGoods($orderA, $this->warehouseStaff);
+        $this->serviceOn($this->connectionB)->issueGoods($orderB, $this->warehouseStaff);
+
+        self::assertSame(
+            0,
+            $this->stockQuantity($this->productId, $this->warehouseId),
+            'Kedua pengurangan harus tercatat — tidak ada update yang hilang',
+        );
+        self::assertSame(SalesOrderStatus::Fulfilled, $this->orderStatus($orderA));
+        self::assertSame(SalesOrderStatus::Fulfilled, $this->orderStatus($orderB));
+    }
+
+    #[Test]
+    public function theLedgerStillReconcilesAfterTheContention(): void
+    {
+        // Invariant NFR-002 harus tetap berlaku justru setelah ada perebutan.
+        $this->setStock($this->productId, $this->warehouseId, 2);
+
+        $orderA = $this->approvedOrder([[$this->productId, 1]]);
+        $orderB = $this->approvedOrder([[$this->productId, 2]]);
+
+        $this->serviceOn($this->database)->issueGoods($orderA, $this->warehouseStaff);
+
+        try {
+            // Hanya sisa 1, diminta 2 — ditolak.
+            $this->serviceOn($this->connectionB)->issueGoods($orderB, $this->warehouseStaff);
+        } catch (DomainException) {
+            // diharapkan
+        }
+
+        $ledger = new MysqlStockLedgerRepository($this->database);
+
+        self::assertSame(
+            $ledger->sumQuantity($this->productId, $this->warehouseId),
+            $this->stockQuantity($this->productId, $this->warehouseId) - 2,
+            'SUM(ledger) harus menjelaskan tepat selisih dari stock awal',
+        );
+    }
+
+    private function serviceOn(Database $database): StockService
+    {
+        return new StockService(
+            new MysqlSalesOrderRepository($database),
+            new MysqlPurchaseOrderRepository($database),
+            new MysqlProductStockRepository($database),
+            new MysqlStockLedgerRepository($database),
+            new MysqlProductRepository($database),
+            $database,
+        );
+    }
+
+    private function lockRowOn(PDO $connection): void
+    {
+        $statement = $connection->prepare(
+            'SELECT quantity FROM product_stock
+              WHERE product_id = :product_id AND warehouse_id = :warehouse_id
+              FOR UPDATE',
+        );
+
+        $statement->execute([
+            'product_id'   => $this->productId,
+            'warehouse_id' => $this->warehouseId,
+        ]);
+
+        $statement->fetchAll();
+    }
+
+    private function orderStatus(int $orderId): ?SalesOrderStatus
+    {
+        return (new MysqlSalesOrderRepository($this->database))->findById($orderId)?->status;
+    }
+}

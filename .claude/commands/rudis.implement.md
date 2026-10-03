@@ -22,7 +22,7 @@ When you cannot resolve a decision confidently from tasks.md, plan.md, the code,
 
 ## Outline
 
-1. Run `.rudis/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. Run `.rudis/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
    **Path resolution rules (STRICT)**:
    - Resolve the repo root ONCE at the start (`git rev-parse --show-toplevel` or the script output) and derive every file path from it as an absolute path. Never pass relative paths to file tools or scripts.

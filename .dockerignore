@@ -1,45 +1,20 @@
-# Keep the build context small and keep secrets and host artefacts out of the image.
-
-# Secrets — credentials reach the container through env_file at run time, never baked in.
-.env
-.env.*
-
-# Version control and CI
 .git/
 .gitignore
-.github/
-
-# Host-installed dependencies: the image runs its own `composer install`, so a
-# vendor/ built on the host (possibly on a different PHP version) must not leak in.
 vendor/
-
-# Docker's own files
-Dockerfile
-compose.yaml
-.dockerignore
-
-# Tool caches and reports
-.phpunit.cache/
-.phpunit.result.cache
-.phpstan.cache/
-build/
-coverage/
-clover.xml
-junit.xml
-
-# User uploads live in a named volume, not in the image
-public/uploads/products/*
-
-# Project governance and design documents — not needed at run time
-.rudis/
+node_modules/
+.env
+.env.*
+!.env.example
+storage/uploads/*
+docs/quality/*.txt
 specs/
-docs/
-
-# Logs, editors, operating systems
+.rudis/
+.claude/
 *.log
 *.tmp
-*.swp
-.vscode/
-.idea/
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
+Dockerfile
+.dockerignore

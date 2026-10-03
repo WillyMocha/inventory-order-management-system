@@ -42,7 +42,7 @@ default this command stops at generated-and-validated artifacts plus a dry-run â
 
 ### 1. Initialize & discover
 
-Run `.rudis/scripts/bash/check-prerequisites.sh --json --paths-only` from repo root and parse FEATURE_DIR (and available paths). Then discover the
+Run `.rudis/scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly` from repo root and parse FEATURE_DIR (and available paths). Then discover the
 deployment-relevant facts â€” sample, don't read everything:
 
 - **Tech stack & architecture**: read plan.md (Architecture Type, Integration Target, tech stack) if

@@ -1,0 +1,177 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Fake;
+
+use App\Entity\Enum\PurchaseOrderStatus;
+use App\Entity\PurchaseOrder;
+use App\Entity\PurchaseOrderItem;
+use App\Repository\PurchaseOrderRepositoryInterface;
+
+final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryInterface
+{
+    /** @var array<int, PurchaseOrder> */
+    private array $rows = [];
+
+    private int $nextId = 1;
+
+    /** @param list<PurchaseOrder> $orders */
+    public function __construct(array $orders = [])
+    {
+        foreach ($orders as $order) {
+            $this->save($order);
+        }
+    }
+
+    public function findById(int $id): ?PurchaseOrder
+    {
+        return $this->rows[$id] ?? null;
+    }
+
+    public function orderNumberExists(string $orderNumber): bool
+    {
+        foreach ($this->rows as $order) {
+            if ($order->orderNumber === $orderNumber) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function search(array $criteria, int $limit, int $offset): array
+    {
+        return array_slice($this->filter($criteria), $offset, $limit);
+    }
+
+    public function countBy(array $criteria): int
+    {
+        return count($this->filter($criteria));
+    }
+
+    public function save(PurchaseOrder $order): int
+    {
+        $id = $order->id ?? $this->nextId++;
+
+        $this->rows[$id] = $this->withId($order, $id, $order->status, $order->items);
+
+        if ($id >= $this->nextId) {
+            $this->nextId = $id + 1;
+        }
+
+        return $id;
+    }
+
+    public function updateStatus(int $id, PurchaseOrderStatus $status): void
+    {
+        $order = $this->rows[$id] ?? null;
+
+        if ($order === null) {
+            return;
+        }
+
+        $this->rows[$id] = $this->withId($order, $id, $status, $order->items);
+    }
+
+    public function addReceivedQuantity(int $itemId, int $quantity): void
+    {
+        foreach ($this->rows as $orderId => $order) {
+            $changed = false;
+            $items = [];
+
+            foreach ($order->items as $item) {
+                if ($item->id === $itemId) {
+                    $items[] = new PurchaseOrderItem(
+                        $item->id,
+                        $item->purchaseOrderId,
+                        $item->productId,
+                        $item->quantity,
+                        $item->receivedQuantity + $quantity,
+                        $item->purchasePrice,
+                    );
+                    $changed = true;
+                    continue;
+                }
+
+                $items[] = $item;
+            }
+
+            if ($changed) {
+                $this->rows[$orderId] = $this->withId($order, $orderId, $order->status, $items);
+                return;
+            }
+        }
+    }
+
+    public function countByStatus(): array
+    {
+        $counts = [];
+
+        foreach ($this->rows as $order) {
+            $key = $order->status->value;
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+
+        return $counts;
+    }
+
+    public function awaitingReceipt(int $limit): array
+    {
+        $matching = array_filter(
+            $this->rows,
+            static fn (PurchaseOrder $o): bool => $o->status === PurchaseOrderStatus::Ordered
+                || $o->status === PurchaseOrderStatus::PartiallyReceived,
+        );
+
+        return array_slice(array_values($matching), 0, $limit);
+    }
+
+    /**
+     * @param list<PurchaseOrderItem> $items
+     */
+    private function withId(
+        PurchaseOrder $order,
+        int $id,
+        PurchaseOrderStatus $status,
+        array $items,
+    ): PurchaseOrder {
+        return new PurchaseOrder(
+            $id,
+            $order->orderNumber,
+            $order->supplierId,
+            $order->warehouseId,
+            $status,
+            $order->orderDate,
+            $order->createdBy,
+            $items,
+        );
+    }
+
+    /**
+     * @param array{search?: string, status?: string, sort?: string, direction?: string} $criteria
+     * @return list<PurchaseOrder>
+     */
+    private function filter(array $criteria): array
+    {
+        $result = [];
+
+        foreach ($this->rows as $order) {
+            if (($criteria['search'] ?? '') !== '') {
+                $needle = strtolower((string) $criteria['search']);
+
+                if (!str_contains(strtolower($order->orderNumber), $needle)) {
+                    continue;
+                }
+            }
+
+            if (($criteria['status'] ?? '') !== '' && $order->status->value !== $criteria['status']) {
+                continue;
+            }
+
+            $result[] = $order;
+        }
+
+        return $result;
+    }
+}

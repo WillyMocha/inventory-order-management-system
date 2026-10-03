@@ -49,6 +49,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
+<<<<<<< HEAD
 Gates are derived from `.rudis/memory/constitution.md`. Record PASS/FAIL with evidence
 for each; any FAIL must either be fixed or justified in Complexity Tracking below.
 
@@ -65,6 +66,9 @@ for each; any FAIL must either be fixed or justified in Complexity Tracking belo
 | 9 | Security baseline held (prepared statements, output escaping, session regeneration, upload validation, no committed secrets) | VI | [PASS/FAIL] |
 | 10 | ADR written for each architecturally significant decision | VI | [PASS/FAIL] |
 | 11 | Stack constraints honored (PHP 8.4.x, no framework/ORM/DI container, vanilla frontend) | Tech Stack | [PASS/FAIL] |
+=======
+[Gates determined based on constitution file]
+>>>>>>> master
 
 ## Project Structure
 

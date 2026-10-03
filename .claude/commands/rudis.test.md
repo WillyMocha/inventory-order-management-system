@@ -37,7 +37,7 @@ functional bugs. This command:
 
 ### 1. Initialize Context
 
-Run `.rudis/scripts/bash/check-prerequisites.sh --json` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
+Run `.rudis/scripts/powershell/check-prerequisites.ps1 -Json` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
 
 ### 2. Discovery Phase
 

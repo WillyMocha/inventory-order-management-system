@@ -1,171 +1,129 @@
 # CLAUDE.md
 
-Project context for AI agents (Claude Code reads this automatically).
+Project context for AI agents (Claude Code reads this automatically). Fill in the
+sections below — human-written context is more reliable than auto-generated.
 
-> **The governing document is [`.rudis/memory/constitution.md`](.rudis/memory/constitution.md)
-> (v1.0.0).** This file is day-to-day runtime guidance only. Where the two conflict, the
-> constitution wins — see its Governance section. Principles I, II, and III are
-> NON-NEGOTIABLE: no exceptions, no temporary waivers.
+> Bahasa: dokumen ini mengikuti konvensi project — prosa bahasa Indonesia, istilah teknis
+> tetap bahasa Inggris. Seluruh UI aplikasi berbahasa Inggris.
 
 ## Overview
 
-Inventory & Order Management System — a web app for product/master-data management,
-multi-warehouse stock, Purchase Orders with goods receipt, Sales Orders with an approval
-gate and goods issue, a full Stock Ledger, role-based dashboards, and CSV reports. Stock
-integrity under concurrent operations is a core requirement, not a nice-to-have.
+Inventory & Order Management System — aplikasi web untuk mencatat product, mengelola stock
+di beberapa warehouse, memproses pembelian dari supplier (Purchase Order → goods receipt) dan
+penjualan ke customer (Sales Order → approval → goods issue), dengan dashboard dan report
+per role.
 
-Three roles: `Admin`, `Sales`, `WarehouseStaff`.
+Tiga role: **Admin**, **Sales**, **Warehouse Staff**. Tanggung jawab sengaja dipisah —
+Sales tidak boleh approve order, termasuk order miliknya sendiri.
 
-Full functional spec: `docs/inventory-order-management-spec.md`.
+Dokumen acuan resmi ada di `specs/001-inventory-order-management/`:
+
+| Dokumen | Isi |
+| --- | --- |
+| `spec.md` | Requirement — 8 user story, 31 FR, 11 NFR, 7 constraint |
+| `plan.md` | Rencana implementasi, struktur folder, diagram |
+| `research.md` | 14 keputusan desain beserta alternatif yang ditolak |
+| `data-model.md` | Schema — **mirror** dari resource model sumber |
+| `contracts/http-routes.md` | Route table + matriks authorization (sumber kebenaran) |
+| `contracts/openapi.yaml` | JSON API surface |
+| `inputs/project-brief-resource-model.md` | Digest verbatim dari Project Brief PDF |
+
+`.rudis/memory/constitution.md` (v1.1.0) bersifat mengikat dan mengalahkan preferensi lain.
 
 ## Architecture
 
-Strictly layered, dependencies pointing inward only (Constitution I):
+Standalone modular monolith, server-rendered. **Controller → Service → Repository**, arah
+dependency satu arah, dengan **dependency inversion pada boundary repository**.
 
-```text
-Controller → Service (use case) → Repository Interface ← Repository Implementation → PDO/MySQL
+```
+public/index.php  →  Router  →  Authorization guard  →  Controller  →  Service  →  RepositoryInterface
+                                                                                    ├── Mysql*Repository (PDO)
+                                                                                    └── InMemory*Repository (test)
 ```
 
-```text
-app/
-├── Controller/          # parse input, delegate to ONE use case, render. No SQL, no rules.
-├── Service/             # use cases: business rules + transaction orchestration
-├── Repository/
-│   ├── Contract/        # interfaces — services depend on these only
-│   ├── MySQL/           # production implementations (PDO)
-│   └── InMemory/        # fakes for unit tests
-├── Entity/
-├── Exception/           # domain exceptions
-└── Validation/
-public/                  # index.php front controller, css/, js/, uploads/
-views/ config/ database/ scripts/ tests/{Unit,Integration}/ docs/
-```
+- `app/Controller` — HTTP saja. Membaca request, memanggil Service, memilih view.
+- `app/Service` — seluruh business rule. **Inti yang di-unit-test.**
+- `app/Repository` — interface + implementasi MySQL dan in-memory.
+- `app/Entity` — domain state dan domain rule. Tidak ada SQL, HTTP, atau rendering.
+- `app/Support` — plumbing (Router, View, Database, Session, Csrf, Authorization). Tanpa
+  business rule.
 
-Concrete repository bindings are wired **only** at the composition root. Every use case
-must be constructible with `Repository/InMemory/` fakes and no database.
+Dua alur paling kritikal:
 
-**Key flow**: Login → Master Data → PO → Goods Receipt → Stock → SO → Approval →
-Goods Issue → Stock Ledger → Dashboard/Report.
-
-**State machines** (enforced in services, not controllers):
-
-- PO: `Draft → Ordered → PartiallyReceived → Received`; cancellable before receipt.
-- SO: `Draft → PendingApproval → Approved → Fulfilled`; **not** cancellable after
-  `Fulfilled`.
-
-Route sketch is in spec §61.
+1. **Goods issue** (`StockService`) — di dalam satu transaction: `SELECT ... FOR UPDATE` pada
+   baris `product_stock`, verifikasi kecukupan, tulis `stock_ledger`, kurangi stock, commit.
+   Lock diambil urut `product_id` lalu `warehouse_id` agar tidak deadlock. Lihat ADR-002.
+2. **Approval Sales Order** (`SalesOrderService`) — memeriksa role Admin **dan**
+   `approved_by <> created_by`. Ditegakkan di server, bukan disembunyikan di UI.
 
 ## Conventions
 
-- **PHP 8.4.x only.** Not 8.3 or older, not 8.5 or newer. Keep `composer.json`, the
-  Dockerfile, CI, and docs pinned consistently.
-- **`declare(strict_types=1);` at the top of every PHP file.** Explicit types on all
-  parameters, return types, and properties. `mixed` needs an inline justification.
-- Native PHP + OOP + Composer PSR-4 autoload + PDO. **No** Laravel/Symfony/CodeIgniter/
-  Slim, **no** ORM, **no** DI-container library, **no** CRUD generator.
-- Frontend: HTML5, custom CSS, vanilla JS, Fetch API. **No** React/Vue/Angular/jQuery/
-  Bootstrap/Tailwind/CSS framework/admin template.
-- PSR-12 formatting (enforced by PHP_CodeSniffer).
-- Soft-deactivate (`is_active = false`) records referenced by transactions — never hard
-  delete.
-- Adding any dependency outside this list requires an ADR **and** a constitution
-  amendment.
+- **PHP 8.4 tepat** — tidak boleh di bawah atau di atas. Image di-pin, ada runtime guard.
+- `declare(strict_types=1);` **wajib di setiap file PHP**, termasuk test dan script.
+- Seluruh parameter, return type, dan property wajib bertipe. Hindari `mixed`.
+- Service menerima dependency lewat **constructor injection**. Dilarang keras: `new PDO()`,
+  `$_SESSION`, `$_POST`, atau superglobal apa pun di dalam Service maupun Entity.
+- Acting user **di-pass sebagai argument** ke Service, tidak pernah dibaca dari session di
+  dalam Service — ini yang membuat aturan approval bisa di-unit-test tanpa session.
+- Dilarang: framework backend/frontend, ORM, DI container, CSS framework, JS framework,
+  admin template. Composer hanya untuk autoload dan dev dependency.
+- Seluruh query memakai **prepared statement**; `ATTR_EMULATE_PREPARES = false`.
+- Seluruh output HTML melewati helper `e()`. Tidak ada `echo $var` mentah di template.
+- Stock **tidak pernah** diubah selain lewat service yang sekaligus menulis `stock_ledger`
+  dalam transaction yang sama.
+- **Bahasa**: string UI bahasa Inggris; comment dan dokumentasi bahasa Indonesia; istilah
+  teknis tetap bahasa Inggris; identifier dan commit message bahasa Inggris.
+  Contoh: `/** Memproses goods issue untuk Sales Order yang sudah Approved. */`
+- Uang: `DECIMAL(15,2)`, mata uang IDR saja, tampil sebagai `Rp 1.250.000` (tanpa desimal).
 
 ## Build, run, test
 
+Semua dijalankan di dalam Docker; tidak perlu install PHP atau MySQL di host.
+
 ```bash
 cp .env.example .env
-docker compose up --build          # app/web + mysql containers
+docker compose up --build            # http://localhost:8080
+
+docker compose exec app composer test              # unit + integration
+docker compose exec app composer test:unit         # tanpa DB/session/network
+docker compose exec app composer test:integration  # MySQL 8 sungguhan
+docker compose exec app composer analyse           # PHPStan level 6
+docker compose exec app composer cs                # PHP_CodeSniffer PSR-12
+docker compose exec app php scripts/check-low-stock.php   # JOB-01
+docker compose exec app php -v                     # harus 8.4.x
 ```
 
-Database init and demo accounts: follow README (per spec §59). No absolute machine-
-specific paths — a clean clone must come up with the commands above.
-
-```bash
-vendor/bin/phpunit                            # all tests — must be fully green
-vendor/bin/phpunit --testsuite Unit           # unit only
-vendor/bin/phpunit --testsuite Integration    # integration only
-vendor/bin/phpstan analyse app --level=6      # must report 0 errors (constitution floor is 5)
-vendor/bin/phpcs --standard=PSR12 app         # PSR-12
-php scripts/check-low-stock.php               # scheduled job
-```
-
-Store static-analysis evidence in `docs/quality/` and test evidence in `docs/testing/`.
-
-### Merge gates (Constitution: Development Workflow & Quality Gates)
-
-A change is mergeable only when all ten hold:
-
-1. `declare(strict_types=1);` in every touched PHP file
-2. PHPStan level 6 → 0 errors (constitution floor is 5)
-3. PSR-12 clean
-4. Every use case added/modified has passing unit tests — success **and** failure paths
-5. `vendor/bin/phpunit` green; no unexplained skips
-6. No layer violation (no SQL in controllers, no rules in repositories, no concrete
-   repository referenced by a service)
-7. Every new/changed protected action has a server-side authz check **plus a denial test**
-8. Stock-touching changes are transactional, row-locked, and ledger-writing
-9. ADR written for architecturally significant decisions
-10. Evidence stored under `docs/quality/` and `docs/testing/`
+Prosedur verifikasi lengkap dan akun demo ada di
+`specs/001-inventory-order-management/quickstart.md`.
 
 ## Risky / sensitive areas
 
-- **Stock mutation (highest risk).** Every mutation runs inside a transaction and writes
-  its Stock Ledger entry in that *same* transaction. Read-then-write paths must take a
-  row lock (`SELECT ... FOR UPDATE`) before computing the new quantity. Stock must never
-  go negative — insufficient stock rolls the whole operation back with a domain
-  exception, never a partial fulfillment. Keep transaction scope minimal: no HTTP, file
-  I/O, or user interaction inside one. Concurrency protection must be proven by an
-  automated test. See `docs/architecture/adr-002-stock-concurrency.md`.
-- **Authorization / segregation of duties.** Checked server-side on *every* protected
-  action. Hiding a UI button is presentation, never authorization. A `Sales` user must
-  never approve a Sales Order — **including one they created themselves**. Deactivated
-  users (`is_active = false`) can neither log in nor hold a valid session.
-- **Auth & sessions.** `password_hash()` / `password_verify()`; regenerate the session ID
-  on login, destroy on logout; failed-login messages must not reveal whether the email or
-  the password was wrong.
-- **SQL & output.** PDO prepared statements only — string-interpolated SQL is prohibited.
-  Escape all dynamic output with `htmlspecialchars($value, ENT_QUOTES, 'UTF-8')`.
-- **Uploads.** Validate MIME type and size; store under a generated, non-predictable
-  filename (never the original name).
-- **Secrets.** `.env` is git-ignored. Never commit a live credential.
+- **`StockService` (goods issue/receipt)** — satu-satunya jalan stock boleh berubah. Jika
+  transaction atau `FOR UPDATE` dilepas, oversell bisa direproduksi assessor dan itu
+  **critical failure**. Invariant: `SUM(stock_ledger.quantity) = product_stock.quantity`
+  untuk setiap pasangan (product, warehouse).
+- **`SalesOrderService::approve()`** — segregation of duties. Sales tidak boleh approve order
+  apa pun, termasuk miliknya. Wajib ditegakkan di server; menyembunyikan tombol saja
+  **critical failure**.
+- **Authorization guard** — deny by default. Route tanpa role eksplisit tidak dapat diakses
+  siapa pun. Resource di luar scope pemanggil menghasilkan **404, bukan 403**, agar
+  keberadaan record tidak bocor.
+- **Upload image product** — tipe ditentukan dari isi file (`finfo`), bukan dari nama atau
+  header client. Nama file acak. Disimpan **di luar document root** dan disajikan lewat
+  controller.
+- **Ledger bersifat append-only** — jangan pernah UPDATE atau DELETE baris `stock_ledger`.
+- **Jangan pernah** memasukkan `.env`, credential aktif, token, atau data PII ke repository
+  maupun history.
 
 ## How agents should work here
 
 - Discovery-first: read and confirm understanding before changing code.
 - Keep changes in scope; state what is OUT OF SCOPE; verify end-to-end.
 - Prefer the smallest viable change; ask for approval on the diff.
-- **When you add or change a use case, write its unit test in the same change.** A
-  service method without a unit test is a constitution violation, not a backlog item
-  (Constitution III). Tests use `Repository/InMemory/` fakes — no DB, no network, no
-  filesystem, no `sleep()`, no test-order dependence.
-- Goods receipt, goods issue, and oversell protection additionally require integration
-  tests.
-- Justify complexity: if you rejected a simpler design, say why in the plan's Complexity
-  Tracking table or in an ADR under `docs/architecture/`.
-
-## Active Technologies
-
-Feature `001-inventory-order-system` (see `specs/001-inventory-order-system/plan.md`):
-
-- PHP 8.4.x, native, zero runtime dependencies (Composer for PSR-4 autoload + dev tools only)
-- MySQL 8 via PDO, InnoDB (row locking), prepared statements, explicit transactions
-- Hand-authored HTML/CSS + vanilla JS (progressive enhancement; works with JS off)
-- Docker Compose: `app` + `mysql`
-- Dev: PHPUnit, PHPStan level 6, PHP_CodeSniffer PSR-12
-
-Details are in the plan; the constraints that govern them are in the constitution.
-
-## Recent Changes
-
-- **001-inventory-order-system** — spec, plan, research, data model, and contracts written.
-  Design decisions worth knowing before touching code:
-  - `TransactionManagerInterface` keeps transaction orchestration out of PDO's reach so all
-    40 use-case methods stay unit-testable with in-memory fakes (ADR-002).
-  - One `Authorization\Policy` object holds every access rule; the router refuses to boot if
-    a route lacks an authorization annotation, so a forgotten one fails closed (ADR-003).
-  - Goods issue is **all-or-nothing** — no `issued_quantity` on sales order lines.
-  - Stock adjustment is Admin-only with a mandatory reason, recorded as its own
-    `stock_adjustments` document so `stock_ledgers` stays exactly as the source spec defines it.
-  - Multi-line stock operations lock rows in ascending `(product_id, warehouse_id)` order to
-    make deadlock impossible.
+- **Jangan over-engineering** (spec C-003). Layer, pattern, atau dependency tambahan yang
+  tidak menyelesaikan masalah nyata dinilai negatif — setara dengan kode berantakan. Bila
+  tetap perlu, catat justifikasinya di tabel Complexity Tracking pada `plan.md`.
+- **Setiap use case wajib punya unit test** (constitution Principle III). Use case tanpa unit
+  test berarti task belum selesai, bukan selesai sebagian.
+- Ikuti `data-model.md` apa adanya — schema **mirror** dari sumber. Jangan merge, rename,
+  atau menyederhanakan resource tanpa persetujuan eksplisit.

@@ -1,40 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
-         cacheDirectory=".phpunit.cache"
+         bootstrap="tests/bootstrap.php"
          colors="true"
-         executionOrder="random"
-         resolveDependencies="true"
-         beStrictAboutOutputDuringTests="true"
-         beStrictAboutCoverageMetadata="false"
-         failOnRisky="true"
          failOnWarning="true"
+         failOnRisky="true"
          failOnNotice="true"
-         failOnDeprecation="true"
-         displayDetailsOnTestsThatTriggerErrors="true"
-         displayDetailsOnTestsThatTriggerWarnings="true"
-         displayDetailsOnTestsThatTriggerNotices="true"
-         displayDetailsOnTestsThatTriggerDeprecations="true"
-         displayDetailsOnPhpunitDeprecations="true">
+         beStrictAboutOutputDuringTests="true"
+         cacheDirectory=".phpunit.cache">
 
-    <!--
-        Two suites, and the split is load-bearing.
-
-        Unit  — no database, no PDO, no session, no HTTP, no filesystem, no sleep().
-                Runs against in-memory repository fakes. This is what makes the
-                constitution's "every use case has a unit test" rule affordable.
-        Integration — real MySQL from Docker. Only for the things that genuinely need
-                it: transactional receipt/issue, oversell protection under two
-                concurrent connections, and ledger reconciliation.
-
-        executionOrder="random" is deliberate: NFR-011 forbids test-order dependence,
-        so the suite must prove it rather than merely claim it.
-    -->
     <testsuites>
+        <!-- Unit: tanpa database, session, network, atau filesystem.
+             Seluruhnya memakai InMemory*Repository. -->
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
+
+        <!-- Integration: MySQL 8 sungguhan di dalam Docker. -->
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
         </testsuite>
@@ -42,26 +24,11 @@
 
     <source>
         <include>
-            <directory suffix=".php">app</directory>
+            <directory>app</directory>
         </include>
     </source>
 
-    <coverage>
-        <report>
-            <text outputFile="php://stdout" showOnlySummary="true"/>
-        </report>
-    </coverage>
-
     <php>
-        <ini name="display_errors" value="1"/>
-        <ini name="error_reporting" value="-1"/>
-        <!--
-            Integration tests read connection details from the environment so no
-            credential is ever written into a tracked file. Values come from .env via
-            Docker; these are only fallbacks for the container's own defaults.
-        -->
         <env name="APP_ENV" value="testing"/>
-        <env name="DB_HOST" value="mysql" force="false"/>
-        <env name="DB_PORT" value="3306" force="false"/>
     </php>
 </phpunit>

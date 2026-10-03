@@ -1,47 +1,37 @@
-# ---------------------------------------------------------------------------
-# Secrets — NFR-005: no credential anywhere in the repository or its history.
-# Only .env.example (placeholders) is tracked.
-# ---------------------------------------------------------------------------
-.env
-.env.*
-!.env.example
-
-# ---------------------------------------------------------------------------
-# PHP / Composer
-# ---------------------------------------------------------------------------
+# Dependency
 /vendor/
-composer.phar
+
+# Environment - tidak pernah masuk repository
+.env
+.env.local
+.env.*.local
+
+# Upload user - isinya tidak pernah di-commit, direktorinya tetap ada
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+
+# Output tool
+/docs/quality/*.txt
+/docs/quality/*.xml
+.phpunit.result.cache
+.phpunit.cache/
+/coverage/
+*.log
 *.cache
 
-# ---------------------------------------------------------------------------
-# Tool caches and reports
-# ---------------------------------------------------------------------------
-/.phpunit.cache/
-.phpunit.result.cache
-/.phpstan.cache/
-/build/
-/coverage/
-clover.xml
-junit.xml
-
-# ---------------------------------------------------------------------------
-# Uploaded files — user content, never committed. The directory itself is kept.
-# ---------------------------------------------------------------------------
-/public/uploads/products/*
-!/public/uploads/products/.gitkeep
-
-# ---------------------------------------------------------------------------
-# Logs and temporary files
-# ---------------------------------------------------------------------------
-*.log
-*.tmp
-*.swp
-
-# ---------------------------------------------------------------------------
-# Editors and operating systems
-# ---------------------------------------------------------------------------
-.vscode/
-.idea/
-*.iml
+# OS dan editor
 .DS_Store
 Thumbs.db
+*.swp
+*.tmp
+.idea/
+.vscode/
+
+# AI Related
+.ai
+.agents
+AGENTS.md
+CLAUDE.md
+.rudis
+.claude
+specs

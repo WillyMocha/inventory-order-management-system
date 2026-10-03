@@ -31,7 +31,7 @@ related jobs, and the input decides which one(s) apply:
 
 ## Mode A — Instrument (wire observability)
 
-1. **Initialize & discover**: run `.rudis/scripts/bash/check-prerequisites.sh --json --paths-only`, parse FEATURE_DIR. Read plan.md (tech stack, NFRs),
+1. **Initialize & discover**: run `.rudis/scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly`, parse FEATURE_DIR. Read plan.md (tech stack, NFRs),
    spec.md's non-functional requirements, and the agent context file. Detect any observability the
    project already uses (a logger, an APM/OTel SDK, a metrics endpoint, existing dashboards) — extend
    it, don't introduce a second, competing stack.

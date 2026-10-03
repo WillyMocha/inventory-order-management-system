@@ -1,171 +1,153 @@
 # Inventory & Order Management System
 
-> **Build status: Phase 1 (project setup) complete.** The container, tooling and quality
-> gates are in place; no application behaviour is implemented yet. Sections marked
-> _(pending)_ are filled as the phases that deliver them complete — see
-> `specs/001-inventory-order-system/tasks.md` for the plan and T160 for this file's
-> completion.
+Aplikasi web untuk mencatat product, mengelola stock di beberapa warehouse, memproses
+pembelian dari supplier (Purchase Order → goods receipt) dan penjualan ke customer
+(Sales Order → approval → goods issue), dengan dashboard dan report per role.
 
-## 1. Project overview
+Dibangun sebagai **modular monolith** server-rendered: PHP 8.4 tanpa framework, MySQL 8,
+vanilla JavaScript tanpa build step. Tidak ada ORM, DI container, CSS framework, maupun
+admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 
-A web application for managing products and master data, stock across multiple
-warehouses, Purchase Orders with goods receipt, Sales Orders with an approval gate and
-goods issue, a permanent Stock Ledger, role-based dashboards, and CSV reports.
+> **Bahasa**: seluruh string UI berbahasa Inggris. Comment dan dokumentasi berbahasa
+> Indonesia dengan istilah teknis tetap bahasa Inggris.
 
-Its central guarantee: **recorded stock and its movement history can never disagree, and
-stock can never be oversold** — including when two fulfilments compete for the same units
-at the same moment.
+## Fitur
 
-Governing documents:
+| Area | Isi |
+| --- | --- |
+| **Authentication** | Login dengan session, rate limit percobaan gagal, regenerasi session id, step-up re-auth sebelum aksi sensitif |
+| **User management** | Admin membuat dan menonaktifkan user; tidak ada registrasi publik |
+| **Master data** | Category, Warehouse, Supplier, Customer — dinonaktifkan, tidak pernah dihapus |
+| **Product** | Katalog dengan SKU unik, harga beli/jual, reorder point, dan upload image |
+| **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock` |
+| **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap |
+| **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue |
+| **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation |
+| **Report** | Export CSV stock movement dan status order untuk rentang tanggal pilihan |
+| **JSON API** | Ketersediaan stock per warehouse, dengan session auth yang sama dengan halaman |
+| **Job** | Routine low-stock yang berjalan di luar request cycle |
 
-- `.rudis/memory/constitution.md` — the non-negotiable rules (v1.0.0)
-- `specs/001-inventory-order-system/spec.md` — what is built and why
-- `specs/001-inventory-order-system/plan.md` — how it is built
-- `docs/inventory-order-management-spec.md` — the original project brief
+## Role
 
-## 2. Features
+| Role | Tanggung jawab |
+| --- | --- |
+| **Admin** | User management, master data, approval Sales Order, seluruh report |
+| **Sales** | Membuat Sales Order — **tidak boleh approve**, termasuk order miliknya sendiri |
+| **Warehouse Staff** | Goods receipt, goods issue, antrean fulfillment |
 
-_(pending — filled as user stories land; see `tasks.md` phases 3–12)_
+Pemisahan tanggung jawab ditegakkan **di server**, bukan dengan menyembunyikan tombol di UI.
+`SalesOrderService::approve()` memeriksa role Admin **dan** `approved_by <> created_by`.
 
-Planned, in delivery order: role-based access · master data and multi-warehouse stock ·
-Purchase Order and Goods Receipt · Sales Order with Admin approval and oversell-proof
-Goods Issue · search/filter/sort/pagination · three role dashboards · CSV exports ·
-availability JSON API · low-stock CLI check · Admin stock adjustment.
+## Kebutuhan
 
-## 3. Technology stack
+- Docker dan Docker Compose
+- Port `8080` (aplikasi) dan `3307` (MySQL) bebas di host
 
-| Layer | Choice | Note |
-| ----- | ------ | ---- |
-| Language | **PHP 8.4.x only** | Hard version lock. Not 8.3 or older, not 8.5 or newer. |
-| Backend | Native PHP, OOP, PDO | **No framework, no ORM, no DI container, no CRUD generator.** |
-| Frontend | HTML5, hand-authored CSS, vanilla JS | **No React/Vue/Angular/jQuery, no CSS framework, no admin template.** |
-| Database | MySQL 8+ (InnoDB) | InnoDB is required for the row locking the oversell guarantee depends on. |
-| Runtime | Docker + Docker Compose | `app` + `mysql` containers. |
-| Testing | PHPUnit 13 | Unit (no database) and Integration (real MySQL). |
-| Static analysis | PHPStan level 6 | Constitution floor is 5; this project runs at 6. |
-| Style | PHP_CodeSniffer, PSR-12 | Plus `strict_types` in every file. |
+Tidak perlu memasang PHP maupun MySQL di host. Versi PHP dipatok **8.4 tepat** — tidak di
+bawah, tidak di atas; image sudah di-pin dan front controller memuat runtime guard.
 
-Runtime Composer dependencies: **none.** Composer provides PSR-4 autoloading and the
-three dev tools above, nothing more.
-
-## 4. Architecture overview
-
-Strictly layered, dependencies pointing inward only:
-
-```text
-Controller → Service (use case) → Repository Interface ← Repository Implementation → PDO/MySQL
-```
-
-- Controllers parse input, call **one** use case, and render. No SQL, no business rules.
-- Services hold business rules, state transitions and transaction orchestration.
-- Services depend on repository **interfaces** only; concrete bindings are wired at the
-  composition root (`config/container.php`).
-- `app/Repository/InMemory/` exists so every use case can be unit-tested with no
-  database. That is not test scaffolding — it is the reason the boundary exists.
-
-Decisions are recorded in `docs/architecture/` (ADR-001 … ADR-006) _(pending — T153)_.
-
-## 5. Requirements
-
-- Docker Engine 24+ with the Compose plugin (`docker compose`)
-- Nothing else. No local PHP, MySQL or Composer is needed.
-
-## 6. Installation
+## Menjalankan
 
 ```bash
-git clone <repo-url>
-cd inventory-order-management-system
-cp .env.example .env      # then replace every CHANGE_ME value
+cp .env.example .env
+docker compose up --build        # http://localhost:8080
 ```
 
-`.env` is git-ignored and must stay that way — no credential belongs in this repository.
-
-## 7. Docker startup
+Migration dan data seed diterapkan otomatis saat container pertama kali naik. Untuk
+menerapkannya ulang secara manual:
 
 ```bash
-docker compose up --build
+docker compose exec app composer db:migrate   # file yang belum dijalankan
+docker compose exec app composer db:reset     # hapus lalu bangun ulang dari nol
 ```
 
-The application is then at **http://localhost:8080** (change `APP_PORT` in `.env` to use
-a different port). The `app` container waits for the database's healthcheck, so a first
-run cannot race into a connection error.
+## Akun demo
 
-## 8. Database initialisation
+Seluruh akun memakai password `Password123!`. Tidak ada registrasi publik — setiap akun
+dibuat oleh Admin.
 
-_(pending — the schema and seed files arrive in T013 and T043)_
+| Role | Email |
+| --- | --- |
+| Admin | `admin@ioms.test` |
+| Sales | `sales1@ioms.test`, `sales2@ioms.test` |
+| Warehouse Staff | `warehouse1@ioms.test`, `warehouse2@ioms.test` |
+
+Kredensial di atas hanya untuk data seed demo di lingkungan lokal.
+
+## Test dan quality gate
+
+Satu perintah per suite:
 
 ```bash
-docker compose exec app composer install
-docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" ioms < database/schema.sql
-docker compose exec -T mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" ioms < database/seed.sql
+docker compose exec app composer test              # unit + integration
+docker compose exec app composer test:unit         # tanpa DB, session, atau network
+docker compose exec app composer test:integration  # MySQL 8 sungguhan
+docker compose exec app composer analyse           # PHPStan level 6
+docker compose exec app composer cs                # PHP_CodeSniffer PSR-12
 ```
 
-## 9. Demo accounts
-
-_(pending — seeded by T043)_
-
-## 10. Run unit tests
+Integration test memakai database terpisah. Schema-nya dibangun **sekali** dengan:
 
 ```bash
-docker compose exec app vendor/bin/phpunit --testsuite Unit
+docker compose exec app composer db:test
 ```
 
-No database, no network, no filesystem, no `sleep()` — unit tests run against in-memory
-repository fakes.
+Hasil terakhir: **445 test, 1235 assertion, seluruhnya lulus** — lihat
+[`docs/testing/test-results.md`](docs/testing/test-results.md).
 
-## 11. Run integration tests
+## Low-stock check di luar request cycle (JOB-01)
 
-```bash
-docker compose exec app vendor/bin/phpunit --testsuite Integration
-```
-
-These use the real MySQL container and will drop and recreate `TEST_DB_DATABASE`. Point
-that at a throwaway database.
-
-## 12. Run static analysis
-
-```bash
-docker compose exec app vendor/bin/phpstan analyse app --level=6   # must report 0 errors
-docker compose exec app vendor/bin/phpcs                           # PSR-12
-```
-
-Or everything that runs without a database: `composer check`.
-
-## 13. Run the scheduled script
-
-_(pending — T133)_
+Routine mandiri yang meringkas product pada atau di bawah reorder point. Berjalan tanpa HTTP,
+tanpa session, dan memakai `ProductService` **yang sama** dengan dashboard — sehingga script
+dan layar tidak bisa memberi jawaban berbeda.
 
 ```bash
 docker compose exec app php scripts/check-low-stock.php
+docker compose exec app php scripts/check-low-stock.php --limit=25
 ```
 
-## 14. Known limitations
+Exit code `0` berarti berhasil dijalankan, termasuk saat ada product yang menipis; `1` berarti
+gagal dijalankan. Tidak ada cron yang dipasang di image — penjadwalan otomatis berada di luar
+scope. Prosedur verifikasi lengkap ada di
+[`docs/testing/low-stock-job.md`](docs/testing/low-stock-job.md).
 
-- **No MFA for Admin accounts.** Recommended by the project's security standard for
-  high-privilege accounts; excluded by scope (brief §66). Recorded as accepted risk.
-- **No breached-password check.** Requires an external service, which an offline
-  container does not have.
-- **Sign-in rate-limit counters live in the application database**, so they are not
-  shared across multiple app containers. Fine at the single-node scope that ships.
-- **CSV export streams rows** but a very wide date range is still a long request.
+## Dokumentasi
 
-These and any others are tracked in `docs/quality/tech-debt.md` _(pending — T150)_.
+| Dokumen | Isi |
+| --- | --- |
+| [`specs/001-inventory-order-management/spec.md`](specs/001-inventory-order-management/spec.md) | Requirement — user story, FR, NFR, constraint |
+| [`specs/001-inventory-order-management/plan.md`](specs/001-inventory-order-management/plan.md) | Rencana implementasi dan struktur folder |
+| [`specs/001-inventory-order-management/research.md`](specs/001-inventory-order-management/research.md) | Keputusan desain beserta alternatif yang ditolak |
+| [`specs/001-inventory-order-management/data-model.md`](specs/001-inventory-order-management/data-model.md) | Schema, mirror dari resource model sumber |
+| [`specs/001-inventory-order-management/contracts/`](specs/001-inventory-order-management/contracts/) | Route table, matriks authorization, dan JSON API |
+| [`specs/001-inventory-order-management/quickstart.md`](specs/001-inventory-order-management/quickstart.md) | Prosedur verifikasi lengkap dan skenario demo |
+| [`docs/architecture/`](docs/architecture/) | Class diagram as-built dan dua ADR |
+| [`docs/quality/`](docs/quality/) | Refactor log, tech debt, kritik desain, laporan PHPStan dan PHPCS |
+| [`docs/testing/`](docs/testing/) | Hasil test, pemetaan coverage, sweep jalur kegagalan |
 
-## 15. Project layout
+## Keterbatasan yang diketahui
 
-```text
-app/          Controller · Service · Repository{Contract,MySQL,InMemory} · Entity · Authorization
-public/       index.php front controller, css/, js/, img/, uploads/
-views/        plain PHP templates
-config/       env.php · database.php · container.php · routes.php
-database/     schema.sql · seed.sql
-scripts/      check-low-stock.php
-tests/        Unit/ (no DB) · Integration/ (real MySQL)
-docs/         planning · architecture (ADRs) · quality · testing
-specs/        the specification, plan and task list this project is built from
-```
+Dicatat apa adanya. Rinciannya di [`docs/quality/tech-debt.md`](docs/quality/tech-debt.md).
 
-## AI usage
+- **Pemeriksaan visual di browser belum dilakukan.** Seluruh halaman sudah dipastikan
+  mengembalikan 200 dengan isi yang benar lewat HTTP, tetapi spacing, keselarasan grid, dan
+  perilaku responsive pada 360px belum pernah benar-benar dilihat.
+- **Tidak ada CI.** Kedua suite dijalankan manual. Selama enam phase, integration suite tidak
+  pernah dijalankan sama sekali — dan menyembunyikan satu bug yang membuat setiap goods issue
+  gagal. Ini keterbatasan proses yang paling mahal di project ini.
+- **Tidak ada test otomatis untuk JavaScript.** `stock-lookup.js` dan `validation.js` hanya
+  diperiksa sintaksisnya. Keduanya murni progressive enhancement — aplikasi tetap berfungsi
+  penuh tanpa JavaScript.
+- **Jalur filesystem upload tidak ter-unit-test.** Keputusannya (tipe dari `finfo`, batas
+  ukuran, nama acak, penyimpanan di luar document root) teruji; pembungkus filesystem-nya
+  tidak.
+- **Tidak ada penjadwalan otomatis.** Routine low-stock dijalankan manual, sesuai scope.
+- **Tidak ada password reset.** Brief tidak menyediakan registrasi publik; Admin yang
+  mengatur ulang password.
+- **`.env.example` memuat kredensial development.** Hanya memberi akses ke MySQL di dalam
+  container. Untuk deployment sungguhan nilainya wajib diganti.
 
-This project was developed with AI assistance. Every use is disclosed in
-`ai-usage-log.md`, per the brief's DISCLOSE / REVIEW / VERIFY / TEST obligations.
+## Atribusi
+
+Icon berasal dari [Lucide](https://lucide.dev), dilisensikan **ISC**. Sprite SVG-nya disajikan
+sendiri dari `public/assets/icons/lucide-sprite.svg` — tidak ada CDN dan tidak ada icon font.

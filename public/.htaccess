@@ -1,0 +1,28 @@
+# Seluruh request non-file diarahkan ke front controller.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Jangan tulis ulang file atau direktori yang benar-benar ada
+    # (asset CSS, JS, dan icon sprite).
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Tolak akses ke dotfile apa pun yang sempat berada di document root.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Direktori tidak boleh menampilkan daftar isinya.
+Options -Indexes
+
+# Header keamanan dasar (security standard §3).
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+</IfModule>
+
+# Signature server tidak perlu diumumkan.
+ServerSignature Off

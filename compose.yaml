@@ -1,62 +1,86 @@
-# Inventory & Order Management System — local runtime.
-#
-# Two containers, one host, no orchestration: source §66 rules out Kubernetes, brokers
-# and cloud targets as non-goals. `docker compose up --build` from a fresh clone must
-# bring up a working system (NFR-012).
-#
-# The app reaches the database by the compose service name `mysql` — never by a host
-# address or a machine-specific path.
-
+# Dua service saja: app dan db. Tidak ada load balancer, cache, atau queue -
+# tidak ada requirement yang memintanya dan §4.3 menempatkannya di luar scope.
 services:
   app:
     build:
       context: .
-    # Read credentials from .env. That file is git-ignored; copy .env.example to .env
-    # before the first run. No credential is baked into this file or the image.
-    env_file:
-      - .env
+      dockerfile: Dockerfile
+    container_name: ioms_app
+    restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
-    volumes:
-      # Bind-mount the source for development so an edit is visible without a rebuild.
-      # vendor/ and the upload directory are kept in named volumes so the container's
-      # own contents survive and are not shadowed by the host.
-      - .:/var/www/html
-      - vendor:/var/www/html/vendor
-      - uploads:/var/www/html/public/uploads/products
-    depends_on:
-      mysql:
-        condition: service_healthy
-    restart: unless-stopped
-
-  mysql:
-    image: mysql:8.4
-    env_file:
-      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
-      MYSQL_DATABASE: ${DB_DATABASE:-ioms}
-      MYSQL_USER: ${DB_USERNAME:-ioms}
-      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
-    command:
-      # InnoDB is required for the SELECT ... FOR UPDATE row locking that the whole
-      # oversell guarantee rests on (ADR-002). Pinned explicitly rather than assumed.
-      - --default-storage-engine=InnoDB
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_0900_ai_ci
+      APP_ENV: "${APP_ENV:-local}"
+      APP_URL: "${APP_URL:-http://localhost:8080}"
+      SESSION_SECURE: "${SESSION_SECURE:-false}"
+      # Di dalam network Docker, MySQL selalu di 3306. Kedua nilai ini sengaja
+      # hardcoded dan mengabaikan DB_HOST/DB_PORT dari .env - dua key itu hanya
+      # dipakai saat menjalankan aplikasi atau test dari host, di luar Docker.
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: "${DB_DATABASE:-ioms}"
+      DB_USERNAME: "${DB_USERNAME:-ioms_user}"
+      DB_PASSWORD: "${DB_PASSWORD:-ioms_secret}"
+      DB_DATABASE_TEST: "${DB_DATABASE_TEST:-ioms_test}"
+      UPLOAD_PATH: /var/www/html/storage/uploads
     volumes:
-      - mysql-data:/var/lib/mysql
+      - .:/var/www/html
+      # Bind mount di atas menimpa seluruh /var/www/html, termasuk vendor/ hasil
+      # composer install saat build. Tanpa volume ini, clone bersih yang belum
+      # pernah menjalankan composer di host akan fatal error saat autoload -
+      # persis skenario "demo dari folder bersih" pada SC-001.
+      - vendor_data:/var/www/html/vendor
+      - uploads_data:/var/www/html/storage/uploads
+    # app tidak boleh start sebelum MySQL benar-benar siap menerima koneksi.
+    # Ini penyebab paling umum demo dari folder bersih terlihat rusak (SC-001).
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ioms_net
+
+  db:
+    image: mysql:8.0
+    container_name: ioms_db
+    restart: unless-stopped
+    # Port publikasi ke host memakai key sendiri, bukan DB_PORT. Default 3307
+    # agar tidak bentrok dengan MySQL yang sudah berjalan di host (mis. Laragon).
+    ports:
+      - "${DB_HOST_PORT:-3307}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-root_secret}"
+      MYSQL_DATABASE: "${DB_DATABASE:-ioms}"
+      MYSQL_USER: "${DB_USERNAME:-ioms_user}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:-ioms_secret}"
+      # Dibaca oleh script init agar nama database test tidak hardcoded.
+      DB_DATABASE_TEST: "${DB_DATABASE_TEST:-ioms_test}"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+      # Database test dibuat sekali saat volume pertama kali diinisialisasi.
+      - ./database/docker-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      # The app container waits for this to pass, so a first `up` cannot race the
-      # database into a connection-refused error.
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -hlocalhost
+        - -uroot
+        - -p${DB_ROOT_PASSWORD:-root_secret}
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 30s
-    restart: unless-stopped
+    networks:
+      - ioms_net
 
 volumes:
-  mysql-data:
-  vendor:
-  uploads:
+  db_data:
+  uploads_data:
+  vendor_data:
+
+networks:
+  ioms_net:
+    driver: bridge

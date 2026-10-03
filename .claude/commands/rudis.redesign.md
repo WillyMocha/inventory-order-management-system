@@ -50,7 +50,7 @@ and leave an auditable trail with a rollback path.
 
 ### 1. Initialize
 
-Run `.rudis/scripts/bash/check-prerequisites.sh --json --paths-only` from repo root and parse FEATURE_DIR (and available paths). Read, when
+Run `.rudis/scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly` from repo root and parse FEATURE_DIR (and available paths). Read, when
 they exist: plan.md (architecture, tech stack), data-model.md, contracts/, spec.md, and
 the agent context file (`CLAUDE.md`/`AGENTS.md`). These define the boundaries the
 redesign must respect.

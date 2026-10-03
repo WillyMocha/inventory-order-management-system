@@ -45,10 +45,10 @@ Given that feature description, do this:
       - Local branches (read-only, no fetch): `git branch | grep -E '^[* ]*[0-9]+-<short-name>$'`.
       - Use N+1 (start at 1 if none). **Do not** run `git fetch`; do not query remotes. (Only when the user asked for a branch, you may additionally check `git ls-remote --heads origin` to avoid a number collision — the script itself fetches in that case.)
 
-   c. Run the script `.rudis/scripts/bash/create-new-feature.sh --json "$ARGUMENTS"` with the calculated number and short-name:
+   c. Run the script `.rudis/scripts/powershell/create-new-feature.ps1 -Json "$ARGUMENTS"` with the calculated number and short-name:
       - Pass `--number N+1` and `--short-name "your-short-name"` along with the feature description.
-      - Bash example (default, no branch): `.rudis/scripts/bash/create-new-feature.sh --json "$ARGUMENTS" --json --number 5 --short-name "user-auth" "Add user authentication"`
-      - PowerShell example: `.rudis/scripts/bash/create-new-feature.sh --json "$ARGUMENTS" -Json -Number 5 -ShortName "user-auth" "Add user authentication"`
+      - Bash example (default, no branch): `.rudis/scripts/powershell/create-new-feature.ps1 -Json "$ARGUMENTS" --json --number 5 --short-name "user-auth" "Add user authentication"`
+      - PowerShell example: `.rudis/scripts/powershell/create-new-feature.ps1 -Json "$ARGUMENTS" -Json -Number 5 -ShortName "user-auth" "Add user authentication"`
       - **Only if the user explicitly asked for a branch**, add `--create-branch` (PowerShell: `-CreateBranch`). The script stays on the current branch otherwise and, in the default path, makes no remote fetch either.
 
    d. The `--number`/`--short-name` control the `specs/` directory name in both cases. Check the `BRANCH_CREATED` field in the JSON output: it must be `false` unless the user asked for a branch.
