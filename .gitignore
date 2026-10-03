@@ -34,4 +34,10 @@ AGENTS.md
 CLAUDE.md
 .rudis
 .claude
-specs
+
+# specs/001-inventory-order-management/ DI-COMMIT: spec, plan, research,
+# data-model, dan contracts adalah acuan desain yang dirujuk README dan docs/.
+# Yang tidak di-commit: folder spec lama yang sudah usang, dan PDF brief milik
+# trainer (bukan karya peserta).
+specs/001-inventory-order-system/
+*.pdf
