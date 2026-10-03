@@ -22,12 +22,14 @@ const NEEDS_WAREHOUSE = 'Select a warehouse';
 /**
  * Meminta available quantity untuk satu pasangan product dan warehouse.
  *
+ * Diekspor agar dapat diuji `node --test` tanpa browser (tests/js/).
+ *
  * @param {string} productId
  * @param {string} warehouseId
  * @param {AbortSignal} signal
  * @returns {Promise<number|null>} null bila tidak dapat ditentukan
  */
-async function fetchAvailable(productId, warehouseId, signal) {
+export async function fetchAvailable(productId, warehouseId, signal) {
     const url = `${ENDPOINT_PREFIX}/${encodeURIComponent(productId)}`
         + `/warehouses/${encodeURIComponent(warehouseId)}/available`;
 
@@ -51,11 +53,13 @@ async function fetchAvailable(productId, warehouseId, signal) {
 }
 
 /**
+ * Menulis panduan ke sel. Diekspor untuk test (tests/js/).
+ *
  * @param {HTMLElement} cell
  * @param {number|null} quantity
  * @param {number} requested
  */
-function render(cell, quantity, requested) {
+export function render(cell, quantity, requested) {
     cell.classList.remove('stock-hint--low', 'stock-hint--ok');
 
     if (quantity === null) {
