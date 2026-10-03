@@ -256,10 +256,13 @@ deaktivasi yang ditawarkan, bukan penghapusan.
 | `supplier`, `customer` | `ix_*_active_name (is_active, name)` | Composite | Pola sama dengan product |
 | `purchase_order` | `uq_purchase_order_number (order_number)` | UNIQUE | Pencarian nomor (FIND-01) |
 | `purchase_order` | `ix_purchase_order_status_date (status, order_date)` | Composite | List: filter status, sort tanggal |
+| `purchase_order` | `ix_purchase_order_date (order_date, id)` | Composite | List tanpa filter status dan rentang tanggal report — `003_date_indexes.sql` |
 | `sales_order` | `uq_sales_order_number (order_number)` | UNIQUE | Sama |
 | `sales_order` | `ix_sales_order_status_date (status, order_date)` | Composite | Sama |
+| `sales_order` | `ix_sales_order_date (order_date, id)` | Composite | Sama dengan `ix_purchase_order_date` |
 | `sales_order` | `ix_sales_order_created_by (created_by)` | FK | Scoping kepemilikan role Sales |
-| `stock_ledger` | `ix_ledger_product_warehouse_date (product_id, warehouse_id, created_at)` | Composite | Stock card dan report |
+| `stock_ledger` | `ix_ledger_product_warehouse_date (product_id, warehouse_id, created_at)` | Composite | Stock card per product dan warehouse |
+| `stock_ledger` | `ix_ledger_created_at (created_at, id)` | Composite | Rentang tanggal report stock movement — `003_date_indexes.sql` |
 | `stock_ledger` | `ix_ledger_reference (reference_type, reference_id)` | Composite | Riwayat pergerakan per order |
 | `login_attempt` | `ix_login_attempt_email_time (email, attempted_at)` | Composite | Rate limit 5 kegagalan / 15 menit |
 
