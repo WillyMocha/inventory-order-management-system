@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Enum\Role;
 use App\Service\MasterDataService;
 use App\Service\ProductImageService;
 use App\Service\ProductService;
+use App\Service\StockService;
 use App\Support\Csrf;
 use App\Support\Exception\NotFoundException;
 use App\Support\Exception\ValidationException;
@@ -42,6 +44,7 @@ final class ProductController
         private readonly ProductService $productService,
         private readonly ProductImageService $imageService,
         private readonly MasterDataService $masterData,
+        private readonly StockService $stockService,
         private readonly Session $session,
         private readonly Csrf $csrf,
     ) {
@@ -86,6 +89,9 @@ final class ProductController
     {
         $breakdown = $this->productService->stockBreakdown($this->requireId($request));
         $product = $breakdown['product'];
+        // Tombol koreksi dan riwayatnya untuk Admin dan Warehouse Staff saja
+        // (spec 003 A-009). Presentasi: route table dan StockService yang menegakkan.
+        $canAdjust = in_array($this->session->role(), [Role::Admin, Role::WarehouseStaff], true);
 
         return Response::html($this->view->render('products/detail', [
             'title'      => $product->name,
@@ -95,6 +101,9 @@ final class ProductController
             'category'   => $this->masterData->requireCategory($product->categoryId),
             'referenced' => $this->productService->isReferencedByOrder((int) $product->id),
             'canManage'  => $this->session->role()?->value === 'Admin',
+            'canAdjust'  => $canAdjust,
+            // Query riwayat tidak dijalankan untuk Sales.
+            'adjustments' => $canAdjust ? $this->stockService->recentAdjustments((int) $product->id) : [],
             'csrf'       => $this->csrf,
         ]));
     }

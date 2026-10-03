@@ -82,6 +82,10 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('POST', '/products/{id}/toggle-active', 'ProductController', 'toggleActive', $adminOnly);
     // Menyajikan file dari luar document root (research R-006).
     $router->add('GET', '/products/{id}/image', 'ProductController', 'image', $all);
+    // Koreksi stock dari hasil hitung fisik (spec 003) - Admin dan Warehouse
+    // Staff. Sales ditolak di sini DAN di StockService::adjustStock().
+    $router->add('GET', '/products/{id}/adjust-stock', 'StockAdjustmentController', 'create', $adminWarehouse);
+    $router->add('POST', '/products/{id}/adjust-stock', 'StockAdjustmentController', 'store', $adminWarehouse);
 
     // ---------------------------------------------------------------------
     // Category - Admin saja

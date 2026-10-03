@@ -14,6 +14,9 @@ declare(strict_types=1);
  * @var Category $category
  * @var bool $referenced
  * @var bool $canManage
+ * @var bool $canAdjust
+ * @var list<array{createdAt: string, warehouseName: string, quantity: int, balanceAfter: int, performedByName: string, note: string}> $adjustments
+ * @var View $view
  */
 
 use App\Entity\Category;
@@ -35,6 +38,9 @@ use App\Support\View;
     </div>
     <div class="row">
         <a class="btn btn--ghost" href="/products">Back to products</a>
+        <?php if ($canAdjust) : ?>
+            <a class="btn" href="/products/<?= (int) $product->id ?>/adjust-stock">Adjust stock</a>
+        <?php endif; ?>
         <?php if ($canManage) : ?>
             <a class="btn" href="/products/<?= (int) $product->id ?>/edit">Edit</a>
             <form method="post" action="/products/<?= (int) $product->id ?>/toggle-active"
@@ -138,6 +144,62 @@ use App\Support\View;
         </div>
     <?php endif; ?>
 </div>
+
+<?php if ($canAdjust) : ?>
+    <?php /* Riwayat koreksi hanya untuk Admin dan Warehouse Staff (spec 003 FR-009, A-009). */ ?>
+    <div class="card" style="margin-top: var(--space-6)">
+        <div class="card-header">
+            <h2 class="card-title">Stock adjustments</h2>
+            <span class="cell-secondary">Latest <?= count($adjustments) ?> · full history in the stock movement export</span>
+        </div>
+
+        <?php if ($adjustments === []) : ?>
+            <?= $view->renderPartial('layout/_empty-state', [
+                'icon' => 'clipboard-list',
+                'heading' => 'No stock adjustments yet',
+                'text' => 'Corrections made with Adjust stock appear here, with who made them and why. They can never be edited or deleted.',
+                'actionLabel' => 'Adjust stock',
+                'actionHref' => '/products/' . (int) $product->id . '/adjust-stock',
+            ]) ?>
+        <?php else : ?>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Warehouse</th>
+                            <th scope="col" class="numeric">Change</th>
+                            <th scope="col" class="numeric">Resulting quantity</th>
+                            <th scope="col">By</th>
+                            <th scope="col">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($adjustments as $adjustment) : ?>
+                            <tr>
+                                <td class="tabular"><?= View::e(date('d M Y H:i', (int) strtotime($adjustment['createdAt']))) ?></td>
+                                <td>
+                                    <span class="row-entity">
+                                        <svg class="icon" aria-hidden="true">
+                                            <use href="/assets/icons/lucide-sprite.svg#warehouse"></use>
+                                        </svg>
+                                        <span class="cell-primary"><?= View::e($adjustment['warehouseName']) ?></span>
+                                    </span>
+                                </td>
+                                <td class="numeric tabular qty-change qty-change--<?= $adjustment['quantity'] > 0 ? 'up' : 'down' ?>">
+                                    <?= View::e(sprintf('%+d', $adjustment['quantity'])) ?>
+                                </td>
+                                <td class="numeric tabular"><?= (int) $adjustment['balanceAfter'] ?> <?= View::e($product->unit) ?></td>
+                                <td><?= View::e($adjustment['performedByName']) ?></td>
+                                <td class="cell-wrap"><?= View::e($adjustment['note']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
 
 <div class="card" style="margin-top: var(--space-6)">
     <div class="card-header">

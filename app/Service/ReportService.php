@@ -61,6 +61,8 @@ final class ReportService
         'reference_type',
         'reference_id',
         'performed_by_name',
+        // Alasan koreksi stock (spec 003); kosong untuk Receipt dan Issue.
+        'note',
     ];
 
     /** @var list<string> */
@@ -74,6 +76,7 @@ final class ReportService
         'Reference Type',
         'Reference',
         'Performed By',
+        'Reason',
     ];
 
     /** @var list<string> */

@@ -316,6 +316,45 @@ final class ReportServiceTest extends TestCase
         self::assertSame('40', $cells[5]);
     }
 
+    // -------------------------------- alasan koreksi stock (spec 003 FR-010)
+
+    #[Test]
+    public function theStockMovementHeaderEndsWithTheReason(): void
+    {
+        $header = ReportService::STOCK_MOVEMENT_HEADER;
+
+        self::assertSame('Reason', $header[count($header) - 1]);
+    }
+
+    #[Test]
+    public function anAdjustmentRowCarriesItsReasonAndAReceiptRowDoesNot(): void
+    {
+        $this->ledger->recordAt('2026-03-07 10:00:00');
+        $this->ledger->append(StockLedger::adjustment(1, 1, -3, '3 units water-damaged', self::ADMIN));
+
+        $rows = $this->service->stockMovements('2026-03-01', '2026-03-10');
+        $receipt = $this->service->stockMovementCsvRow($rows[0]);
+        $adjustment = $this->service->stockMovementCsvRow($rows[1]);
+
+        self::assertSame('', $receipt[count($receipt) - 1]);
+        self::assertSame('Adjustment', $adjustment[4]);
+        self::assertSame('-3', $adjustment[5]);
+        self::assertSame('Manual', $adjustment[6]);
+        self::assertSame('3 units water-damaged', $adjustment[count($adjustment) - 1]);
+    }
+
+    /** Alasan adalah teks bebas dari user: rumus spreadsheet harus dinetralkan (NFR-001). */
+    #[Test]
+    public function aReasonThatLooksLikeAFormulaIsWrittenAsText(): void
+    {
+        $this->ledger->recordAt('2026-03-07 10:00:00');
+        $this->ledger->append(StockLedger::adjustment(1, 1, 2, '=1+1', self::ADMIN));
+
+        $cells = $this->service->stockMovementCsvRow($this->service->stockMovements('2026-03-07', '2026-03-07')[0]);
+
+        self::assertSame("'=1+1", $cells[count($cells) - 1]);
+    }
+
     // ------------------------------------- CSV formula injection (CWE-1236)
 
     #[Test]

@@ -31,6 +31,25 @@ interface StockLedgerRepositoryInterface
     public function movementsBetween(string $startDate, string $endDate): array;
 
     /**
+     * Koreksi stock (Adjustment) terbaru untuk satu product, terbaru lebih dulu
+     * (spec 003 FR-009, research R-006).
+     *
+     * `balanceAfter` adalah saldo ledger warehouse itu tepat setelah baris
+     * tersebut, dihitung dari SELURUH pergerakannya (Receipt, Issue,
+     * Adjustment) — sama dengan quantity stock saat itu menurut invariant.
+     *
+     * @return list<array{
+     *     createdAt: string,
+     *     warehouseName: string,
+     *     quantity: int,
+     *     balanceAfter: int,
+     *     performedByName: string,
+     *     note: string
+     * }>
+     */
+    public function recentAdjustmentsForProduct(int $productId, int $limit): array;
+
+    /**
      * Jumlah quantity ledger untuk satu pasangan (product, warehouse).
      * Dipakai pemeriksaan rekonsiliasi terhadap product_stock (NFR-002).
      */

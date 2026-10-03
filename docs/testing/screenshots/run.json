@@ -205,7 +205,7 @@
     "status": 200,
     "pageOverflowPx": 0,
     "clippedTables": 0,
-    "scrollableTables": 0,
+    "scrollableTables": 1,
     "title": "Kabel UTP Cat6 305m · IOMS"
   },
   {
@@ -407,6 +407,28 @@
     "title": "Dashboard · IOMS"
   },
   {
+    "file": "22-stock-adjustment-form-desktop.png",
+    "role": "warehouse1@ioms.test",
+    "url": "/products/1/adjust-stock",
+    "viewport": "desktop",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Adjust stock · IOMS"
+  },
+  {
+    "file": "23-stock-adjustment-error-desktop.png",
+    "role": "warehouse1@ioms.test",
+    "url": "/products/1/adjust-stock",
+    "viewport": "desktop",
+    "status": 422,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Adjust stock · IOMS"
+  },
+  {
     "file": "04-warehouse-dashboard-mobile.png",
     "role": "warehouse1@ioms.test",
     "url": "/dashboard",
@@ -416,5 +438,27 @@
     "clippedTables": 0,
     "scrollableTables": 3,
     "title": "Dashboard · IOMS"
+  },
+  {
+    "file": "22-stock-adjustment-form-mobile.png",
+    "role": "warehouse1@ioms.test",
+    "url": "/products/1/adjust-stock",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Adjust stock · IOMS"
+  },
+  {
+    "file": "23-stock-adjustment-error-mobile.png",
+    "role": "warehouse1@ioms.test",
+    "url": "/products/1/adjust-stock",
+    "viewport": "mobile",
+    "status": 422,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Adjust stock · IOMS"
   }
 ]
