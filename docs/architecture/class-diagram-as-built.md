@@ -54,6 +54,8 @@ classDiagram
     class StockService {
         +issueGoods(int, User) void
         +receiveGoods(int, array, User) void
+        +adjustStock(int, array, User) array
+        +recentAdjustments(int) array
         +availableFor(int, int) int
         +lockOrderFor(SalesOrder) array
     }
@@ -90,12 +92,14 @@ classDiagram
     class ProductStockRepositoryInterface {
         <<interface>>
         +lockForUpdate(int, int) ?ProductStock
+        +ensureRow(int, int) void
         +adjust(int, int, int) void
     }
     class StockLedgerRepositoryInterface {
         <<interface>>
         +append(StockLedger) int
         +movementsBetween(string, string) array
+        +recentAdjustmentsForProduct(int, int) array
     }
     class ProductRepositoryInterface {
         <<interface>>
@@ -135,6 +139,7 @@ classDiagram
     StockService ..> ProductStockRepositoryInterface
     StockService ..> StockLedgerRepositoryInterface
     StockService ..> ProductRepositoryInterface
+    StockService ..> WarehouseRepositoryInterface
     StockService ..> TransactionRunner
 
     DashboardService ..> ProductRepositoryInterface
@@ -234,6 +239,8 @@ classDiagram
     class ReportController
     class StockApiController
     class ProfileController
+    class StockAdjustmentController
+    class ProductController
 
     class SalesOrderService
     class PurchaseOrderService
@@ -285,6 +292,16 @@ classDiagram
     ProfileController --> View
     ProfileController --> Session
     ProfileController --> Csrf
+
+    StockAdjustmentController --> StockService
+    StockAdjustmentController --> ProductService
+    StockAdjustmentController --> MasterDataService
+    StockAdjustmentController --> UserService
+    StockAdjustmentController --> View
+    StockAdjustmentController --> Session
+    StockAdjustmentController --> Csrf
+
+    ProductController --> StockService
 ```
 
 Ini **disengaja**. Service adalah class final tanpa interface: tidak ada implementasi kedua,
@@ -338,6 +355,16 @@ classDiagram
 password di halaman login dan di halaman profil dihitung bersama. Panjang minimum password
 kini satu konstanta di `User`, dipakai `AuthService` dan `UserService` (refactor-log R-7).
 
+### Koreksi stock (003-stock-adjustment)
+
+`StockAdjustmentController` meneruskan body request mentah ke `StockService::adjustStock()`, yang
+tetap menjadi satu-satunya jalan stock berubah. Untuk itu `StockService` mendapat dependency
+ketujuh, `WarehouseRepositoryInterface` (warehouse koreksi harus aktif), dan
+`ProductStockRepositoryInterface` mendapat `ensureRow()` (ADR-002 addendum, refactor-log R-8).
+`ProductController` kini bergantung pada `StockService` untuk riwayat koreksi di detail product,
+yang hanya dimuat untuk Admin dan Warehouse Staff. `ProductController` sebelumnya tidak digambar
+karena bukan alur kritikal; ia muncul di diagram 3 karena kini menyentuh `StockService`.
+
 ## Yang berubah dari diagram awal, dan mengapa
 
 **Ringkasnya:** Service membutuhkan lebih banyak collaborator daripada yang dirancang, karena
@@ -356,7 +383,8 @@ Penyebab tambahannya adalah validasi: membuat order menuntut pembuktian bahwa cu
 warehouse, dan setiap product benar-benar ada dan aktif. `PurchaseOrderService` mengikuti
 pola yang sama, dengan supplier menggantikan customer.
 
-**2. `StockService` tumbuh dari tiga menjadi enam dependency.**
+**2. `StockService` tumbuh dari tiga menjadi enam dependency** (tujuh sejak spec 003, lihat
+"Koreksi stock" di atas).
 Selain `stocks` dan `ledger`, ia kini memuat order lewat `salesOrders` dan `purchaseOrders`.
 Order itu dikunci dengan `lockForUpdate()` dan statusnya dibaca ulang **di dalam**
 transaction, supaya satu order tidak dapat di-issue atau di-receive dua kali (ADR-002). Ia

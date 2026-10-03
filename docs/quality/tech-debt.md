@@ -226,6 +226,10 @@ untuknya.
 > cacat lama komponen bersama ikut terungkap dan diperbaiki: label `.visually-hidden` di dalam
 > tabel melebarkan halaman mobile (`.table-wrap` kini `position: relative`), dan teks alert
 > di bawah 4.5:1 (kini memakai token `--*-text`).
+>
+> **Diulang lagi setelah 003-stock-adjustment**: 42 tangkapan, 688 elemen teks, 5 halaman
+> keyboard. Satu cacat lama lagi terungkap dan diperbaiki: `stat-delta--up` hanya 3.3:1 (kini
+> memakai `--success-text`).
 
 **Keadaan awal.** Seluruh halaman sudah dipastikan mengembalikan 200 lewat HTTP, tetapi
 spacing, warna, kontras, dan perilaku responsive pada 360px belum pernah benar-benar dilihat

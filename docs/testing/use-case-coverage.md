@@ -19,7 +19,7 @@ Dibuat pada T144 dengan menyilangkan seluruh method `public` di `app/Service/` t
 | `PurchaseOrderService` | 7/7 | — |
 | `ReportService` | 11/11 | — |
 | `SalesOrderService` | 10/10 | — |
-| `StockService` | 3/6 | `availableFor` `movementsForSalesOrder` `movementsForPurchaseOrder` |
+| `StockService` | 5/8 | `availableFor` `movementsForSalesOrder` `movementsForPurchaseOrder` |
 | `UserService` | 6/7 | `requireUser` |
 
 ## Yang ditambahkan pada T144
@@ -32,6 +32,15 @@ Audit ini menemukan kekurangan yang nyata, bukan sekadar mencatat keadaan:
 | `AuthService::verifyPasswordFor` tidak teruji padahal ia adalah step-up re-auth sebelum aksi sensitif (security standard §7) | 4 test pada `AuthServiceTest` |
 | `PartyService` sisi Customer tertinggal dari sisi Supplier — `updateCustomer`, `countCustomers`, `activeCustomers`, `countSuppliers` | 3 test pada `PartyServiceTest` |
 | `ProductService::stockBreakdownBySku` dan `availableQuantity` hanya teruji tidak langsung lewat controller API | 5 test pada `ProductServiceTest` |
+
+## Yang ditambahkan pada 003-stock-adjustment
+
+| Method baru | Unit test (`StockServiceAdjustmentTest`) |
+| --- | --- |
+| `StockService::adjustStock` | 14 test: turun, naik, warehouse yang belum pernah distok, product nonaktif, alasan di-trim, batas 255 karakter setelah trim; Sales ditolak; `counted_quantity` `-1`/`2.5`/`abc`/kosong, `expected_quantity` tidak sah, alasan kosong/terlalu panjang, warehouse kosong/tidak dikenal/nonaktif, product tidak dikenal, quantity basi, selisih nol |
+| `StockService::recentAdjustments` | 3 test: terbaru lebih dulu dengan saldo berjalan (melewati Receipt dan Issue), dibatasi 10, kosong |
+
+Setiap penolakan juga memeriksa bahwa stock dan ledger tidak berubah sedikit pun.
 
 ## Yang ditambahkan pada 002-user-profile-page
 
@@ -106,6 +115,8 @@ integration test terhadap MySQL sungguhan:
 | Jalur filesystem upload | `ProductImageStorageTest` |
 | Akun yang dinonaktifkan atau diganti role-nya langsung kehilangan session (002 FR-012) | `SessionRevalidationTest` |
 | Profil hanya milik user di session; `id` pada request diabaikan; batas percobaan dihitung bersama login (002 FR-003, FR-008) | `ProfileFlowTest` |
+| Koreksi stock: CHECK alasan dan Manual di MySQL, stock dan ledger berubah bersama, riwayat dengan saldo berjalan, alasan di CSV, role route (003) | `StockAdjustmentFlowTest` |
+| Koreksi stock di bawah konkurensi: menunggu lock, quantity basi ditolak, pasangan baru tanpa deadlock (003 FR-004, FR-006) | `ConcurrentStockAdjustmentTest` |
 
 ## Cara mengulang audit ini
 

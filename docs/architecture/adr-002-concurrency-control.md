@@ -134,9 +134,34 @@ Perbaikannya memastikan baris ada dengan nilai kandidat 0, lalu menerapkan delta
 perubahan. Dijaga `StockAdjustmentTest`, yang sudah diverifikasi benar-benar gagal pada kode
 lama.
 
+## Addendum 2026-10-03 — koreksi stock (spec 003)
+
+Koreksi stock dari hasil hitung fisik (`StockService::adjustStock()`) memakai mekanisme yang
+sama: satu transaction, `SELECT ... FOR UPDATE` pada baris `product_stock`, quantity dibaca
+ulang di bawah lock, lalu ledger `Adjustment` dan perubahan stock ditulis bersama. Dua hal
+baru:
+
+1. **Baris dipastikan ada sebelum dikunci** (`ProductStockRepositoryInterface::ensureRow()`).
+   Koreksi boleh dilakukan di gudang yang belum pernah menyimpan product itu. Tanpa baris,
+   `FOR UPDATE` hanya memasang gap lock; gap lock tidak saling menghalangi, sehingga dua koreksi
+   pertama untuk pasangan yang sama lolos bersamaan dan baru bertabrakan sebagai deadlock saat
+   insert. Baris bernilai 0 membuat kasus itu kembali menjadi lock satu baris biasa, dan tidak
+   melanggar invariant karena jumlah ledger untuk pasangan tanpa pergerakan juga 0.
+2. **Pemeriksaan stale di bawah lock.** Form membawa quantity yang dilihat user. Bila quantity
+   di bawah lock berbeda, koreksi ditolak — bukan diterapkan buta — sehingga goods issue yang
+   terjadi selama penghitungan tidak terhapus.
+
+Koreksi hanya mengunci satu baris `product_stock` dan tidak mengunci baris order, sehingga tidak
+dapat membentuk siklus lock dengan goods issue (order → stock) maupun goods receipt.
+
+Dibuktikan `ConcurrentStockAdjustmentTest` dengan dua connection: B menunggu selama A memegang
+baris; koreksi dengan quantity basi ditolak setelah goods issue A commit; dan untuk pasangan yang
+belum pernah distok, B menunggu baris dari `ensureRow()` milik A (lock wait, bukan deadlock).
+
 ## Rujukan
 
 - research R-002, ARCH-02, NFR-002, SC-003
 - `app/Service/StockService.php` — `issueGoods()`, `issueWithinTransaction()`
 - `app/Repository/Mysql/MysqlProductStockRepository.php` — `lockForUpdate()`, `adjust()`
 - `tests/Integration/ConcurrentGoodsIssueTest.php`, `StockAdjustmentTest.php`
+- Spec 003: `StockService::adjustStock()`, `ensureRow()`, `tests/Integration/ConcurrentStockAdjustmentTest.php`

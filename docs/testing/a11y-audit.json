@@ -76,6 +76,27 @@
       "checked": 27,
       "failing": [],
       "minRatio": 4.75
+    },
+    {
+      "url": "/products/1/adjust-stock",
+      "role": "warehouse1@ioms.test",
+      "checked": 26,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/products/1/adjust-stock (422)",
+      "role": "warehouse1@ioms.test",
+      "checked": 29,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/products/1",
+      "role": "warehouse1@ioms.test",
+      "checked": 63,
+      "failing": [],
+      "minRatio": 4.75
     }
   ],
   "keyboard": [
@@ -584,6 +605,125 @@
           "tag": "button",
           "name": "",
           "label": "Change password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        }
+      ],
+      "missingIndicator": 0
+    },
+    {
+      "url": "/products/1/adjust-stock",
+      "role": "warehouse1@ioms.test",
+      "stops": [
+        {
+          "tag": "a",
+          "name": "",
+          "label": "IOMS",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Dashboard",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Products",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Purchase Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Sales Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Reports",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "My profile",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Tono Wijaya · Warehouse Staff",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Sign out",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Back to product",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "warehouse_id",
+          "label": "Warehouse",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Show",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "counted_quantity",
+          "label": "Counted quantity",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "textarea",
+          "name": "note",
+          "label": "Reason",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Record adjustment",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Cancel",
           "visibleIndicator": true,
           "indicator": "outline 2px solid rgb(37, 99, 235)"
         }

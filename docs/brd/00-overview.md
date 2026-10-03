@@ -127,8 +127,6 @@ flowchart LR
 
 - Di luar scope (brief §4.3): microservices, queue, CI/CD, cron otomatis, real-time notification,
   E2E test, password reset, dan registrasi publik.
-- **Koreksi stock manual (`Adjustment`) tertunda** — schema dan enum siap, alurnya belum ada
-  ([stock](modules/stock.md) STOCK-CAP-005).
 - Daftar tech debt lengkap ada di `docs/quality/tech-debt.md`, dan bug yang diketahui di
   `docs/testing/known-bugs.md`.
 
@@ -149,14 +147,17 @@ flowchart LR
 
 - **Q1 (terjawab 2026-10-03, kini terpenuhi)**: Halaman "profil sendiri" (brief §1.2)
   **diharapkan**. Sudah dibuat lewat spec 002 — [auth](modules/auth.md) AUTH-CAP-006.
-- **Q2 (terjawab 2026-10-03)**: Koreksi stock manual (`Adjustment`) adalah **fitur yang tertunda**,
-  bukan di luar scope — [stock](modules/stock.md) STOCK-CAP-005.
+- **Q2 (terjawab 2026-10-03, kini terpenuhi)**: Koreksi stock manual (`Adjustment`) adalah fitur
+  yang direncanakan. Sudah dibuat lewat spec 003 — [stock](modules/stock.md) STOCK-CAP-005.
 - Asumsi (sudah diputuskan, `docs/planning/decisions.md`): D-01 Admin juga tidak boleh approve SO
   miliknya; D-02 Warehouse Staff boleh mengajukan PO sampai Ordered; D-03 export status order
   mencakup SO dan PO.
 
 ## Change Log
 
+- **2026-10-03**: Modul `stock` diperbarui setelah 003-stock-adjustment: koreksi stock dari hasil
+  hitung fisik oleh Admin dan Warehouse Staff (STOCK-CAP-005/006). Celah Adjustment dihapus dari
+  Known Gaps.
 - **2026-10-03**: Modul `auth` diperbarui setelah 002-user-profile-page: profil sendiri dan ganti
   password sendiri (AUTH-CAP-006/007), serta validasi ulang session pada setiap request
   (AUTH-CAP-008). Celah "profil sendiri" dihapus dari Known Gaps.

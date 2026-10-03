@@ -261,6 +261,7 @@ Append-only. Never updated, never deleted.
 | `quantity` | `INT` | no | quantity | Signed by convention: positive for `Receipt`, negative for `Issue`. `CHECK (quantity <> 0)` |
 | `reference_type` | `ENUM('PurchaseOrder','SalesOrder','Manual')` | no | referensi (PO/SO id) | Discriminates which order the reference points at |
 | `reference_id` | `BIGINT UNSIGNED` | **yes** | referensi (PO/SO id) | Null only when `reference_type = 'Manual'` |
+| `note` | `VARCHAR(255)` | **yes** | — | **Added by 003 (deviation D-1, owner-approved)**: the reason of a stock adjustment. `CHECK ((movement_type = 'Adjustment') = (note IS NOT NULL))`. Migration `004_ledger_note.sql` |
 | `performed_by` | `BIGINT UNSIGNED` | no | dilakukan oleh | FK → `user.id` |
 | `created_at` | `DATETIME` | no | timestamp | |
 
@@ -272,6 +273,10 @@ an order's own movement history.
 id" without saying how the two are told apart. A single nullable FK to two different tables is
 not expressible, so the discriminator makes the source's stated intent representable. It is
 not a merge of resources.
+
+Since 003, `CHECK ((movement_type = 'Adjustment') = (reference_type = 'Manual'))` pins the pairing:
+an adjustment never references an order, and `Manual` is used only by adjustments. See
+[`../003-stock-adjustment/data-model.md`](../003-stock-adjustment/data-model.md).
 
 **Invariant (NFR-002)**: for every (product, warehouse),
 `SUM(stock_ledger.quantity) = product_stock.quantity`. This is checkable by a single query and

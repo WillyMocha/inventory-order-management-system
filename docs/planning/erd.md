@@ -164,6 +164,7 @@ erDiagram
         int quantity "bertanda, CHECK <> 0"
         enum reference_type "PurchaseOrder|SalesOrder|Manual"
         bigint reference_id "NULL hanya bila Manual"
+        varchar-255 note "wajib tepat untuk Adjustment (003)"
         bigint performed_by FK "RESTRICT, user.id"
         datetime created_at
     }

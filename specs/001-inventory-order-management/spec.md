@@ -717,6 +717,8 @@ guess. A-011's language half was promoted to constraint C-007.
 - **A-006**: The Adjustment movement type exists in the data model per the brief, but no
   screen creates one — no requirement in the brief calls for manual stock adjustment. It is
   reserved for correction outside the normal flow.
+  *(Superseded 2026-10-03: the owner decided this is a planned feature (BRD Q2); it is specified
+  and built in [`specs/003-stock-adjustment/`](../003-stock-adjustment/spec.md).)*
 - **A-007** *(confirmed)*: Inventory value on the Admin dashboard is the sum across all
   warehouses of quantity multiplied by the product's **purchase** price. The brief requires
   the figure but does not define its basis.

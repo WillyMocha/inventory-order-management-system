@@ -21,7 +21,7 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 | **User management** | Admin membuat dan menonaktifkan user; tidak ada registrasi publik |
 | **Master data** | Category, Warehouse, Supplier, Customer — dinonaktifkan, tidak pernah dihapus |
 | **Product** | Katalog dengan SKU unik, harga beli/jual, reorder point, dan upload image |
-| **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock` |
+| **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock`; koreksi dari hasil hitung fisik (Adjustment) dengan alasan wajib, aman dari race condition |
 | **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap |
 | **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue |
 | **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation |
@@ -33,9 +33,9 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 
 | Role | Tanggung jawab |
 | --- | --- |
-| **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order, seluruh report |
+| **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order, koreksi stock, seluruh report |
 | **Sales** | Membuat dan mengajukan Sales Order miliknya, export CSV order miliknya — **tidak boleh approve**, termasuk order miliknya sendiri |
-| **Warehouse Staff** | Membuat Purchase Order, goods receipt, goods issue, antrean fulfillment, report stock |
+| **Warehouse Staff** | Membuat Purchase Order, goods receipt, goods issue, koreksi stock dari hasil hitung fisik, antrean fulfillment, report stock |
 
 Ketiga role memiliki menu **My profile** untuk melihat data akunnya dan mengganti password
 sendiri. Nama, email, dan role tetap hanya dapat diubah Admin.

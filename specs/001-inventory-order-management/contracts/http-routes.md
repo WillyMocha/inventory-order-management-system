@@ -90,6 +90,8 @@ terbatas sesuai §1.2.
 | POST | `/products/{id}` | wajib | **A** | CSRF |
 | POST | `/products/{id}/toggle-active` | wajib | **A** | CSRF. Deactivate saja, tidak pernah hard delete |
 | GET | `/products/{id}/image` | wajib | A S W | Menyajikan file dari luar document root dengan `Content-Type` eksplisit (R-006) |
+| GET | `/products/{id}/adjust-stock` | wajib | **A W** | S → 403. Form koreksi stock dari hasil hitung fisik; `?warehouse_id=` memilih warehouse aktif (spec 003) |
+| POST | `/products/{id}/adjust-stock` | wajib | **A W** | S → 403 di guard **dan** di `StockService`. CSRF. Ledger `Adjustment`/`Manual` + alasan wajib, satu transaction dengan lock `product_stock`. Selisih nol, input tidak sah, atau quantity berubah selama penghitungan → 422. Berhasil → 302 `/products/{id}` dengan flash. Rincian: [`specs/003-stock-adjustment/contracts/http-routes.md`](../../003-stock-adjustment/contracts/http-routes.md) |
 | GET | `/categories` | wajib | **A** | |
 | POST | `/categories`, `/categories/{id}`, `/categories/{id}/toggle-active` | wajib | **A** | CSRF |
 | GET | `/warehouses` | wajib | A W | W hanya baca |
@@ -135,7 +137,7 @@ layer, bukan hanya oleh route table.
 | Method | Path | Auth | Role | Authorization / catatan |
 | --- | --- | --- | --- | --- |
 | GET | `/reports` | wajib | A S W | Form pemilihan rentang tanggal |
-| GET | `/reports/stock-movement.csv` | wajib | A W | Rentang tanggal dibatasi maksimal 366 hari. Satu export berjalan per session (R-005). Streaming `fputcsv` |
+| GET | `/reports/stock-movement.csv` | wajib | A W | Rentang tanggal dibatasi maksimal 366 hari. Satu export berjalan per session (R-005). Streaming `fputcsv`. Kolom terakhir `Reason` berisi alasan koreksi stock (kosong untuk Receipt/Issue; dinetralkan dari rumus spreadsheet) |
 | GET | `/reports/orders.csv` | wajib | A S W | **S: hanya order miliknya** — di-scope di `WHERE`. Batas rentang sama |
 | GET | `/reports/purchase-orders.csv` | wajib | A W | Status Purchase Order beserta qty dipesan/diterima. Batas rentang sama. Tafsiran REPORT-01: `docs/planning/decisions.md` D-03 |
 
@@ -176,6 +178,7 @@ Dipakai `/rudis.implement` sebagai acuan security gate.
 | Melihat profil & ganti password sendiri | ✅ miliknya | ✅ miliknya | ✅ miliknya |
 | Menulis master data | ✅ | ❌ 403 | ❌ 403 |
 | Melihat katalog product & stock | ✅ | ✅ | ✅ |
+| Koreksi stock (Adjustment) dan melihat riwayatnya di detail product | ✅ | ❌ 403 / tidak ditampilkan | ✅ |
 | Membuat Purchase Order | ✅ | ❌ 403 | ✅ |
 | Goods receipt | ✅ | ❌ 403 | ✅ |
 | Membuat Sales Order | ✅ | ✅ (miliknya) | ❌ 403 |

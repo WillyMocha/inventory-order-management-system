@@ -17,10 +17,11 @@ Diukur dengan Chrome headless terhadap stack Docker. Hasil mentahnya ada di
 
 **Kontras.** Untuk setiap elemen teks yang terlihat dihitung rasio WCAG antara warna teks dan
 latar efektifnya (lapisan latar semi-transparan ikut dihitung). Ambangnya 4.5:1 untuk teks
-normal dan 3:1 untuk teks besar. Ada 570 elemen di 11 pengukuran: login, dashboard Admin dan
+normal dan 3:1 untuk teks besar. Ada 688 elemen di 14 pengukuran: login, dashboard Admin dan
 Warehouse Staff, daftar product (berisi dan kosong), detail Sales Order, form Sales Order,
-report, serta **My profile** dalam tiga state (berisi, gagal validasi 422, dan flash sukses).
-Diukur ulang setelah 002-user-profile-page, karena setiap sidebar mendapat item baru.
+report, **My profile** dalam tiga state (berisi, gagal validasi 422, dan flash sukses), serta
+**koreksi stock**: form, state 422, dan detail product dengan kartu "Stock adjustments".
+Diukur ulang setelah 002-user-profile-page dan 003-stock-adjustment.
 
 | | Sebelum | Sesudah |
 | --- | --- | --- |
@@ -34,9 +35,11 @@ Draft) di `tokens.css`. Warna status aslinya tetap dipakai untuk ikon dan aksen 
 sehingga makna warnanya tidak berubah.
 
 **Keyboard-only.** Tab ditekan berulang kali melalui halaman login, form Sales Order, daftar
-product, dan My profile. Setiap titik fokus dicatat beserta indikatornya. Pada My profile
-urutannya: navigasi (termasuk "My profile" dan blok nama yang kini berupa link), Sign out,
-ketiga field password, lalu tombol "Change password"; seluruhnya memiliki indikator fokus.
+product, My profile, dan form koreksi stock. Setiap titik fokus dicatat beserta indikatornya.
+Pada My profile urutannya: navigasi (termasuk "My profile" dan blok nama yang kini berupa link),
+Sign out, ketiga field password, lalu tombol "Change password". Pada form koreksi stock:
+navigasi, "Back to product", pilihan warehouse dan "Show", Counted quantity, Reason, "Record
+adjustment", lalu "Cancel". Seluruhnya memiliki indikator fokus.
 
 - Urutan fokusnya logis: navigasi, lalu aksi halaman, field form, line order, dan tombol
   submit. Tidak ada elemen yang terlewat atau terjebak.
@@ -67,11 +70,12 @@ Selain gambarnya, setiap halaman diukur dengan dua cara:
 - `clipped`: tabel yang lebih lebar dari wadahnya **tanpa** ancestor `overflow-x: auto/scroll`,
   yaitu isi yang terpotong dan tidak dapat dijangkau user.
 
-**Hasil: 38 dari 38 tangkapan sesuai harapan (36 berstatus 200, dua tangkapan state gagal
+**Hasil: 42 dari 42 tangkapan sesuai harapan (38 berstatus 200, empat tangkapan state gagal
 validasi berstatus 422), `overflow` = 0px, `clipped` = 0.** Tabel yang lebih lebar dari 360px
-(daftar product/PO/SO, antrean dashboard, line order) digeser di dalam `.table-wrap`
-masing-masing. Seluruh tangkapan diambil ulang setelah 002-user-profile-page (sidebar mendapat
-item **My profile**).
+(daftar product/PO/SO, antrean dashboard, line order, riwayat koreksi stock) digeser di dalam
+`.table-wrap` masing-masing. Seluruh tangkapan diambil ulang setelah 002-user-profile-page
+(sidebar mendapat item **My profile**) dan 003-stock-adjustment (detail product mendapat tombol
+"Adjust stock" dan kartu riwayat untuk Admin dan Warehouse Staff).
 
 | Layar | Desktop | 360px |
 | --- | --- | --- |
@@ -95,6 +99,8 @@ item **My profile**).
 | Drawer navigasi terbuka | — | [18](./screenshots/18-mobile-nav-open-mobile.png) |
 | My profile (sebagai Sales) | [20](./screenshots/20-profile-desktop.png) | [20](./screenshots/20-profile-mobile.png) |
 | My profile, ganti password gagal (422) | [21](./screenshots/21-profile-password-error-desktop.png) | [21](./screenshots/21-profile-password-error-mobile.png) |
+| Koreksi stock (sebagai Warehouse Staff) | [22](./screenshots/22-stock-adjustment-form-desktop.png) | [22](./screenshots/22-stock-adjustment-form-mobile.png) |
+| Koreksi stock ditolak, selisih nol (422) | [23](./screenshots/23-stock-adjustment-error-desktop.png) | [23](./screenshots/23-stock-adjustment-error-mobile.png) |
 
 Empty state ditangkap lewat pencarian yang pasti tidak cocok (`?search=zz-no-such-...`), bukan
 dengan mengosongkan database. Pesan yang tampil sama, dan data demo tetap utuh.
@@ -120,6 +126,13 @@ error.
 | --- | --- | --- |
 | Pada 360px (mode touch), daftar product/PO/SO dan form SO melebar menjadi 479–661px | Seluruh halaman dapat digeser mendatar di ponsel, bukan hanya tabelnya | Label `.visually-hidden` (`position: absolute`) di dalam sel tabel lolos dari area scroll karena `.table-wrap` tidak positioned. `.table-wrap` kini `position: relative` |
 | Teks `alert--error` hanya 4.41:1 di atas latarnya (`alert--success` lebih rendah lagi) | Ringkasan kesalahan form dan flash gagal WCAG AA | Alert memakai token `--*-text`, sama seperti badge status (perbaikan kontras sebelumnya) |
+
+### Ditemukan saat mengambil ulang bukti (003-stock-adjustment)
+
+| Temuan | Dampak | Perbaikan |
+| --- | --- | --- |
+| Pilihan warehouse dan tombol "Show" pada form koreksi terpisah dua baris | Kontrol yang berpasangan tampak tidak berhubungan | Class `.inline-picker`: select mengisi sisa ruang, tombol tetap di sampingnya, juga pada 360px |
+| Teks `stat-delta--up` (misalnya "above reorder point of 10" di detail product) hanya 3.3:1 di atas putih | Gagal WCAG AA pada setiap stat tile yang sedang "baik"; audit sebelumnya kebetulan hanya melihat varian `down` | `stat-delta--up/--down` memakai token `--*-text`, sama seperti badge dan alert |
 
 ### Masih terlihat, belum diperbaiki
 

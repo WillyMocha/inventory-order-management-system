@@ -287,6 +287,53 @@ sama. Perilaku tidak berubah: `UserServiceTest` tetap hijau **tanpa diubah**, da
 
 ---
 
+## R-8 — Langkah "pastikan baris ada" terkubur di dalam `adjust()`
+
+**Smell**: langkah yang dibutuhkan pemanggil kedua tersembunyi di dalam satu method. Koreksi
+stock (spec 003) perlu memastikan baris `product_stock` ada **sebelum** menguncinya, tetapi
+`INSERT ... ON DUPLICATE KEY UPDATE` yang melakukannya hanya ada sebagai bagian pertama
+`MysqlProductStockRepository::adjust()`. Menyalinnya ke tempat lain berarti dua salinan SQL yang
+sama, termasuk alasan rumit mengapa nilai kandidatnya harus 0.
+
+**Teknik**: Extract Method → `ensureRow(int $productId, int $warehouseId)`, dinaikkan ke
+`ProductStockRepositoryInterface` (dengan implementasi fake-nya).
+
+**Sebelum**
+
+```php
+public function adjust(int $productId, int $warehouseId, int $delta): void
+{
+    $keys = ['product_id' => $productId, 'warehouse_id' => $warehouseId];
+
+    $this->run('INSERT INTO product_stock (...) VALUES (:product_id, :warehouse_id, 0, NOW())
+                ON DUPLICATE KEY UPDATE id = id', $keys);
+    $this->run('UPDATE product_stock SET quantity = quantity + :delta ...', $keys + ['delta' => $delta]);
+}
+```
+
+**Sesudah**
+
+```php
+public function adjust(int $productId, int $warehouseId, int $delta): void
+{
+    $this->ensureRow($productId, $warehouseId);
+    $this->run('UPDATE product_stock SET quantity = quantity + :delta ...', [...]);
+}
+
+public function ensureRow(int $productId, int $warehouseId): void
+{
+    $this->run('INSERT INTO product_stock (...) VALUES (:product_id, :warehouse_id, 0, NOW())
+                ON DUPLICATE KEY UPDATE id = id', [...]);
+}
+```
+
+**Mengapa**: satu tempat untuk SQL yang sensitif terhadap CHECK `quantity >= 0` (ADR-002,
+catatan bug lama). Perilaku `adjust()` tidak berubah: `StockAdjustmentTest`, seluruh test goods
+issue/receipt, dan `LedgerReconciliationTest` tetap hijau tanpa diubah; `ensureRow()` sendiri
+dieksekusi MySQL di `RepositoryCoverageTest`.
+
+---
+
 ## Catatan audit SRP
 
 **`StockService` — satu class, dua alur, dan itu benar.**
