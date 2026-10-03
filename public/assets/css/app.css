@@ -218,6 +218,18 @@ img {
     color: var(--text-secondary);
 }
 
+/* Blok nama menjadi link ke profil sendiri; garis bawah hanya saat hover,
+   sama seperti a.row-entity. Fokus memakai ring global :focus-visible. */
+a.nav-user-name {
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+a.nav-user-name:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
 /* --- Card --------------------------------------------------------------- */
 /*
  * Card adalah blok tingkat halaman, dan beberapa halaman menumpuk lebih dari
@@ -344,7 +356,11 @@ img {
 .stat-delta--flat { color: var(--text-muted); }
 
 /* --- Tabel -------------------------------------------------------------- */
+/* position: relative menjadikan wrapper containing block bagi label
+   .visually-hidden (position: absolute) di dalam sel. Tanpanya label itu lolos
+   dari area scroll dan melebarkan halaman sampai 661px pada 360px. */
 .table-wrap {
+    position: relative;
     overflow-x: auto;
 }
 
@@ -653,10 +669,13 @@ a.row-entity:hover .cell-primary {
     margin-bottom: var(--space-4);
 }
 
-.alert--success { background: var(--success-bg); border-color: var(--success-border); color: var(--success); }
-.alert--warning { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning); }
-.alert--error   { background: var(--danger-bg);  border-color: var(--danger-border);  color: var(--danger); }
-.alert--info    { background: var(--info-bg);    border-color: var(--info-border);    color: var(--info); }
+/* Teks alert memakai token *-text, sama seperti badge: warna status 500/600
+   di atas latar *-bg tidak mencapai 4.5:1 (audit kontras 002, alert--error
+   4.41:1). */
+.alert--success { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
+.alert--warning { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning-text); }
+.alert--error   { background: var(--danger-bg);  border-color: var(--danger-border);  color: var(--danger-text); }
+.alert--info    { background: var(--info-bg);    border-color: var(--info-border);    color: var(--info-text); }
 
 /* --- Empty state -------------------------------------------------------- */
 .empty-state {
