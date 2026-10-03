@@ -26,6 +26,9 @@ use RuntimeException;
  */
 final class ProductController
 {
+    /** Key query string yang dibawa link pagination dan sort (FIND-01). */
+    private const array FILTER_KEYS = ['search', 'category', 'stock', 'sort', 'direction'];
+
     /**
      * Key sort yang boleh muncul di query string. Pemetaan ke nama kolom
      * dilakukan allowlist MysqlProductRepository::SORTABLE; daftar di sini
@@ -47,11 +50,11 @@ final class ProductController
     public function index(Request $request): Response
     {
         $criteria = $this->criteriaFrom($request);
-        $filters = $this->queryState($request);
+        $filters = $request->queryState(self::FILTER_KEYS);
 
         // Sort dipisahkan dari filter: menghitung total tidak peduli urutan,
         // dan countBy() memang tidak menerima key sort.
-        $sorted = $criteria + $this->sortCriteriaFrom($request);
+        $sorted = $criteria + $request->sortCriteria(self::SORT_KEYS, 'asc');
 
         $paginator = new Paginator($this->productService->count($criteria), $request->queryInt('page', 1), $filters);
         $products = $this->productService->search($sorted, $paginator->perPage(), $paginator->offset());
@@ -258,39 +261,6 @@ final class ProductController
         }
 
         return $criteria;
-    }
-
-    /** @return array<string, string> */
-    private function queryState(Request $request): array
-    {
-        $state = [];
-
-        foreach (['search', 'category', 'stock', 'sort', 'direction'] as $key) {
-            if ($request->queryString($key) !== '') {
-                $state[$key] = $request->queryString($key);
-            }
-        }
-
-        return $state;
-    }
-
-    /**
-     * Sort dan arahnya, hanya bila key-nya dikenal.
-     *
-     * @return array{sort?: string, direction?: string}
-     */
-    private function sortCriteriaFrom(Request $request): array
-    {
-        $sort = $request->queryString('sort');
-
-        if (!in_array($sort, self::SORT_KEYS, true)) {
-            return [];
-        }
-
-        return [
-            'sort'      => $sort,
-            'direction' => strtolower($request->queryString('direction')) === 'desc' ? 'desc' : 'asc',
-        ];
     }
 
     private function requireId(Request $request): int

@@ -28,6 +28,9 @@ use App\Support\View;
  */
 final class UserController
 {
+    /** Key query string yang dibawa link pagination (FIND-01). */
+    private const array FILTER_KEYS = ['search', 'role'];
+
     public function __construct(
         private readonly View $view,
         private readonly UserService $userService,
@@ -41,8 +44,9 @@ final class UserController
     {
         $criteria = $this->criteriaFrom($request);
         $total = $this->userService->count($criteria);
+        $filters = $request->queryState(self::FILTER_KEYS);
 
-        $paginator = new Paginator($total, $request->queryInt('page', 1), $this->queryState($request));
+        $paginator = new Paginator($total, $request->queryInt('page', 1), $filters);
         $users = $this->userService->search($criteria, $paginator->perPage(), $paginator->offset());
 
         return Response::html($this->view->render('users/index', [
@@ -51,8 +55,8 @@ final class UserController
             'users'      => $users,
             'paginator'  => $paginator,
             'basePath'   => '/users',
-            'filters'    => $this->queryState($request),
-            'hasFilters' => $this->queryState($request) !== [],
+            'filters'    => $filters,
+            'hasFilters' => $filters !== [],
             'roles'      => Role::cases(),
             'counts'     => $this->roleCounts(),
         ]));
@@ -180,20 +184,6 @@ final class UserController
         }
 
         return $criteria;
-    }
-
-    /** @return array<string, string> filter aktif, dipertahankan pada link pagination */
-    private function queryState(Request $request): array
-    {
-        $state = [];
-
-        foreach (['search', 'role'] as $key) {
-            if ($request->queryString($key) !== '') {
-                $state[$key] = $request->queryString($key);
-            }
-        }
-
-        return $state;
     }
 
     /**

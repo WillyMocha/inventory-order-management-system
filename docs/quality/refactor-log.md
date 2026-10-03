@@ -199,6 +199,54 @@ tanpa diubah.
 
 ---
 
+## R-6 — State query string disalin di enam controller
+
+**Smell**: *Duplicate Code*. `queryState()` ditulis sebagai method private di **enam**
+controller (Customer, Supplier, User, Product, PurchaseOrder, SalesOrder), identik kecuali
+daftar key-nya. `sortCriteriaFrom()` disalin di tiga controller, berbeda hanya pada allowlist
+dan arah default. `critique.md` sempat menyebutnya "tiga salinan, di bawah ambang"; validasi
+ulang menunjukkan ambang itu sudah lama terlewati.
+
+**Teknik**: Move Method ke `App\Support\Request`, yang memang pemilik data query string.
+Bagian yang berbeda per controller menjadi argument (Parameterize Method).
+
+**Sebelum** (enam kali, hanya daftar key yang berubah)
+
+```php
+/** @return array<string, string> */
+private function queryState(Request $request): array
+{
+    $state = [];
+
+    foreach (['search', 'status', 'sort', 'direction'] as $key) {
+        if ($request->queryString($key) !== '') {
+            $state[$key] = $request->queryString($key);
+        }
+    }
+
+    return $state;
+}
+```
+
+**Sesudah**
+
+```php
+// Controller hanya menyatakan key miliknya.
+private const array FILTER_KEYS = ['search', 'status', 'sort', 'direction'];
+
+$filters = $request->queryState(self::FILTER_KEYS);
+$sorted = $criteria + $request->sortCriteria(self::SORT_KEYS, 'desc');
+```
+
+**Mengapa**: mengubah cara state filter dibawa ke link pagination (FIND-01) dulu berarti
+mengubah enam tempat yang mudah tidak sinkron. Kini perilakunya terkunci di satu tempat dan
+teruji langsung oleh `RequestTest`: key kosong dibuang, nilai non-string diabaikan, sort di
+luar allowlist ditolak, dan arah selain lawan dari default jatuh ke default. Perilaku halaman
+tidak berubah: seluruh suite tetap hijau, dan link halaman 2 diperiksa end-to-end tetap
+membawa filter dan sort yang sama.
+
+---
+
 ## Catatan audit SRP
 
 **`StockService` — satu class, dua alur, dan itu benar.**

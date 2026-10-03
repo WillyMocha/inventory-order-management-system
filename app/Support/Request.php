@@ -129,6 +129,59 @@ final class Request
         return $this->query;
     }
 
+    /**
+     * Nilai query string yang terisi untuk key-key tertentu — state filter yang
+     * dibawa link pagination dan sort, agar filter tetap aktif saat berpindah
+     * halaman (FIND-01).
+     *
+     * Dulu disalin sebagai method private di enam controller, berbeda hanya
+     * pada daftar key-nya (refactor-log R-6).
+     *
+     * @param list<string> $keys
+     * @return array<string, string>
+     */
+    public function queryState(array $keys): array
+    {
+        $state = [];
+
+        foreach ($keys as $key) {
+            $value = $this->queryString($key);
+
+            if ($value !== '') {
+                $state[$key] = $value;
+            }
+        }
+
+        return $state;
+    }
+
+    /**
+     * Sort key dan arah yang diminta, hanya bila key-nya ada di allowlist.
+     *
+     * Allowlist ini lapis pertama; repository tetap memetakan key ke nama kolom
+     * lewat allowlist-nya sendiri, sehingga input user tidak pernah menjadi
+     * bagian SQL. Arah selain lawan dari default jatuh ke default.
+     *
+     * @param list<string>  $allowedKeys
+     * @param 'asc'|'desc'  $defaultDirection
+     * @return array{sort?: string, direction?: string}
+     */
+    public function sortCriteria(array $allowedKeys, string $defaultDirection): array
+    {
+        $sort = $this->queryString('sort');
+
+        if (!in_array($sort, $allowedKeys, true)) {
+            return [];
+        }
+
+        $opposite = $defaultDirection === 'asc' ? 'desc' : 'asc';
+
+        return [
+            'sort'      => $sort,
+            'direction' => strtolower($this->queryString('direction')) === $opposite ? $opposite : $defaultDirection,
+        ];
+    }
+
     public function input(string $key, string $default = ''): string
     {
         $value = $this->body[$key] ?? null;
