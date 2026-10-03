@@ -8,8 +8,14 @@ PHP 8.4.26 dan MySQL 8.0.46.
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
 | Unit | `composer test:unit` | **OK — 367 test, 962 assertion** |
-| Integration | `composer test:integration` | **OK — 117 test, 406 assertion** |
-| Gabungan | `composer test` | **OK — 484 test, 1368 assertion** |
+| Integration | `composer test:integration` | **OK — 138 test, 482 assertion** |
+| Gabungan | `composer test` | **OK — 505 test, 1444 assertion** |
+| JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 11 test** |
+| Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning |
+
+**Coverage repository MySQL oleh integration suite: 116 dari 116 method** (diukur dengan pcov di
+container sekali pakai; lihat `docs/quality/tech-debt.md` TD-2b). Ini bukti bahwa setiap query
+SQL di repository pernah benar-benar dieksekusi MySQL, bukan hanya fake in-memory-nya.
 
 **Nol test yang di-skip, incomplete, atau risky.** `phpunit.xml` menyetel `failOnWarning`,
 `failOnRisky`, dan `failOnNotice` ke `true`, sehingga test yang diam-diam tidak menguji apa
@@ -23,7 +29,7 @@ case ada di [`use-case-coverage.md`](./use-case-coverage.md).
 | | Unit | Integration |
 | --- | --- | --- |
 | Database | tidak ada — seluruhnya `InMemory*Repository` | MySQL 8 sungguhan |
-| Session, network, filesystem | tidak ada | session di-set langsung untuk menguji guard |
+| Session, network, filesystem | tidak ada | session di-set langsung untuk menguji guard; filesystem di direktori sementara (`ProductImageStorageTest`) |
 | Waktu | `FixedClock` — deterministik | `SystemClock` |
 | Kecepatan | ± 10 detik | ± 60 detik |
 

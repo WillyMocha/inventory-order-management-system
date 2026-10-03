@@ -129,4 +129,4 @@ Empat layar utama, masing-masing pada **desktop** dan **360px**:
 > hasil pengukuran overflow, dan tiga cacat yang ditemukan lalu diperbaiki ada di
 > [`responsive-accessibility.md`](./responsive-accessibility.md).
 >
-> Yang **belum** diperiksa: navigasi keyboard-only dan rasio kontras WCAG.
+> Navigasi keyboard-only dan rasio kontras WCAG AA juga sudah diaudit; lihat dokumen yang sama.
