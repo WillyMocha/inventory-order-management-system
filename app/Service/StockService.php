@@ -422,10 +422,7 @@ final class StockService
     /** Pesan penolakan menyebut angkanya agar user tahu apa yang harus diubah. */
     private function overReceiptMessage(PurchaseOrderItem $item, int $requested): string
     {
-        $product = $this->products->findById($item->productId);
-        $name = $product === null
-            ? 'product #' . $item->productId
-            : $product->name . ' (' . $product->sku . ')';
+        $name = $this->productLabel($item->productId);
 
         if ($requested < 1) {
             return sprintf('Received quantity for %s must be at least 1.', $name);
@@ -467,14 +464,24 @@ final class StockService
      */
     private function insufficientMessage(int $productId, int $required, int $available): string
     {
-        $product = $this->products->findById($productId);
-        $name = $product === null ? 'product #' . $productId : $product->name . ' (' . $product->sku . ')';
-
         return sprintf(
             'Not enough stock for %s: %d requested, %d available.',
-            $name,
+            $this->productLabel($productId),
             $required,
             $available,
         );
+    }
+
+    /**
+     * Nama product untuk pesan penolakan: "Nama (SKU)", atau id-nya bila
+     * product sudah tidak ditemukan.
+     */
+    private function productLabel(int $productId): string
+    {
+        $product = $this->products->findById($productId);
+
+        return $product === null
+            ? 'product #' . $productId
+            : $product->name . ' (' . $product->sku . ')';
     }
 }

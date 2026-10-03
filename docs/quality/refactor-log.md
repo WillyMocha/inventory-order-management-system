@@ -163,6 +163,42 @@ helper yang sama — bukan menyalinnya, dan bukan pula mewarisi versi yang tidak
 
 ---
 
+## R-5 — Format label product diduplikasi di dua pesan penolakan `StockService`
+
+**Smell**: *Duplicate Code* — `insufficientMessage()` (goods issue) dan
+`overReceiptMessage()` (goods receipt) sama-sama mencari product lalu menyusun label
+`"Nama (SKU)"` dengan fallback `"product #id"`, ditulis dua kali dengan bentuk yang sedikit
+berbeda.
+
+**Teknik**: Extract Method → `productLabel(int $productId)`.
+
+**Sebelum** (muncul di kedua method)
+
+```php
+$product = $this->products->findById($productId);
+$name = $product === null ? 'product #' . $productId : $product->name . ' (' . $product->sku . ')';
+```
+
+**Sesudah**
+
+```php
+private function productLabel(int $productId): string
+{
+    $product = $this->products->findById($productId);
+
+    return $product === null
+        ? 'product #' . $productId
+        : $product->name . ' (' . $product->sku . ')';
+}
+```
+
+**Mengapa**: pesan penolakan issue dan receipt harus menyebut product dengan cara yang sama.
+Dengan dua salinan, mengubah format label (misalnya menambah unit) mudah hanya mengenai satu
+alur. Perilaku tidak berubah — unit test pesan penolakan di `StockServiceTest` tetap hijau
+tanpa diubah.
+
+---
+
 ## Catatan audit SRP
 
 **`StockService` — satu class, dua alur, dan itu benar.**
