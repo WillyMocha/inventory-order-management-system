@@ -94,7 +94,7 @@
     {
       "url": "/products/1",
       "role": "warehouse1@ioms.test",
-      "checked": 63,
+      "checked": 48,
       "failing": [],
       "minRatio": 4.75
     }

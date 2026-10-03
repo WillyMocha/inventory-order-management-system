@@ -118,7 +118,7 @@
     "pageOverflowPx": 0,
     "clippedTables": 0,
     "scrollableTables": 0,
-    "title": "PO-2026-0001 · IOMS"
+    "title": "PO-20260605-0001 · IOMS"
   },
   {
     "file": "13-sales-orders-list-desktop.png",
@@ -151,7 +151,7 @@
     "pageOverflowPx": 0,
     "clippedTables": 0,
     "scrollableTables": 0,
-    "title": "SO-2026-0001 · IOMS"
+    "title": "SO-20260824-0001 · IOMS"
   },
   {
     "file": "17-reports-desktop.png",
@@ -205,7 +205,7 @@
     "status": 200,
     "pageOverflowPx": 0,
     "clippedTables": 0,
-    "scrollableTables": 1,
+    "scrollableTables": 0,
     "title": "Kabel UTP Cat6 305m · IOMS"
   },
   {
@@ -250,7 +250,7 @@
     "pageOverflowPx": 0,
     "clippedTables": 0,
     "scrollableTables": 2,
-    "title": "PO-2026-0001 · IOMS"
+    "title": "PO-20260605-0001 · IOMS"
   },
   {
     "file": "13-sales-orders-list-mobile.png",
@@ -283,7 +283,7 @@
     "pageOverflowPx": 0,
     "clippedTables": 0,
     "scrollableTables": 2,
-    "title": "SO-2026-0001 · IOMS"
+    "title": "SO-20260824-0001 · IOMS"
   },
   {
     "file": "17-reports-mobile.png",

@@ -55,6 +55,22 @@ $q = static function (string $value): string {
 $dateExpr = static fn (int $dayOffset): string => "DATE_SUB(CURDATE(), INTERVAL {$dayOffset} DAY)";
 $datetimeExpr = static fn (int $dayOffset): string => "DATE_SUB(NOW(), INTERVAL {$dayOffset} DAY)";
 
+/*
+ * Nomor order memakai format yang SAMA dengan aplikasi
+ * (SalesOrderService/PurchaseOrderService::nextOrderNumber()): prefix, tanggal
+ * order YYYYMMDD, lalu urutan empat digit per hari, misalnya SO-20261004-0001.
+ *
+ * Tanggal order seed relatif terhadap hari seed diterapkan, jadi nomornya juga
+ * disusun MySQL dari ekspresi tanggal yang sama; urutan per hari dihitung di
+ * sini. Output generator tetap deterministik.
+ */
+$orderNumberExpr = static fn (string $prefix, int $dayOffset, int $sequence): string => sprintf(
+    "CONCAT('%s-', DATE_FORMAT(%s, '%%Y%%m%%d'), '-%04d')",
+    $prefix,
+    $dateExpr($dayOffset),
+    $sequence,
+);
+
 /** Kunci array untuk pasangan (product, warehouse). */
 $pair = static fn (int $productId, int $warehouseId): string => $productId . ':' . $warehouseId;
 
@@ -387,14 +403,17 @@ $poPlan = array_merge($openingPurchaseOrders, $poPlan);
 $poRows = [];
 $poItems = [];
 $poItemId = 0;
+/** @var array<int, int> $poSequenceByDay urutan nomor PO per hari */
+$poSequenceByDay = [];
 foreach ($poPlan as $index => [$status, $warehouseId, $day, $items]) {
     $poId = $index + 1;
+    $poSequenceByDay[$day] = ($poSequenceByDay[$day] ?? 0) + 1;
     $supplierId = (($poId - 1) % 15) + 1;
     $creator = $poId % 2 === 1 ? 1 : 4;
     $poRows[] = sprintf(
         '(%d, %s, %d, %d, %s, %s, %d, %s, %s)',
         $poId,
-        $q(sprintf('PO-2026-%04d', $poId)),
+        $orderNumberExpr('PO', $day, $poSequenceByDay[$day]),
         $supplierId,
         $warehouseId,
         $q($status),
@@ -435,8 +454,11 @@ foreach ($poPlan as $index => [$status, $warehouseId, $day, $items]) {
 $soRows = [];
 $soItems = [];
 $soItemId = 0;
+/** @var array<int, int> $soSequenceByDay urutan nomor SO per hari */
+$soSequenceByDay = [];
 foreach ($soPlan as $index => [$status, $warehouseId, $creator, $approver, $day, $items]) {
     $soId = $index + 1;
+    $soSequenceByDay[$day] = ($soSequenceByDay[$day] ?? 0) + 1;
     $customerId = (($soId - 1) % 15) + 1;
 
     // approver tidak boleh sama dengan creator - segregation of duties
@@ -448,7 +470,7 @@ foreach ($soPlan as $index => [$status, $warehouseId, $creator, $approver, $day,
     $soRows[] = sprintf(
         '(%d, %s, %d, %d, %s, %d, %s, %s, %s, %s, %s)',
         $soId,
-        $q(sprintf('SO-2026-%04d', $soId)),
+        $orderNumberExpr('SO', $day, $soSequenceByDay[$day]),
         $customerId,
         $creator,
         $approver === null ? 'NULL' : (string) $approver,
