@@ -19,6 +19,14 @@ Development (`/rudis.specify` → `/rudis.plan` → `/rudis.tasks` → `/rudis.i
 | 5 | Unit dan integration test | "Tulis test lebih dulu, pastikan gagal sebelum implementasi" | Ya | Red-green diverifikasi tiap kali; lihat catatan #3 di bawah |
 | 6 | Dokumen evidence (ADR, refactor log, kritik) | "Tulis ADR/kritik berdasarkan kode yang benar-benar ada" | Ya | Setiap klaim ditelusuri ke file dan test yang disebut |
 | 7 | Fitur 004 edit order Draft (spec → plan → tasks → analyze → implement) | "Tambahkan fitur edit untuk order Draft, aturan di service (hanya Draft, Sales hanya order miliknya)" | Ya, setelah tiga keputusan izin dijawab owner (Q1–Q3) dan temuan `/rudis.analyze` diterapkan | Test ditulis lebih dulu dan gagal dulu; MySQL integration; verifikasi HTTP per role di browser headless; data demo dipulihkan; lihat catatan #5 |
+| 8 | Redesign dialog konfirmasi (2026-10-04) | "Ganti semua alert menjadi modal, CSS native tanpa library" | Ya | Modal diperiksa di browser headless pada 375px dan desktop; tanpa library baru |
+| 9 | SKU otomatis dan read-only (2026-10-04) | "SKU terisi otomatis dari sequence terakhir, field read-only" | Ya, setelah owner memilih SKU tetap saat edit | Unit + integration test; batas SKU-999999 dibahas dan perilakunya diputuskan owner |
+| 10 | Perbaikan tech debt TD-9…TD-11 (`2d25a53`) | "Perbaiki TD-9 sampai TD-11 di tech-debt.md" | Ya, setelah owner memilih ketiganya dikerjakan di kode | Trigger append-only dibuktikan dengan mutation check (test gagal saat trigger dilepas); smoke test HTTP controller baru; `composer check` hijau |
+| 11 | Coverage SonarQube dan test controller order (`de0a94d`) | "SonarQube gagal di bagian coverage" | Ya | Akar masalah dibuktikan dulu (tidak ada coverage driver dan `reportPaths`); 50 test HTTP baru; coverage file baru 90–100% diukur dari `coverage/clover.xml` |
+| 12 | Export CSV Warehouse Staff diselaraskan dengan brief (`e241412`, `d691222`) | "Bukannya Warehouse Staff hanya laporan stok seperti di brief?" | Ya, setelah owner menyetujui | Pertanyaan owner yang menemukan penyimpangan, bukan AI; 11 test akses; status 200/403 tiap role dicek di aplikasi yang berjalan |
+| 13 | Pemeriksaan API-01 dan JOB-01 terhadap brief (`31c1074`) | "Apakah API-01 sudah terpenuhi? Bagaimana cara test JOB-01?" | Ya | Tiga skenario bukti (200/401/404) dijalankan dengan `curl`; contoh quickstart memakai SKU yang tidak ada di seed dan diperbaiki |
+| 14 | Bonus grafik stock movement, spec 005 (`7d38520`) | "Dashboard grafik SVG buatan sendiri dari stock_ledger untuk Admin dan Warehouse Staff" (spec → plan → tasks → analyze → implement) | Ya, setelah tiga pertanyaan dijawab owner (Q1–Q3) dan 10 temuan `/rudis.analyze` diterapkan | Test lebih dulu dan gagal dulu; grafik = CSV per hari dibuktikan di MySQL; verifikasi visual 1280/360px dan navigasi keyboard di browser |
+| 15 | SOP penggunaan aplikasi (PDF, tidak di-commit) | "Buat SOP semua role dalam PDF dengan screenshot" | Ya, sebagai dokumen internal | Screenshot diambil dari aplikasi yang berjalan; diperbarui setiap fitur berubah (v1.0–v1.4) |
 
 ---
 
@@ -55,6 +63,17 @@ Pelajarannya: penjelasan yang koheren dari AI bukan bukti. Reproduksi terisolasi
 | "Baseline hijau" setelah perubahan SKU sebelumnya | PHPCS mengembalikan 1 warning (baris 124 karakter) sehingga `composer check` exit 1 — sebelumnya hanya ekor output yang dibaca | Baris diperbaiki di T001; exit code PHPCS kini selalu diperiksa langsung |
 | Judul form edit tampil benar | Pada 360px nomor order terpotong di tanda hubung — baru terlihat setelah screenshot dilihat | `.page-title .tabular { white-space: nowrap; }`, screenshot diambil ulang |
 
+### 6. Setelah fitur 004: koreksi selama pengerjaan
+
+| Klaim / output AI | Yang sebenarnya | Tindakan |
+| --- | --- | --- |
+| Menambahkan `// phpcs:ignore` agar baris panjang lolos PHPCS | Constitution melarang menekan pemeriksaan | Ditarik; baris dipecah sungguhan |
+| Coverage SonarQube 0% dianggap kurang test | Laporan coverage tidak pernah dibuat maupun dikirim ke SonarQube | Diperbaiki konfigurasinya dulu; baru setelah diukur, controller yang benar-benar 0% diberi test |
+| Export CSV untuk Warehouse Staff dianggap sesuai karena tercatat di D-03 | D-03 hanya membahas cakupan "status order", bukan role; brief dan spec 001 menyebut Warehouse Staff hanya report stock | Route, controller, dan view dibatasi; D-03 dikoreksi dan penyimpangan lamanya dicatat terbuka |
+| Grafik 005 "lulus" setelah test render hijau | Halaman melebar 21px di 360px karena `<table class="visually-hidden">` (tabel tidak mau selebar 1px) — baru terlihat lewat pengukuran di browser | Tabel dibungkus `<div class="visually-hidden">`; ukuran ulang di 360px tanpa overflow |
+| Garis bantu sumbu grafik selalu 4 langkah (rencana) | Sumbu 10 dibagi 4 menghasilkan label 2,5 | Langkah dipilih 4 atau 5 agar label selalu bulat; deviasi dicatat di implementation log |
+| Script rudis `setup-plan.ps1` menulis plan ke `specs/fix/correct-business-flow/` | Script menurunkan folder dari nama branch, bukan folder spec | Folder salah dihapus; template disalin manual ke `specs/005-…` |
+
 ### 3. Test yang ditulis tetapi tidak dijalankan
 
 Integration suite ditulis sejak Phase 4 dan **tidak pernah dieksekusi sampai Phase 10** karena
@@ -78,10 +97,12 @@ Tidak ada kode yang masuk tanpa melewati:
 
 1. **PHPStan level 6** — tanpa baseline, tanpa `@phpstan-ignore`, tanpa penurunan level
 2. **PHP_CodeSniffer PSR-12** — termasuk sniff `declare(strict_types=1)`
-3. **Unit test** — 363 test tanpa database, session, atau network
-4. **Integration test** — 82 test terhadap MySQL 8 sungguhan
+3. **Unit test** — 491 test tanpa database, session, atau network (angka 2026-10-04)
+4. **Integration test** — 266 test terhadap MySQL 8 sungguhan (angka 2026-10-04)
 5. **Verifikasi manual lewat HTTP** untuk alur yang benar-benar penting: goods issue sungguhan
    diperiksa menurunkan stock, menulis dua baris ledger, dan memindahkan order ke Fulfilled
+6. **Verifikasi tampilan di browser headless** untuk perubahan UI — screenshot dilihat, overflow
+   horizontal di 360px diukur, bukan diasumsikan
 
 Angka yang disebut di seluruh dokumentasi berasal dari perintah yang benar-benar dijalankan,
 bukan dari perkiraan.
