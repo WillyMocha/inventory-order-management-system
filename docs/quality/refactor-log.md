@@ -419,6 +419,43 @@ pesan yang sama persis.
 
 ---
 
+## R-12 — Method guard yang tidak pernah dipanggil aplikasi
+
+**Smell**: Dead Code. Validasi dokumen terhadap kode (2026-10-04) menemukan bahwa dari tujuh method
+publik `Authorization`, hanya `authorizeRoute()` yang dipanggil aplikasi (dari `public/index.php`).
+`assertOwnershipForSales()` dan `denyAsNotFound()` hanya dipanggil `AuthFlowTest`; `requireRole()`,
+`currentRole()`, `currentUserId()`, dan `hasRole()` tidak dipanggil sama sekali, atau hanya sebagai
+alat assertion di test. Bahayanya bukan sekadar kerapian: CLAUDE.md dan dokumen lain menyebut guard
+sebagai tempat aturan "404, bukan 403", padahal scoping itu ditegakkan di Service.
+
+**Teknik**: Remove Dead Code. Enam method dihapus; docblock class kini menyebut di mana scoping 404
+benar-benar terjadi (`SalesOrderService::requireVisibleOrder()`). Dua test yang menguji method mati
+dihapus — perilakunya sudah diuji di lapisan yang benar oleh
+`SalesOrderServiceTest::anotherSalesUsersOrderIsNotFoundRatherThanForbidden` dan
+`ApprovalAuthorizationTest::aSalesUserRequestingAnotherSalesUsersOrderGetsNotFoundNotForbidden`. Dua
+test yang memakai `currentRole()` hanya untuk memastikan guard tidak melempar exception kini
+menyatakannya langsung dengan `expectNotToPerformAssertions()`.
+
+**Sebelum**
+
+```php
+public function assertOwnershipForSales(int $ownerId): void   // hanya dipanggil test
+public function denyAsNotFound(): never                       // hanya dipanggil method di atas
+public function requireRole(Role ...$roles): void             // tidak dipanggil
+// … currentRole(), currentUserId(), hasRole()
+```
+
+**Sesudah**
+
+```php
+final class Authorization
+{
+    public function authorizeRoute(?array $allowedRoles): void   // satu-satunya pintu guard
+}
+```
+
+---
+
 ## Catatan audit SRP
 
 **`StockService` — satu class, dua alur, dan itu benar.**

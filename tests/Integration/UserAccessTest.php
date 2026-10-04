@@ -90,13 +90,14 @@ final class UserAccessTest extends IntegrationTestCase
     {
         $this->signInAs(Role::Admin);
 
+        // Lolos berarti guard tidak melempar exception untuk satu pun route.
+        $this->expectNotToPerformAssertions();
+
         foreach ($this->userRoutes as $route) {
             $matched = $this->router->match($route['method'], $route['path']);
 
             $this->authorization->authorizeRoute($matched['roles']);
         }
-
-        self::assertSame(Role::Admin, $this->authorization->currentRole());
     }
 
     /**

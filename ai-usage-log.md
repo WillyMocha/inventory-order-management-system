@@ -98,7 +98,7 @@ Tidak ada kode yang masuk tanpa melewati:
 1. **PHPStan level 6** — tanpa baseline, tanpa `@phpstan-ignore`, tanpa penurunan level
 2. **PHP_CodeSniffer PSR-12** — termasuk sniff `declare(strict_types=1)`
 3. **Unit test** — 491 test tanpa database, session, atau network (angka 2026-10-04)
-4. **Integration test** — 266 test terhadap MySQL 8 sungguhan (angka 2026-10-04)
+4. **Integration test** — 264 test terhadap MySQL 8 sungguhan (angka 2026-10-04)
 5. **Verifikasi manual lewat HTTP** untuk alur yang benar-benar penting: goods issue sungguhan
    diperiksa menurunkan stock, menulis dua baris ledger, dan memindahkan order ke Fulfilled
 6. **Verifikasi tampilan di browser headless** untuk perubahan UI — screenshot dilihat, overflow

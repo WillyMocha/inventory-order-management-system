@@ -8,9 +8,9 @@ PHP 8.4.26 dan MySQL 8.0.46.
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
 | Unit | `composer test:unit` | **OK — 491 test, 1398 assertion** |
-| Integration | `composer test:integration` | **OK — 266 test, 985 assertion** |
-| Gabungan | `composer test` | **OK — 757 test, 2383 assertion** |
-| Coverage (SonarQube) | `composer test:coverage` | **OK — 757 test**; menulis `coverage/clover.xml` untuk SonarQube |
+| Integration | `composer test:integration` | **OK — 264 test, 981 assertion** |
+| Gabungan | `composer test` | **OK — 755 test, 2379 assertion** |
+| Coverage (SonarQube) | `composer test:coverage` | **OK — 755 test**; menulis `coverage/clover.xml` untuk SonarQube |
 | JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 18 test** |
 | Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning; lulus di Docker, dari `cmd.exe` Windows, dan dari salinan repo bersih |
 
