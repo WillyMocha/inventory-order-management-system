@@ -2001,3 +2001,25 @@ bersamaan ditahan `UNIQUE (sku)` (perilaku race yang sama dengan nomor order).
   `name`); `/products/1/edit` menampilkan `SKU-000001` read-only. Tidak ada data yang disimpan.
 
 **UNRESOLVED**: tidak ada.
+
+---
+
+## 2026-10-04 — folder sisa `public/uploads/products` dihapus
+
+Temuan review: `public/uploads/products/.gitkeep` (dari *Initial commit* `2d66611`) membuat seolah image
+product disimpan di bawah document root. Diverifikasi bahwa itu **bukan** celah:
+
+- `config/app.php` dan `.env`/`.env.example`: `UPLOAD_PATH=/var/www/html/storage/uploads`; di container,
+  file hasil upload memang berada di `storage/uploads`.
+- DocumentRoot Apache `public/`; `GET /storage/uploads/<file>` → 404. Image hanya disajikan lewat
+  `ProductController::image()`.
+- Tidak ada kode yang menulis atau membaca `public/uploads`. research R-006 justru menolak opsi itu.
+
+Perubahan:
+
+| File | Perubahan |
+| --- | --- |
+| `public/uploads/products/.gitkeep` | Dihapus (folder `public/uploads` ikut hilang) |
+| `docker/apache-vhost.conf` | Komentar blok `<Directory …/uploads>` diperbaiki: kini dinyatakan sebagai jaring pengaman bila `UPLOAD_PATH` salah diarahkan ke `public/uploads`, bukan lokasi upload. Aturan blok tidak berubah; `apache2ctl -t` → Syntax OK |
+
+Verifikasi: test `ProductImage*` lulus; jalur upload tidak berubah.
