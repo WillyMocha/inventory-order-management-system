@@ -50,6 +50,9 @@ final class PurchaseOrderController
      */
     private const array SORT_KEYS = ['date', 'number', 'status'];
 
+    /** Prefix halaman detail; setiap aksi kembali ke sini setelah selesai. */
+    private const string DETAIL_PATH = '/purchase-orders/';
+
     public function __construct(
         private readonly View $view,
         private readonly PurchaseOrderService $purchaseOrders,
@@ -117,7 +120,52 @@ final class PurchaseOrderController
 
         $this->session->flash('success', 'Purchase order created as a draft.');
 
-        return Response::redirect('/purchase-orders/' . $id);
+        return Response::redirect(self::DETAIL_PATH . $id);
+    }
+
+    /**
+     * Form edit Purchase Order Draft (spec 004).
+     *
+     * Urutan pemeriksaannya sama dengan PurchaseOrderService::update() — ada
+     * (404), boleh mengedit (403), baru status Draft (contracts "Check order").
+     */
+    public function edit(Request $request): Response
+    {
+        $order = $this->purchaseOrders->requireOrder($this->requireId($request));
+        $this->purchaseOrders->assertMayEdit($order, $this->actingUser());
+
+        if ($order->status !== PurchaseOrderStatus::Draft) {
+            $this->session->flash('error', 'Only a draft order can be edited.');
+
+            return Response::redirect(self::DETAIL_PATH . (int) $order->id);
+        }
+
+        return Response::html($this->renderForm($this->oldFromOrder($order), [], $order));
+    }
+
+    /**
+     * Menyimpan edit. Aturan siapa boleh dan kapan ditegakkan
+     * PurchaseOrderService; CSRF sudah diperiksa front controller.
+     */
+    public function update(Request $request): Response
+    {
+        $id = $this->requireId($request);
+
+        try {
+            $this->purchaseOrders->update($id, $this->payloadFrom($request), $this->actingUser());
+        } catch (ValidationException $e) {
+            $order = $this->purchaseOrders->requireOrder($id);
+
+            return Response::html($this->renderForm($this->payloadFrom($request), $e->errors(), $order), 422);
+        } catch (DomainException $e) {
+            $this->session->flash('error', $e->getMessage());
+
+            return Response::redirect(self::DETAIL_PATH . $id);
+        }
+
+        $this->session->flash('success', 'Purchase order updated.');
+
+        return Response::redirect(self::DETAIL_PATH . $id);
     }
 
     public function submit(Request $request): Response
@@ -157,7 +205,7 @@ final class PurchaseOrderController
                 'Goods can only be received for an ordered or partially received order.',
             );
 
-            return Response::redirect('/purchase-orders/' . (int) $order->id);
+            return Response::redirect(self::DETAIL_PATH . (int) $order->id);
         }
 
         return Response::html($this->renderReceiveForm($order));
@@ -190,7 +238,7 @@ final class PurchaseOrderController
 
         $this->session->flash('success', 'Goods received. Stock and ledger updated.');
 
-        return Response::redirect('/purchase-orders/' . (int) $order->id);
+        return Response::redirect(self::DETAIL_PATH . (int) $order->id);
     }
 
     /**
@@ -206,12 +254,12 @@ final class PurchaseOrderController
         } catch (DomainException $e) {
             $this->session->flash('error', $e->getMessage());
 
-            return Response::redirect('/purchase-orders/' . $id);
+            return Response::redirect(self::DETAIL_PATH . $id);
         }
 
         $this->session->flash('success', $successMessage);
 
-        return Response::redirect('/purchase-orders/' . $id);
+        return Response::redirect(self::DETAIL_PATH . $id);
     }
 
     /** @return array<string, mixed> */
@@ -242,6 +290,7 @@ final class PurchaseOrderController
             'warehouse'   => $this->masterData->requireWarehouse($order->warehouseId),
             'creator'     => $this->users->requireUser($order->createdBy),
             'movements'   => $this->stockService->movementsForPurchaseOrder($orderId),
+            'canEdit'     => $this->purchaseOrders->canEdit($order, $actingUser),
             'canSubmit'   => $order->canTransitionTo(PurchaseOrderStatus::Ordered),
             'canReceive'  => $order->canReceiveGoods(),
             // Hanya Admin yang boleh membatalkan (route table).
@@ -283,14 +332,17 @@ final class PurchaseOrderController
     }
 
     /**
+     * Form yang sama melayani create dan edit; $order terisi berarti mode edit.
+     *
      * @param array<string, mixed> $old
      * @param array<string, string> $errors
      */
-    private function renderForm(array $old = [], array $errors = []): string
+    private function renderForm(array $old = [], array $errors = [], ?PurchaseOrder $order = null): string
     {
         return $this->view->render('purchase-orders/form', [
-            'title'      => 'Create purchase order',
+            'title'      => $order === null ? 'Create purchase order' : 'Edit purchase order ' . $order->orderNumber,
             'activeNav'  => 'purchase-orders',
+            'order'      => $order,
             'old'        => $old,
             'errors'     => $errors,
             'suppliers'  => $this->parties->activeSuppliers(),
@@ -299,6 +351,28 @@ final class PurchaseOrderController
             'today'      => date('Y-m-d'),
             'csrf'       => $this->csrf,
         ]);
+    }
+
+    /**
+     * Isi form edit dari order tersimpan, dalam bentuk yang sama dengan
+     * payloadFrom() — form memakai logika isi-ulang yang sama dengan create.
+     *
+     * @return array<string, mixed>
+     */
+    private function oldFromOrder(PurchaseOrder $order): array
+    {
+        $items = [];
+
+        foreach ($order->items as $item) {
+            $items[] = ['product_id' => (string) $item->productId, 'quantity' => (string) $item->quantity];
+        }
+
+        return [
+            'supplier_id'  => (string) $order->supplierId,
+            'warehouse_id' => (string) $order->warehouseId,
+            'order_date'   => $order->orderDate,
+            'items'        => $items,
+        ];
     }
 
     /**

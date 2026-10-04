@@ -30,6 +30,10 @@ use PHPUnit\Framework\Attributes\Test;
  * MySQL belum pernah melihat query-nya. Dua bug produksi sebelumnya lolos
  * persis lewat celah ini. Setiap test di sini menjalankan query sungguhan dan
  * memeriksa hasilnya terhadap fixture, bukan sekadar "tidak error".
+ *
+ * updateDraft() dan replaceItems() milik MysqlSalesOrderRepository dan
+ * MysqlPurchaseOrderRepository (spec 004) dieksekusi EditDraftOrderTest,
+ * termasuk syarat status Draft dan rollback-nya, sehingga tidak diulang di sini.
  */
 final class RepositoryCoverageTest extends IntegrationTestCase
 {
@@ -130,7 +134,9 @@ final class RepositoryCoverageTest extends IntegrationTestCase
         self::assertSame(0, $products->highestSkuSequence('SKU-'), 'fixture memakai FIXTURE-SKU-*');
 
         foreach (['SKU-000041', 'SKU-000007', 'SKU-ABC', 'SKU-12X', 'SKUX000999'] as $sku) {
-            $products->save(new Product(null, $sku, 'Sequence ' . $sku, $categoryId, 'pcs', '1.00', '1.00', 0, null, true));
+            $products->save(
+                new Product(null, $sku, 'Sequence ' . $sku, $categoryId, 'pcs', '1.00', '1.00', 0, null, true),
+            );
         }
 
         self::assertSame(41, $products->highestSkuSequence('SKU-'));

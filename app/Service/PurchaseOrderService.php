@@ -14,7 +14,9 @@ use App\Repository\SupplierRepositoryInterface;
 use App\Repository\WarehouseRepositoryInterface;
 use App\Support\ClockInterface;
 use App\Support\Exception\DomainException;
+use App\Support\Exception\ForbiddenException;
 use App\Support\Exception\NotFoundException;
+use App\Support\TransactionRunner;
 use App\Support\Validator;
 
 /**
@@ -30,9 +32,11 @@ use App\Support\Validator;
  * Acting user di-pass sebagai argument dan tidak pernah dibaca dari session,
  * konsisten dengan SalesOrderService.
  *
- * Tidak ada scoping kepemilikan di sini: Sales tidak punya akses ke jalur
- * pembelian sama sekali, dan itu ditegakkan route table
- * (contracts/http-routes.md), bukan dengan filter di dalam Service.
+ * Melihat dan memproses PO tidak di-scope per pemilik: Sales tidak punya akses
+ * ke jalur pembelian sama sekali, dan itu ditegakkan route table
+ * (contracts/http-routes.md). Satu-satunya aturan kepemilikan ada pada EDIT
+ * PO Draft (spec 004): Warehouse Staff hanya mengedit PO buatannya sendiri,
+ * Admin boleh mengedit PO Draft siapa pun — lihat assertMayEdit().
  */
 final class PurchaseOrderService
 {
@@ -45,6 +49,9 @@ final class PurchaseOrderService
         private readonly WarehouseRepositoryInterface $warehouses,
         private readonly ProductRepositoryInterface $products,
         private readonly ClockInterface $clock,
+        // Header dan line sebuah edit Draft disimpan dalam satu transaction
+        // (spec 004 FR-011, research R-004) — pola yang sama dengan StockService.
+        private readonly TransactionRunner $transactions,
     ) {
     }
 
@@ -71,6 +78,78 @@ final class PurchaseOrderService
             (int) $actingUser->id,
             $items,
         ));
+    }
+
+    /**
+     * Mengedit Purchase Order Draft: supplier, warehouse tujuan, tanggal, dan
+     * seluruh line (spec 004-edit-draft-orders).
+     *
+     * Validasi dan snapshot harga beli memakai validate() yang sama dengan
+     * create() (research R-005). Nomor, status, dan pembuat tidak pernah
+     * diambil dari $data.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @throws NotFoundException
+     * @throws ForbiddenException
+     * @throws DomainException
+     * @throws \App\Support\Exception\ValidationException
+     */
+    public function update(int $id, array $data, User $actingUser): void
+    {
+        $order = $this->requireOrder($id);
+        $this->assertMayEdit($order, $actingUser);
+
+        if ($order->status !== PurchaseOrderStatus::Draft) {
+            throw self::onlyDraftEditable();
+        }
+
+        $items = $this->validate($data);
+        $edited = new PurchaseOrder(
+            $id,
+            $order->orderNumber,
+            (int) $data['supplier_id'],
+            (int) $data['warehouse_id'],
+            $order->status,
+            $this->resolveOrderDate($data),
+            $order->createdBy,
+        );
+
+        // Header lebih dulu: UPDATE bersyarat status = 'Draft' mengunci baris
+        // order, sehingga edit lain menunggu (research R-004).
+        $this->transactions->transaction(function () use ($edited, $items, $id): void {
+            if (!$this->orders->updateDraft($edited)) {
+                throw self::onlyDraftEditable();
+            }
+
+            $this->orders->replaceItems($id, $items);
+        });
+    }
+
+    /**
+     * Apakah tombol Edit layak ditawarkan: order masih Draft DAN acting user
+     * boleh mengeditnya. Penolakan sesungguhnya tetap di update().
+     */
+    public function canEdit(PurchaseOrder $order, User $actingUser): bool
+    {
+        return $order->status === PurchaseOrderStatus::Draft && $this->mayEdit($order, $actingUser);
+    }
+
+    /**
+     * Bagian izin dari aturan edit, terlepas dari status order.
+     *
+     * Admin boleh mengedit PO Draft siapa pun; Warehouse Staff hanya PO
+     * buatannya sendiri — ia "boleh mengusulkan" PO (brief §1.2, D-02), jadi
+     * yang ia kendalikan adalah usulannya sendiri (Clarifications Q2). Sales
+     * tidak pernah, walaupun route table sudah menolaknya lebih dulu.
+     *
+     * @throws ForbiddenException
+     */
+    public function assertMayEdit(PurchaseOrder $order, User $actingUser): void
+    {
+        if (!$this->mayEdit($order, $actingUser)) {
+            throw new ForbiddenException('You can only edit a draft purchase order you created.');
+        }
     }
 
     /**
@@ -151,6 +230,20 @@ final class PurchaseOrderService
                 'This order was changed by someone else. Reload the page and try again.',
             );
         }
+    }
+
+    private function mayEdit(PurchaseOrder $order, User $actingUser): bool
+    {
+        if ($actingUser->isAdmin()) {
+            return true;
+        }
+
+        return $actingUser->isWarehouseStaff() && $order->createdBy === (int) $actingUser->id;
+    }
+
+    private static function onlyDraftEditable(): DomainException
+    {
+        return new DomainException('Only a draft order can be edited.');
     }
 
     /** @throws DomainException */

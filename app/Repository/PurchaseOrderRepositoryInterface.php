@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\Enum\PurchaseOrderStatus;
 use App\Entity\PurchaseOrder;
+use App\Entity\PurchaseOrderItem;
 
 interface PurchaseOrderRepositoryInterface
 {
@@ -35,6 +36,26 @@ interface PurchaseOrderRepositoryInterface
 
     /** Menyimpan order beserta item-nya; mengembalikan id order. */
     public function save(PurchaseOrder $order): int;
+
+    /**
+     * Menulis header order Draft yang sedang diedit: supplier, warehouse
+     * tujuan, dan tanggal order (spec 004, research R-003).
+     *
+     * Berlaku HANYA bila status tersimpan masih Draft (compare-and-set);
+     * false bila order sudah keluar dari Draft. Nomor order, status, dan
+     * pembuat tidak pernah ditulis di sini.
+     */
+    public function updateDraft(PurchaseOrder $order): bool;
+
+    /**
+     * Mengganti seluruh line sebuah order Draft dengan $items (research R-004).
+     *
+     * Wajib dipanggil di dalam transaction milik pemanggil, setelah
+     * updateDraft() berhasil.
+     *
+     * @param list<PurchaseOrderItem> $items
+     */
+    public function replaceItems(int $orderId, array $items): void;
 
     /**
      * Mengubah status HANYA bila status tersimpan masih $expected

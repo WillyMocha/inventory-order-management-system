@@ -122,6 +122,7 @@ return static function (array $config): array {
         $warehouseRepository,
         $productRepository,
         $clock,
+        $database,
     );
 
     $salesOrderService = new SalesOrderService(
@@ -130,6 +131,7 @@ return static function (array $config): array {
         $warehouseRepository,
         $productRepository,
         $clock,
+        $database,
     );
 
     // StockService menerima Database sebagai TransactionRunner — satu-satunya

@@ -39,6 +39,12 @@ img {
     font-variant-numeric: tabular-nums;
 }
 
+/* Nomor order di dalam judul ("Edit sales order SO-20261004-0001") dibungkus
+   utuh: pada 360px browser memecahnya di tanda hubung, sama seperti KB-1. */
+.page-title .tabular {
+    white-space: nowrap;
+}
+
 /* --- Fokus: harus terlihat jelas (NFR-006) ------------------------------ */
 :focus-visible {
     outline: 2px solid var(--accent);

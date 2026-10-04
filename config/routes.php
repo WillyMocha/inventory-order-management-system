@@ -136,6 +136,10 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('POST', '/purchase-orders', 'PurchaseOrderController', 'store', $adminWarehouse);
     $router->add('GET', '/purchase-orders/{id}', 'PurchaseOrderController', 'show', $adminWarehouse);
     $router->add('POST', '/purchase-orders/{id}/submit', 'PurchaseOrderController', 'submit', $adminWarehouse);
+    // Edit PO Draft (spec 004, keputusan owner D-04). PurchaseOrderService
+    // mempersempit: Admin PO Draft siapa pun, Warehouse Staff hanya miliknya.
+    $router->add('GET', '/purchase-orders/{id}/edit', 'PurchaseOrderController', 'edit', $adminWarehouse);
+    $router->add('POST', '/purchase-orders/{id}', 'PurchaseOrderController', 'update', $adminWarehouse);
     $router->add('POST', '/purchase-orders/{id}/cancel', 'PurchaseOrderController', 'cancel', $adminOnly);
     $router->add('GET', '/purchase-orders/{id}/receive', 'PurchaseOrderController', 'receiveForm', $adminWarehouse);
     $router->add('POST', '/purchase-orders/{id}/receive', 'PurchaseOrderController', 'receive', $adminWarehouse);
@@ -150,6 +154,11 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('POST', '/sales-orders', 'SalesOrderController', 'store', $adminSales);
     $router->add('GET', '/sales-orders/{id}', 'SalesOrderController', 'show', $all);
     $router->add('POST', '/sales-orders/{id}/submit', 'SalesOrderController', 'submit', $adminSales);
+    // Edit order Draft (spec 004, keputusan owner D-04). Role di sini sama
+    // dengan role pembuat order; SalesOrderService mempersempitnya menjadi
+    // pembuat order itu saja, dan hanya selama Draft.
+    $router->add('GET', '/sales-orders/{id}/edit', 'SalesOrderController', 'edit', $adminSales);
+    $router->add('POST', '/sales-orders/{id}', 'SalesOrderController', 'update', $adminSales);
     // Sales tidak pernah boleh approve, termasuk order miliknya (FR-018).
     $router->add('POST', '/sales-orders/{id}/approve', 'SalesOrderController', 'approve', $adminOnly);
     $router->add('POST', '/sales-orders/{id}/reject', 'SalesOrderController', 'reject', $adminOnly);

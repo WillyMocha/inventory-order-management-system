@@ -125,7 +125,45 @@ final class MysqlSalesOrderRepository extends MysqlRepository implements SalesOr
 
         $orderId = $this->lastInsertId();
 
-        foreach ($order->items as $item) {
+        $this->insertItems($orderId, $order->items);
+
+        return $orderId;
+    }
+
+    public function updateDraft(SalesOrder $order): bool
+    {
+        $params = ['id' => (int) $order->id, 'draft' => SalesOrderStatus::Draft->value];
+
+        $updated = $this->run(
+            'UPDATE sales_order
+                SET customer_id = :customer_id, warehouse_id = :warehouse_id,
+                    order_date = :order_date, updated_at = NOW()
+              WHERE id = :id AND status = :draft',
+            $params + [
+                'customer_id'  => $order->customerId,
+                'warehouse_id' => $order->warehouseId,
+                'order_date'   => $order->orderDate,
+            ],
+        )->rowCount() === 1;
+
+        // rowCount() MySQL hanya menghitung baris yang BERUBAH. Menyimpan nilai
+        // yang sama dalam detik yang sama menghasilkan 0 walaupun order masih
+        // Draft — maka statusnya dibaca ulang, di transaction dan lock yang sama.
+        return $updated
+            || $this->fetchInt('SELECT COUNT(*) FROM sales_order WHERE id = :id AND status = :draft', $params) > 0;
+    }
+
+    public function replaceItems(int $orderId, array $items): void
+    {
+        $this->run('DELETE FROM sales_order_item WHERE sales_order_id = :order_id', ['order_id' => $orderId]);
+
+        $this->insertItems($orderId, $items);
+    }
+
+    /** @param list<SalesOrderItem> $items */
+    private function insertItems(int $orderId, array $items): void
+    {
+        foreach ($items as $item) {
             $this->run(
                 'INSERT INTO sales_order_item (sales_order_id, product_id, quantity, selling_price)
                       VALUES (:order_id, :product_id, :quantity, :selling_price)',
@@ -137,8 +175,6 @@ final class MysqlSalesOrderRepository extends MysqlRepository implements SalesOr
                 ],
             );
         }
-
-        return $orderId;
     }
 
     public function updateStatus(int $id, SalesOrderStatus $expected, SalesOrderStatus $status): bool

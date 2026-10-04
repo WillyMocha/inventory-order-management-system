@@ -17,6 +17,7 @@ use App\Support\ClockInterface;
 use App\Support\Exception\DomainException;
 use App\Support\Exception\ForbiddenException;
 use App\Support\Exception\NotFoundException;
+use App\Support\TransactionRunner;
 use App\Support\Validator;
 
 /**
@@ -46,6 +47,9 @@ final class SalesOrderService
         private readonly WarehouseRepositoryInterface $warehouses,
         private readonly ProductRepositoryInterface $products,
         private readonly ClockInterface $clock,
+        // Header dan line sebuah edit Draft disimpan dalam satu transaction
+        // (spec 004 FR-011, research R-004) — pola yang sama dengan StockService.
+        private readonly TransactionRunner $transactions,
     ) {
     }
 
@@ -74,6 +78,83 @@ final class SalesOrderService
             $this->resolveOrderDate($data),
             $items,
         ));
+    }
+
+    /**
+     * Mengedit Sales Order Draft: customer, warehouse asal, tanggal, dan
+     * seluruh line (spec 004-edit-draft-orders).
+     *
+     * Validasi dan snapshot harga memakai validate() yang sama dengan
+     * create(), jadi order hasil edit tidak pernah lebih longgar dari order
+     * baru (research R-005). Nomor, status, pembuat, dan approver tidak pernah
+     * diambil dari $data.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @throws NotFoundException
+     * @throws ForbiddenException
+     * @throws DomainException
+     * @throws \App\Support\Exception\ValidationException
+     */
+    public function update(int $id, array $data, User $actingUser): void
+    {
+        $order = $this->requireVisibleOrder($id, $actingUser);
+        $this->assertMayEdit($order, $actingUser);
+
+        if ($order->status !== SalesOrderStatus::Draft) {
+            throw self::onlyDraftEditable();
+        }
+
+        $items = $this->validate($data);
+        $edited = new SalesOrder(
+            $id,
+            $order->orderNumber,
+            (int) $data['customer_id'],
+            $order->createdBy,
+            $order->approvedBy,
+            (int) $data['warehouse_id'],
+            $order->status,
+            $this->resolveOrderDate($data),
+        );
+
+        // Header lebih dulu: UPDATE bersyarat status = 'Draft' sekaligus
+        // mengunci baris order, sehingga edit lain menunggu dan line dua edit
+        // tidak pernah tercampur (research R-004).
+        $this->transactions->transaction(function () use ($edited, $items, $id): void {
+            if (!$this->orders->updateDraft($edited)) {
+                throw self::onlyDraftEditable();
+            }
+
+            $this->orders->replaceItems($id, $items);
+        });
+    }
+
+    /**
+     * Apakah tombol Edit layak ditawarkan: order masih Draft DAN acting user
+     * boleh mengeditnya. Penolakan sesungguhnya tetap di update().
+     */
+    public function canEdit(SalesOrder $order, User $actingUser): bool
+    {
+        return $order->status === SalesOrderStatus::Draft && $this->mayEdit($order, $actingUser);
+    }
+
+    /**
+     * Bagian izin dari aturan edit, terlepas dari status order.
+     *
+     * Hanya PEMBUAT order yang boleh mengedit, termasuk bila ia Admin
+     * (Clarifications Q3). Kalau Admin boleh mengubah order buatan orang lain,
+     * ia dapat mengubah isinya lalu meng-approve-nya sendiri, dan aturan
+     * approved_by <> created_by kehilangan arti. Dipakai update() dan
+     * controller agar layar edit dan penyimpanan memeriksa dengan urutan yang
+     * sama (contracts "Check order").
+     *
+     * @throws ForbiddenException
+     */
+    public function assertMayEdit(SalesOrder $order, User $actingUser): void
+    {
+        if (!$this->mayEdit($order, $actingUser)) {
+            throw new ForbiddenException('You can only edit a draft order you created.');
+        }
     }
 
     /**
@@ -263,6 +344,17 @@ final class SalesOrderService
         if (!$this->orders->updateStatus((int) $order->id, $order->status, $target)) {
             throw self::changedMeanwhile();
         }
+    }
+
+    /** Warehouse Staff tidak pernah membuat Sales Order, jadi tidak pernah pembuatnya. */
+    private function mayEdit(SalesOrder $order, User $actingUser): bool
+    {
+        return !$actingUser->isWarehouseStaff() && $order->isCreatedBy((int) $actingUser->id);
+    }
+
+    private static function onlyDraftEditable(): DomainException
+    {
+        return new DomainException('Only a draft order can be edited.');
     }
 
     private static function changedMeanwhile(): DomainException

@@ -18,6 +18,7 @@ use App\Support\Exception\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Fake\FixedClock;
+use Tests\Unit\Fake\ImmediateTransactionRunner;
 use Tests\Unit\Fake\InMemoryCustomerRepository;
 use Tests\Unit\Fake\InMemoryProductRepository;
 use Tests\Unit\Fake\InMemorySalesOrderRepository;
@@ -62,6 +63,7 @@ final class SalesOrderServiceTest extends TestCase
                 new Product(31, 'SKU-B', 'Product B', 1, 'pcs', '2000.00', '2500.00', 5, null, true),
             ]),
             new FixedClock('2026-09-11 10:00:00'),
+            new ImmediateTransactionRunner(),
         );
     }
 

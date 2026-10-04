@@ -64,6 +64,7 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
             new MysqlWarehouseRepository($this->database),
             new MysqlProductRepository($this->database),
             new SystemClock(),
+            $this->database,
         );
 
         $this->router = new Router();
