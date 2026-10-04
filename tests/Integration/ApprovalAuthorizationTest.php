@@ -209,6 +209,29 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
         $this->service->approve($orderId, $this->admin);
     }
 
+    #[Test]
+    public function anOrderCreatedByAnAdminIsApprovedByAnotherAdmin(): void
+    {
+        // Karena itulah seed menyediakan dua akun Admin: tanpa Admin kedua,
+        // order buatan Admin tidak pernah dapat disetujui siapa pun
+        // (docs/planning/decisions.md, D-01).
+        $secondAdmin = $this->persistUser(
+            new MysqlUserRepository($this->database),
+            'Second Admin',
+            'approval-admin2@test',
+            Role::Admin,
+        );
+        $orderId = $this->pendingOrderCreatedBy($this->admin);
+
+        $this->service->approve($orderId, $secondAdmin);
+
+        $order = $this->orders->findById($orderId);
+
+        self::assertNotNull($order);
+        self::assertSame(SalesOrderStatus::Approved, $order->status);
+        self::assertSame($secondAdmin->id, $order->approvedBy);
+    }
+
     // -------------------------------------------------- ownership scoping
 
     #[Test]

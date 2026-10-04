@@ -43,6 +43,9 @@ use App\Support\View;
  */
 final class SalesOrderController
 {
+    /** Key query string yang dibawa link pagination dan sort (FIND-01). */
+    private const array FILTER_KEYS = ['search', 'status', 'sort', 'direction'];
+
     /**
      * Key sort yang boleh muncul di query string. Pemetaannya ke nama kolom
      * dilakukan allowlist SORTABLE pada repository — nilai ini tidak pernah
@@ -70,10 +73,10 @@ final class SalesOrderController
         // Scoping kepemilikan Sales masuk ke criteria, sehingga pembatasannya
         // berada di WHERE clause query dan bukan filter setelah data terambil.
         $criteria = $this->criteriaFrom($request) + $this->salesOrders->scopeFor($actingUser);
-        $filters = $this->queryState($request);
+        $filters = $request->queryState(self::FILTER_KEYS);
 
         // Sort dipisahkan dari filter: count() tidak peduli urutan.
-        $sorted = $criteria + $this->sortCriteriaFrom($request);
+        $sorted = $criteria + $request->sortCriteria(self::SORT_KEYS, 'desc');
 
         $paginator = new Paginator(
             $this->salesOrders->count($criteria),
@@ -450,39 +453,6 @@ final class SalesOrderController
         }
 
         return $criteria;
-    }
-
-    /** @return array<string, string> */
-    private function queryState(Request $request): array
-    {
-        $state = [];
-
-        foreach (['search', 'status', 'sort', 'direction'] as $key) {
-            if ($request->queryString($key) !== '') {
-                $state[$key] = $request->queryString($key);
-            }
-        }
-
-        return $state;
-    }
-
-    /**
-     * Sort dan arahnya, hanya bila key-nya dikenal.
-     *
-     * @return array{sort?: string, direction?: string}
-     */
-    private function sortCriteriaFrom(Request $request): array
-    {
-        $sort = $request->queryString('sort');
-
-        if (!in_array($sort, self::SORT_KEYS, true)) {
-            return [];
-        }
-
-        return [
-            'sort'      => $sort,
-            'direction' => strtolower($request->queryString('direction')) === 'asc' ? 'asc' : 'desc',
-        ];
     }
 
     private function actingUser(): User

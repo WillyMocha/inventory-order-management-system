@@ -218,6 +218,18 @@ img {
     color: var(--text-secondary);
 }
 
+/* Blok nama menjadi link ke profil sendiri; garis bawah hanya saat hover,
+   sama seperti a.row-entity. Fokus memakai ring global :focus-visible. */
+a.nav-user-name {
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+a.nav-user-name:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
 /* --- Card --------------------------------------------------------------- */
 /*
  * Card adalah blok tingkat halaman, dan beberapa halaman menumpuk lebih dari
@@ -339,13 +351,26 @@ img {
     margin-top: var(--space-1);
 }
 
-.stat-delta--up   { color: var(--success); }
-.stat-delta--down { color: var(--danger); }
+/* Token --*-text, bukan warna status 500/600: hijau --success di atas putih
+   hanya 3.3:1 (audit kontras 003, "above reorder point"). */
+.stat-delta--up   { color: var(--success-text); }
+.stat-delta--down { color: var(--danger-text); }
 .stat-delta--flat { color: var(--text-muted); }
 
 /* --- Tabel -------------------------------------------------------------- */
+/* position: relative menjadikan wrapper containing block bagi label
+   .visually-hidden (position: absolute) di dalam sel. Tanpanya label itu lolos
+   dari area scroll dan melebarkan halaman sampai 661px pada 360px. */
 .table-wrap {
+    position: relative;
     overflow-x: auto;
+}
+
+/* Tanpa batas bawah, select di dalam sel tabel menyusut hingga beberapa
+   huruf pada 360px dan product tidak terbaca saat dipilih (UI-01). Tabel
+   sudah berada di .table-wrap, jadi baris yang lebih lebar cukup di-scroll. */
+.table .select {
+    min-width: 14rem;
 }
 
 .table {
@@ -445,6 +470,23 @@ img {
 .row-entity .icon {
     color: var(--text-muted);
 }
+
+/* Teks bebas di dalam tabel (misalnya alasan koreksi stock) boleh terbungkus,
+   tidak seperti sel lain yang nowrap. */
+.table td.cell-wrap {
+    white-space: normal;
+    min-width: 14rem;
+    overflow-wrap: anywhere;
+}
+
+/* Perubahan quantity bertanda pada riwayat koreksi stock. Memakai token
+   --*-text agar kontrasnya memenuhi WCAG AA di atas latar putih. */
+.qty-change {
+    font-weight: var(--weight-semibold);
+}
+
+.qty-change--up   { color: var(--success-text); }
+.qty-change--down { color: var(--danger-text); }
 
 /* Nama entity yang dapat diklik: garis bawah hanya saat hover. Pada tabel
    padat, underline permanen membuat setiap baris terlihat berisik. */
@@ -585,12 +627,18 @@ a.row-entity:hover .cell-primary {
     font: inherit;
 }
 
+/* Outline memakai --accent, bukan --accent-wash: wash (#eff6ff) di atas latar
+   putih hampir tidak terlihat (rasio ~1.1:1), sehingga fokus pada field hanya
+   ditandai perubahan warna border 1px. :focus-within ikut dicakup karena
+   tombol kalender di dalam input tanggal menerima fokus di shadow DOM, dan
+   saat itu :focus pada input-nya sendiri tidak berlaku. */
 .input:focus,
+.input:focus-within,
 .select:focus,
 .textarea:focus {
     border-color: var(--accent);
-    outline: 2px solid var(--accent-wash);
-    outline-offset: 0;
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
 }
 
 .input[aria-invalid="true"],
@@ -640,10 +688,13 @@ a.row-entity:hover .cell-primary {
     margin-bottom: var(--space-4);
 }
 
-.alert--success { background: var(--success-bg); border-color: var(--success-border); color: var(--success); }
-.alert--warning { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning); }
-.alert--error   { background: var(--danger-bg);  border-color: var(--danger-border);  color: var(--danger); }
-.alert--info    { background: var(--info-bg);    border-color: var(--info-border);    color: var(--info); }
+/* Teks alert memakai token *-text, sama seperti badge: warna status 500/600
+   di atas latar *-bg tidak mencapai 4.5:1 (audit kontras 002, alert--error
+   4.41:1). */
+.alert--success { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
+.alert--warning { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning-text); }
+.alert--error   { background: var(--danger-bg);  border-color: var(--danger-border);  color: var(--danger-text); }
+.alert--info    { background: var(--info-bg);    border-color: var(--info-border);    color: var(--info-text); }
 
 /* --- Empty state -------------------------------------------------------- */
 .empty-state {
@@ -804,6 +855,19 @@ a.row-entity:hover .cell-primary {
     align-items: center;
 }
 
+/* Select dan tombolnya tetap satu baris, juga pada 360px. Tanpa ini
+   .select yang selebar 100% mendorong tombol ke baris berikutnya. */
+.inline-picker {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.inline-picker .select {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 .muted {
     color: var(--text-muted);
 }
@@ -848,6 +912,13 @@ a.row-entity:hover .cell-primary {
         position: sticky;
         top: 0;
         z-index: 10;
+        /* Jarak ke judul halaman dipindah ke sini dari padding atas .page,
+           agar topbar menempel di tepi atas layar, bukan turun 24px. */
+        margin-bottom: var(--space-6);
+    }
+
+    .page {
+        padding-top: 0;
     }
 
     .topbar-toggle {

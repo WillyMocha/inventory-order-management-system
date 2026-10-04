@@ -9,21 +9,23 @@ vanilla JavaScript tanpa build step. Tidak ada ORM, DI container, CSS framework,
 admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 
 > **Bahasa**: seluruh string UI berbahasa Inggris. Comment dan dokumentasi berbahasa
-> Indonesia dengan istilah teknis tetap bahasa Inggris.
+> Indonesia dengan istilah teknis tetap bahasa Inggris. Pengecualian: artefak spesifikasi di
+> `specs/` (spec, plan, research, tasks, contracts) ditulis dalam bahasa Inggris.
 
 ## Fitur
 
 | Area | Isi |
 | --- | --- |
-| **Authentication** | Login dengan session, rate limit percobaan gagal, regenerasi session id, step-up re-auth sebelum aksi sensitif |
+| **Authentication** | Login dengan session, rate limit percobaan gagal, regenerasi session id, step-up re-auth sebelum aksi sensitif; akun divalidasi ulang pada setiap request, sehingga user yang dinonaktifkan atau diganti role-nya langsung kehilangan akses |
+| **Profil sendiri** | Setiap role melihat profilnya (nama, email, role, status) dan mengganti password sendiri dengan password saat ini; batas percobaannya berbagi counter dengan login |
 | **User management** | Admin membuat dan menonaktifkan user; tidak ada registrasi publik |
 | **Master data** | Category, Warehouse, Supplier, Customer — dinonaktifkan, tidak pernah dihapus |
 | **Product** | Katalog dengan SKU unik, harga beli/jual, reorder point, dan upload image |
-| **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock` |
+| **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock`; koreksi dari hasil hitung fisik (Adjustment) dengan alasan wajib, aman dari race condition |
 | **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap |
 | **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue |
 | **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation |
-| **Report** | Export CSV stock movement dan status order untuk rentang tanggal pilihan |
+| **Report** | Export CSV stock movement, status Sales Order, dan status Purchase Order untuk rentang tanggal pilihan |
 | **JSON API** | Ketersediaan stock per warehouse, dengan session auth yang sama dengan halaman |
 | **Job** | Routine low-stock yang berjalan di luar request cycle |
 
@@ -31,9 +33,12 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 
 | Role | Tanggung jawab |
 | --- | --- |
-| **Admin** | User management, master data, approval Sales Order, seluruh report |
-| **Sales** | Membuat Sales Order — **tidak boleh approve**, termasuk order miliknya sendiri |
-| **Warehouse Staff** | Goods receipt, goods issue, antrean fulfillment |
+| **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order, koreksi stock, seluruh report |
+| **Sales** | Membuat dan mengajukan Sales Order miliknya, export CSV order miliknya — **tidak boleh approve**, termasuk order miliknya sendiri |
+| **Warehouse Staff** | Membuat Purchase Order, goods receipt, goods issue, koreksi stock dari hasil hitung fisik, antrean fulfillment, report stock |
+
+Ketiga role memiliki menu **My profile** untuk melihat data akunnya dan mengganti password
+sendiri. Nama, email, dan role tetap hanya dapat diubah Admin.
 
 Pemisahan tanggung jawab ditegakkan **di server**, bukan dengan menyembunyikan tombol di UI.
 `SalesOrderService::approve()` memeriksa role Admin **dan** `approved_by <> created_by`.
@@ -48,18 +53,58 @@ bawah, tidak di atas; image sudah di-pin dan front controller memuat runtime gua
 
 ## Menjalankan
 
+Dua langkah dari folder bersih:
+
 ```bash
 cp .env.example .env
-docker compose up --build        # http://localhost:8080
+docker compose up -d        # build image bila belum ada, lalu app + MySQL di background
 ```
 
-Migration dan data seed diterapkan otomatis saat container pertama kali naik. Untuk
-menerapkannya ulang secara manual:
+Buka <http://localhost:8080> dan login dengan salah satu [akun demo](#akun-demo). Start
+pertama memakan waktu lebih lama: image di-build dan MySQL menginisialisasi volume-nya.
+
+**Schema dan data seed diterapkan otomatis** setiap container `app` naik. Entrypoint
+(`docker/entrypoint.sh`) menjalankan `database/migrate.php` sebelum Apache, dan script itu hanya
+menerapkan file `.sql` yang belum tercatat di tabel `schema_migration`. Akibatnya seed masuk
+tepat sekali, saat first boot, dan restart berikutnya tidak menyentuh data. Progresnya terlihat
+di `docker compose logs app`.
+
+**Kapan perlu `--build`.** Image diberi nama tetap (`ioms-app:local`) dan dipakai ulang di
+setiap `docker compose up`. Source code di-bind-mount ke container, jadi perubahan kode langsung
+berlaku tanpa rebuild. Build ulang hanya diperlukan setelah `Dockerfile`, `composer.lock`, atau
+`docker/entrypoint.sh` berubah:
 
 ```bash
-docker compose exec app composer db:migrate   # file yang belum dijalankan
-docker compose exec app composer db:reset     # hapus lalu bangun ulang dari nol
+docker compose up -d --build
 ```
+
+`docker compose up --build` dari folder bersih (brief §5.1) juga berjalan sama persis.
+
+Prosedur ini sudah diuji dari salinan repo bersih: start pertama berhasil tanpa restart,
+login Admin berhasil, restart tidak menerapkan seed ulang, `up` kedua tidak mem-build ulang, dan
+`composer check` lulus.
+
+Perintah migration manual tetap tersedia:
+
+```bash
+docker compose exec app composer db:migrate   # hanya file .sql yang belum dijalankan
+docker compose exec app composer db:reset     # hapus seluruh tabel lalu bangun ulang + seed
+```
+
+### Mengubah data seed
+
+`database/002_seed.sql` **di-generate**, bukan ditulis tangan. Generator-nya menyusun riwayat
+pergerakan stock (receipt PO dan issue SO yang Fulfilled) lalu menghitung `product_stock`
+dari riwayat itu, sehingga `SUM(stock_ledger) = product_stock` sudah berlaku sejak seed.
+Generator juga menolak data demo yang melanggar aturan, misalnya stock negatif atau approver
+SO yang sama dengan pembuatnya. Ubah data demo di generator, lalu:
+
+```bash
+docker compose exec app php database/generate-seed.php   # tulis ulang 002_seed.sql
+docker compose exec app composer db:reset                # terapkan ke database demo
+```
+
+Output-nya deterministik: tanpa perubahan data, file yang dihasilkan identik byte demi byte.
 
 ## Akun demo
 
@@ -68,15 +113,28 @@ dibuat oleh Admin.
 
 | Role | Email |
 | --- | --- |
-| Admin | `admin@ioms.test` |
+| Admin | `admin@ioms.test`, `admin2@ioms.test` |
 | Sales | `sales1@ioms.test`, `sales2@ioms.test` |
 | Warehouse Staff | `warehouse1@ioms.test`, `warehouse2@ioms.test` |
 
 Kredensial di atas hanya untuk data seed demo di lingkungan lokal.
 
+Ada dua akun Admin karena approver Sales Order tidak boleh sama dengan pembuatnya — aturan ini
+juga berlaku untuk Admin. Sales Order yang dibuat `admin@ioms.test` disetujui oleh
+`admin2@ioms.test`, dan sebaliknya. Lihat
+[`docs/planning/decisions.md`](docs/planning/decisions.md).
+
 ## Test dan quality gate
 
-Satu perintah per suite:
+Seluruh gate dalam **satu perintah**: membangun ulang schema database test, lalu unit,
+integration, PHPStan, dan PHPCS. Perintah ini berhenti pada kegagalan pertama dan keluar
+dengan kode bukan nol, sehingga tidak ada suite yang terlewat diam-diam:
+
+```bash
+docker compose exec app composer check
+```
+
+Atau satu perintah per suite:
 
 ```bash
 docker compose exec app composer test              # unit + integration
@@ -86,20 +144,34 @@ docker compose exec app composer analyse           # PHPStan level 6
 docker compose exec app composer cs                # PHP_CodeSniffer PSR-12
 ```
 
-Integration test memakai database terpisah. Schema-nya dibangun **sekali** dengan:
+Test JavaScript (`node --test` bawaan Node, tanpa dependency) dijalankan lewat image Node
+resmi, sehingga tidak perlu Node di komputer:
+
+```bash
+# bash / PowerShell
+docker run --rm -v "${PWD}:/app" -w /app node:22-alpine node --test "tests/js/*.test.mjs"
+# cmd.exe
+docker run --rm -v "%cd%:/app" -w /app node:22-alpine node --test "tests/js/*.test.mjs"
+```
+
+Integration test memakai database terpisah (`ioms_test`), sehingga data demo tidak pernah
+tersentuh. `composer check` membangun schema-nya sendiri; bila suite dijalankan terpisah,
+bangun dulu dengan:
 
 ```bash
 docker compose exec app composer db:test
 ```
 
-Hasil terakhir: **445 test, 1235 assertion, seluruhnya lulus** — lihat
+Hasil terakhir: **512 test PHP (1454 assertion) dan 11 test JavaScript, seluruhnya lulus** — lihat
 [`docs/testing/test-results.md`](docs/testing/test-results.md).
 
 ## Low-stock check di luar request cycle (JOB-01)
 
-Routine mandiri yang meringkas product pada atau di bawah reorder point. Berjalan tanpa HTTP,
-tanpa session, dan memakai `ProductService` **yang sama** dengan dashboard — sehingga script
-dan layar tidak bisa memberi jawaban berbeda.
+Routine mandiri yang meringkas product pada atau di bawah reorder point. Berjalan tanpa HTTP
+dan tanpa session. Script ini memanggil `ProductService::lowStock()`, yang menjalankan query
+**yang sama** (`ProductRepositoryInterface::lowStock()`) dengan daftar low-stock di dashboard
+dan endpoint `/api/dashboard/low-stock`. Karena itu script dan layar tidak bisa memberi jawaban
+berbeda.
 
 ```bash
 docker compose exec app php scripts/check-low-stock.php
@@ -121,26 +193,28 @@ scope. Prosedur verifikasi lengkap ada di
 | [`specs/001-inventory-order-management/data-model.md`](specs/001-inventory-order-management/data-model.md) | Schema, mirror dari resource model sumber |
 | [`specs/001-inventory-order-management/contracts/`](specs/001-inventory-order-management/contracts/) | Route table, matriks authorization, dan JSON API |
 | [`specs/001-inventory-order-management/quickstart.md`](specs/001-inventory-order-management/quickstart.md) | Prosedur verifikasi lengkap dan skenario demo |
+| [`docs/planning/`](docs/planning/) | User story, scope, backlog, ERD, class diagram initial, dan [catatan keputusan](docs/planning/decisions.md) atas requirement yang ambigu |
 | [`docs/architecture/`](docs/architecture/) | Class diagram as-built dan dua ADR |
 | [`docs/quality/`](docs/quality/) | Refactor log, tech debt, kritik desain, laporan PHPStan dan PHPCS |
-| [`docs/testing/`](docs/testing/) | Hasil test, pemetaan coverage, sweep jalur kegagalan |
+| [`docs/testing/`](docs/testing/) | Skenario dan hasil test, pemetaan coverage, sweep jalur kegagalan, screenshot, audit aksesibilitas, [bug yang diketahui](docs/testing/known-bugs.md) |
 
 ## Keterbatasan yang diketahui
 
 Dicatat apa adanya. Rinciannya di [`docs/quality/tech-debt.md`](docs/quality/tech-debt.md).
 
-- **Pemeriksaan visual di browser belum dilakukan.** Seluruh halaman sudah dipastikan
-  mengembalikan 200 dengan isi yang benar lewat HTTP, tetapi spacing, keselarasan grid, dan
-  perilaku responsive pada 360px belum pernah benar-benar dilihat.
-- **Tidak ada CI.** Kedua suite dijalankan manual. Selama enam phase, integration suite tidak
-  pernah dijalankan sama sekali — dan menyembunyikan satu bug yang membuat setiap goods issue
-  gagal. Ini keterbatasan proses yang paling mahal di project ini.
-- **Tidak ada test otomatis untuk JavaScript.** `stock-lookup.js` dan `validation.js` hanya
-  diperiksa sintaksisnya. Keduanya murni progressive enhancement — aplikasi tetap berfungsi
-  penuh tanpa JavaScript.
-- **Jalur filesystem upload tidak ter-unit-test.** Keputusannya (tipe dari `finfo`, batas
-  ukuran, nama acak, penyimpanan di luar document root) teruji; pembungkus filesystem-nya
-  tidak.
+- **Tidak ada CI.** Seluruh gate dijalankan manual lewat `composer check` — CI berada di luar
+  scope brief (§4.3). Selama enam phase integration suite tidak pernah dijalankan dan
+  menyembunyikan bug yang membuat setiap goods issue gagal; `composer check` kini membangun
+  schema test lebih dulu agar hal itu tidak terulang.
+- **Hanya `stock-lookup.js` yang memiliki test JavaScript otomatis.** Modul lain
+  (`validation.js`, `order-lines.js`, dll.) belum; seluruhnya progressive enhancement, sehingga
+  aplikasi tetap berfungsi penuh tanpa JavaScript.
+- **Append-only `stock_ledger` dijaga aplikasi, bukan database.** Tidak ada trigger yang menolak
+  `UPDATE` manual lewat SQL client (`tech-debt.md` TD-9).
+- Bug yang diketahui beserta workaround-nya: [`docs/testing/known-bugs.md`](docs/testing/known-bugs.md).
+- **Jalur sukses upload image tidak teruji otomatis.** `move_uploaded_file()` hanya menerima
+  upload HTTP sungguhan, sehingga tidak dapat dijalankan dari CLI. Penolakan file palsu,
+  pembacaan, dan penghapusan file teruji di `ProductImageStorageTest`.
 - **Tidak ada penjadwalan otomatis.** Routine low-stock dijalankan manual, sesuai scope.
 - **Tidak ada password reset.** Brief tidak menyediakan registrasi publik; Admin yang
   mengatur ulang password.

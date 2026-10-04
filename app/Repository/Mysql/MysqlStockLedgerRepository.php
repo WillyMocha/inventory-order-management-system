@@ -19,16 +19,16 @@ use App\Repository\StockLedgerRepositoryInterface;
 final class MysqlStockLedgerRepository extends MysqlRepository implements StockLedgerRepositoryInterface
 {
     private const string SELECT = 'SELECT id, product_id, warehouse_id, movement_type, quantity,
-                   reference_type, reference_id, performed_by
+                   reference_type, reference_id, note, performed_by
               FROM stock_ledger';
 
     public function append(StockLedger $entry): int
     {
         $this->run(
             'INSERT INTO stock_ledger (product_id, warehouse_id, movement_type, quantity,
-                                       reference_type, reference_id, performed_by, created_at)
+                                       reference_type, reference_id, note, performed_by, created_at)
                   VALUES (:product_id, :warehouse_id, :movement_type, :quantity,
-                          :reference_type, :reference_id, :performed_by, NOW())',
+                          :reference_type, :reference_id, :note, :performed_by, NOW())',
             [
                 'product_id'     => $entry->productId,
                 'warehouse_id'   => $entry->warehouseId,
@@ -36,6 +36,7 @@ final class MysqlStockLedgerRepository extends MysqlRepository implements StockL
                 'quantity'       => $entry->quantity,
                 'reference_type' => $entry->referenceType->value,
                 'reference_id'   => $entry->referenceId,
+                'note'           => $entry->note,
                 'performed_by'   => $entry->performedBy,
             ],
         );
@@ -70,7 +71,7 @@ final class MysqlStockLedgerRepository extends MysqlRepository implements StockL
         return $this->fetchAll(
             'SELECT sl.created_at, p.sku, p.name AS product_name, w.name AS warehouse_name,
                     sl.movement_type, sl.quantity, sl.reference_type, sl.reference_id,
-                    u.name AS performed_by_name
+                    u.name AS performed_by_name, sl.note
                FROM stock_ledger sl
                JOIN product p ON p.id = sl.product_id
                JOIN warehouse w ON w.id = sl.warehouse_id
@@ -78,6 +79,50 @@ final class MysqlStockLedgerRepository extends MysqlRepository implements StockL
               WHERE sl.created_at >= :start_date AND sl.created_at < (:end_date + INTERVAL 1 DAY)
            ORDER BY sl.created_at ASC, sl.id ASC',
             ['start_date' => $startDate, 'end_date' => $endDate],
+        );
+    }
+
+    /**
+     * Saldo berjalan dihitung window function di SELURUH riwayat product,
+     * baru kemudian disaring ke Adjustment — menyaring lebih dulu akan
+     * menghilangkan Receipt dan Issue dari saldonya.
+     */
+    public function recentAdjustmentsForProduct(int $productId, int $limit): array
+    {
+        $rows = $this->fetchAll(
+            'SELECT history.created_at, w.name AS warehouse_name, history.quantity,
+                    history.balance_after, u.name AS performed_by_name, history.note
+               FROM (
+                     SELECT sl.id, sl.created_at, sl.warehouse_id, sl.movement_type, sl.quantity,
+                            sl.performed_by, sl.note,
+                            SUM(sl.quantity) OVER (
+                                PARTITION BY sl.warehouse_id ORDER BY sl.created_at, sl.id
+                            ) AS balance_after
+                       FROM stock_ledger sl
+                      WHERE sl.product_id = :product_id
+                    ) history
+               JOIN warehouse w ON w.id = history.warehouse_id
+               JOIN `user` u ON u.id = history.performed_by
+              WHERE history.movement_type = :movement_type
+           ORDER BY history.created_at DESC, history.id DESC
+              LIMIT :limit',
+            [
+                'product_id'    => $productId,
+                'movement_type' => MovementType::Adjustment->value,
+                'limit'         => $limit,
+            ],
+        );
+
+        return array_map(
+            static fn (array $row): array => [
+                'createdAt'       => (string) $row['created_at'],
+                'warehouseName'   => (string) $row['warehouse_name'],
+                'quantity'        => (int) $row['quantity'],
+                'balanceAfter'    => (int) $row['balance_after'],
+                'performedByName' => (string) $row['performed_by_name'],
+                'note'            => (string) $row['note'],
+            ],
+            $rows,
         );
     }
 
@@ -95,6 +140,7 @@ final class MysqlStockLedgerRepository extends MysqlRepository implements StockL
     private function hydrate(array $row): StockLedger
     {
         $referenceId = $row['reference_id'];
+        $note = $row['note'];
 
         return new StockLedger(
             (int) $row['id'],
@@ -105,6 +151,7 @@ final class MysqlStockLedgerRepository extends MysqlRepository implements StockL
             ReferenceType::from((string) $row['reference_type']),
             $referenceId === null ? null : (int) $referenceId,
             (int) $row['performed_by'],
+            $note === null ? null : (string) $note,
         );
     }
 }

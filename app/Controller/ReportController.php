@@ -23,8 +23,9 @@ use App\Support\View;
  * isi file tidak bisa berbeda dari yang dilihat user.
  *
  * Pembatasan role terjadi di dua lapis yang saling mendukung:
- *   1. Route table — /reports/stock-movement.csv hanya untuk Admin dan
- *      Warehouse Staff; guard menolak Sales sebelum request sampai ke sini.
+ *   1. Route table — /reports/stock-movement.csv dan
+ *      /reports/purchase-orders.csv hanya untuk Admin dan Warehouse Staff;
+ *      guard menolak Sales sebelum request sampai ke sini.
  *   2. Service — scopeFor() membatasi export order Sales pada miliknya
  *      sendiri, di dalam WHERE clause, bukan dengan menyaring hasil.
  */
@@ -33,6 +34,7 @@ final class ReportController
     /** Nama file export; rentangnya disisipkan agar dua export tidak tertukar. */
     private const string STOCK_MOVEMENT_FILE = 'stock-movement';
     private const string ORDERS_FILE = 'orders';
+    private const string PURCHASE_ORDERS_FILE = 'purchase-orders';
 
     public function __construct(
         private readonly View $view,
@@ -62,9 +64,13 @@ final class ReportController
         $scope = $this->reports->scopeFor($role, $userId);
         $orderRows = $this->reports->salesOrders($range['start'], $range['end'], $scope);
 
-        // Stock movement bukan bagian Sales (§1.2); untuk role itu angkanya
-        // memang tidak dihitung, bukan sekadar tidak ditampilkan.
+        // Stock movement dan Purchase Order bukan bagian Sales (§1.2); untuk
+        // role itu angkanya memang tidak dihitung, bukan sekadar tidak
+        // ditampilkan.
         $canSeeStockMovement = $this->canSeeStockMovement($role);
+        $purchaseOrderRows = $canSeeStockMovement
+            ? $this->reports->purchaseOrders($range['start'], $range['end'])
+            : [];
 
         return Response::html($this->view->render('reports/index', [
             'title'               => 'Reports',
@@ -78,6 +84,8 @@ final class ReportController
                 ? count($this->reports->stockMovements($range['start'], $range['end']))
                 : 0,
             'canSeeStockMovement' => $canSeeStockMovement,
+            'purchaseOrderCount'  => count($purchaseOrderRows),
+            'purchaseOrderTotals' => $this->reports->purchaseOrderStatusTotals($purchaseOrderRows),
             'isScoped'            => $scope !== null,
             'maxRangeDays'        => ReportService::MAX_RANGE_DAYS,
         ]));
@@ -136,6 +144,34 @@ final class ReportController
             $range,
             ReportService::ORDER_HEADER,
             array_map(fn (array $row): array => $this->reports->orderCsvRow($row), $rows),
+        );
+    }
+
+    /**
+     * Export status Purchase Order. Route-nya dibatasi Admin dan Warehouse
+     * Staff; pemeriksaan ulang di sini sama alasannya dengan stockMovementCsv().
+     */
+    public function purchaseOrdersCsv(Request $request): Response
+    {
+        if (!$this->canSeeStockMovement($this->requireRole())) {
+            throw new ForbiddenException('This report is not available for your role.');
+        }
+
+        $requested = $this->requestedRange($request);
+
+        try {
+            $range = $this->reports->validateRange($requested['start'], $requested['end']);
+        } catch (ValidationException) {
+            return $this->backToForm($requested);
+        }
+
+        $rows = $this->reports->purchaseOrders($range['start'], $range['end']);
+
+        return $this->stream(
+            self::PURCHASE_ORDERS_FILE,
+            $range,
+            ReportService::PURCHASE_ORDER_HEADER,
+            array_map(fn (array $row): array => $this->reports->purchaseOrderCsvRow($row), $rows),
         );
     }
 

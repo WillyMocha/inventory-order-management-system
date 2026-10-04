@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Fake;
 
+use App\Entity\Enum\MovementType;
 use App\Entity\Enum\ReferenceType;
 use App\Entity\StockLedger;
 use App\Repository\StockLedgerRepositoryInterface;
@@ -55,6 +56,7 @@ final class InMemoryStockLedgerRepository implements StockLedgerRepositoryInterf
             $entry->referenceType,
             $entry->referenceId,
             $entry->performedBy,
+            $entry->note,
         );
 
         $this->createdAt[] = $this->nextCreatedAt;
@@ -110,6 +112,7 @@ final class InMemoryStockLedgerRepository implements StockLedgerRepositoryInterf
                 'reference_type'    => $entry->referenceType->value,
                 'reference_id'      => $entry->referenceId,
                 'performed_by_name' => $this->labelFor($this->userNames, $entry->performedBy, 'User'),
+                'note'              => $entry->note,
             ];
         }
 
@@ -150,6 +153,47 @@ final class InMemoryStockLedgerRepository implements StockLedgerRepositoryInterf
         $this->productNames = $productNames;
         $this->warehouseNames = $warehouseNames;
         $this->userNames = $userNames;
+    }
+
+    /**
+     * Bentuk baris identik dengan versi MySQL. Saldo berjalan dihitung dari
+     * seluruh pergerakan warehouse yang sama, diurutkan seperti window
+     * function-nya (created_at, lalu id).
+     */
+    public function recentAdjustmentsForProduct(int $productId, int $limit): array
+    {
+        $indexes = array_keys(array_filter(
+            $this->entries,
+            static fn (StockLedger $e): bool => $e->productId === $productId,
+        ));
+        usort(
+            $indexes,
+            fn (int $a, int $b): int => [$this->createdAt[$a], $this->entries[$a]->id]
+                <=> [$this->createdAt[$b], $this->entries[$b]->id],
+        );
+
+        $balances = [];
+        $adjustments = [];
+
+        foreach ($indexes as $index) {
+            $entry = $this->entries[$index];
+            $balances[$entry->warehouseId] = ($balances[$entry->warehouseId] ?? 0) + $entry->quantity;
+
+            if ($entry->movementType !== MovementType::Adjustment) {
+                continue;
+            }
+
+            $adjustments[] = [
+                'createdAt'       => $this->createdAt[$index],
+                'warehouseName'   => $this->labelFor($this->warehouseNames, $entry->warehouseId, 'Warehouse'),
+                'quantity'        => $entry->quantity,
+                'balanceAfter'    => $balances[$entry->warehouseId],
+                'performedByName' => $this->labelFor($this->userNames, $entry->performedBy, 'User'),
+                'note'            => (string) $entry->note,
+            ];
+        }
+
+        return array_slice(array_reverse($adjustments), 0, $limit);
     }
 
     public function sumQuantity(int $productId, int $warehouseId): int

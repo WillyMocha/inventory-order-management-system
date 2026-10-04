@@ -158,8 +158,179 @@ tinggal sebagai `private` di salah satu pemakainya.
 dua belas tabel yang di-seed trait itu, urut menghormati foreign key.
 
 **Mengapa**: helper itu membersihkan persis apa yang di-seed trait, jadi tempatnya memang di
-trait. Ketika `GoodsReceiptTest` juga perlu mematikan pembungkus transaction, ia dapat memakai
-helper yang sama — bukan menyalinnya, dan bukan pula mewarisi versi yang tidak lengkap.
+trait. Setiap test yang mematikan pembungkus transaction memakai helper yang sama — bukan
+menyalinnya, dan bukan pula mewarisi versi yang tidak lengkap. Saat ini hanya
+`ConcurrentGoodsIssueTest` (dua connection). `GoodsReceiptTest` dulu juga memakainya, tetapi
+tidak lagi memerlukannya sejak transaction bersarang memakai SAVEPOINT (`tech-debt.md` TD-1).
+
+---
+
+## R-5 — Format label product diduplikasi di dua pesan penolakan `StockService`
+
+**Smell**: *Duplicate Code* — `insufficientMessage()` (goods issue) dan
+`overReceiptMessage()` (goods receipt) sama-sama mencari product lalu menyusun label
+`"Nama (SKU)"` dengan fallback `"product #id"`, ditulis dua kali dengan bentuk yang sedikit
+berbeda.
+
+**Teknik**: Extract Method → `productLabel(int $productId)`.
+
+**Sebelum** (muncul di kedua method)
+
+```php
+$product = $this->products->findById($productId);
+$name = $product === null ? 'product #' . $productId : $product->name . ' (' . $product->sku . ')';
+```
+
+**Sesudah**
+
+```php
+private function productLabel(int $productId): string
+{
+    $product = $this->products->findById($productId);
+
+    return $product === null
+        ? 'product #' . $productId
+        : $product->name . ' (' . $product->sku . ')';
+}
+```
+
+**Mengapa**: pesan penolakan issue dan receipt harus menyebut product dengan cara yang sama.
+Dengan dua salinan, mengubah format label (misalnya menambah unit) mudah hanya mengenai satu
+alur. Perilaku tidak berubah — unit test pesan penolakan di `StockServiceTest` tetap hijau
+tanpa diubah.
+
+---
+
+## R-6 — State query string disalin di enam controller
+
+**Smell**: *Duplicate Code*. `queryState()` ditulis sebagai method private di **enam**
+controller (Customer, Supplier, User, Product, PurchaseOrder, SalesOrder), identik kecuali
+daftar key-nya. `sortCriteriaFrom()` disalin di tiga controller, berbeda hanya pada allowlist
+dan arah default. `critique.md` sempat menyebutnya "tiga salinan, di bawah ambang"; validasi
+ulang menunjukkan ambang itu sudah lama terlewati.
+
+**Teknik**: Move Method ke `App\Support\Request`, yang memang pemilik data query string.
+Bagian yang berbeda per controller menjadi argument (Parameterize Method).
+
+**Sebelum** (enam kali, hanya daftar key yang berubah)
+
+```php
+/** @return array<string, string> */
+private function queryState(Request $request): array
+{
+    $state = [];
+
+    foreach (['search', 'status', 'sort', 'direction'] as $key) {
+        if ($request->queryString($key) !== '') {
+            $state[$key] = $request->queryString($key);
+        }
+    }
+
+    return $state;
+}
+```
+
+**Sesudah**
+
+```php
+// Controller hanya menyatakan key miliknya.
+private const array FILTER_KEYS = ['search', 'status', 'sort', 'direction'];
+
+$filters = $request->queryState(self::FILTER_KEYS);
+$sorted = $criteria + $request->sortCriteria(self::SORT_KEYS, 'desc');
+```
+
+**Mengapa**: mengubah cara state filter dibawa ke link pagination (FIND-01) dulu berarti
+mengubah enam tempat yang mudah tidak sinkron. Kini perilakunya terkunci di satu tempat dan
+teruji langsung oleh `RequestTest`: key kosong dibuang, nilai non-string diabaikan, sort di
+luar allowlist ditolak, dan arah selain lawan dari default jatuh ke default. Perilaku halaman
+tidak berubah: seluruh suite tetap hijau, dan link halaman 2 diperiksa end-to-end tetap
+membawa filter dan sort yang sama.
+
+---
+
+## R-7 — Aturan panjang minimum password terkunci di `UserService`
+
+**Smell**: *Duplicate Code* (risiko) dan aturan domain yang salah tempat. Panjang minimum
+password adalah `private const` milik `UserService`. Fitur ganti password sendiri
+(002-user-profile-page) menempatkan aturan yang sama di `AuthService`. Menyalin angka `8`
+berarti dua jalur (Admin menyetel password user lain, dan user mengganti password sendiri) dapat
+diam-diam berbeda aturan.
+
+**Teknik**: Move Field → `User::MIN_PASSWORD_LENGTH`. Aturan tentang password akun adalah
+milik entity akun, dan konstanta publik di sana dapat dibaca kedua Service.
+
+**Sebelum** (`UserService`)
+
+```php
+/** Panjang minimum password. Cukup untuk demo, tidak melemahkan hashing. */
+private const int MIN_PASSWORD_LENGTH = 8;
+
+->minLength('password', 'Password', self::MIN_PASSWORD_LENGTH)
+```
+
+**Sesudah**
+
+```php
+// app/Entity/User.php
+public const int MIN_PASSWORD_LENGTH = 8;
+
+// UserService dan AuthService
+->minLength('password', 'Password', User::MIN_PASSWORD_LENGTH)
+->minLength('new_password', 'New password', User::MIN_PASSWORD_LENGTH)
+```
+
+**Mengapa**: mengubah kebijakan password kini cukup di satu tempat, dan kedua jalur pasti
+ikut berubah. Petunjuk "At least 8 characters." di halaman profil juga membaca konstanta yang
+sama. Perilaku tidak berubah: `UserServiceTest` tetap hijau **tanpa diubah**, dan unit test
+`changeOwnPassword` memeriksa pesannya menyebut panjang dari konstanta itu.
+
+---
+
+## R-8 — Langkah "pastikan baris ada" terkubur di dalam `adjust()`
+
+**Smell**: langkah yang dibutuhkan pemanggil kedua tersembunyi di dalam satu method. Koreksi
+stock (spec 003) perlu memastikan baris `product_stock` ada **sebelum** menguncinya, tetapi
+`INSERT ... ON DUPLICATE KEY UPDATE` yang melakukannya hanya ada sebagai bagian pertama
+`MysqlProductStockRepository::adjust()`. Menyalinnya ke tempat lain berarti dua salinan SQL yang
+sama, termasuk alasan rumit mengapa nilai kandidatnya harus 0.
+
+**Teknik**: Extract Method → `ensureRow(int $productId, int $warehouseId)`, dinaikkan ke
+`ProductStockRepositoryInterface` (dengan implementasi fake-nya).
+
+**Sebelum**
+
+```php
+public function adjust(int $productId, int $warehouseId, int $delta): void
+{
+    $keys = ['product_id' => $productId, 'warehouse_id' => $warehouseId];
+
+    $this->run('INSERT INTO product_stock (...) VALUES (:product_id, :warehouse_id, 0, NOW())
+                ON DUPLICATE KEY UPDATE id = id', $keys);
+    $this->run('UPDATE product_stock SET quantity = quantity + :delta ...', $keys + ['delta' => $delta]);
+}
+```
+
+**Sesudah**
+
+```php
+public function adjust(int $productId, int $warehouseId, int $delta): void
+{
+    $this->ensureRow($productId, $warehouseId);
+    $this->run('UPDATE product_stock SET quantity = quantity + :delta ...', [...]);
+}
+
+public function ensureRow(int $productId, int $warehouseId): void
+{
+    $this->run('INSERT INTO product_stock (...) VALUES (:product_id, :warehouse_id, 0, NOW())
+                ON DUPLICATE KEY UPDATE id = id', [...]);
+}
+```
+
+**Mengapa**: satu tempat untuk SQL yang sensitif terhadap CHECK `quantity >= 0` (ADR-002,
+catatan bug lama). Perilaku `adjust()` tidak berubah: `StockAdjustmentTest`, seluruh test goods
+issue/receipt, dan `LedgerReconciliationTest` tetap hijau tanpa diubah; `ensureRow()` sendiri
+dieksekusi MySQL di `RepositoryCoverageTest`.
 
 ---
 

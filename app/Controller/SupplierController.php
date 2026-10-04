@@ -21,6 +21,9 @@ use App\Support\View;
  */
 final class SupplierController
 {
+    /** Key query string yang dibawa link pagination (FIND-01). */
+    private const array FILTER_KEYS = ['search', 'status'];
+
     public function __construct(
         private readonly View $view,
         private readonly PartyService $partyService,
@@ -32,7 +35,7 @@ final class SupplierController
     public function index(Request $request): Response
     {
         $criteria = $this->criteriaFrom($request);
-        $filters = $this->queryState($request);
+        $filters = $request->queryState(self::FILTER_KEYS);
 
         $paginator = new Paginator(
             $this->partyService->countSuppliers($criteria),
@@ -139,20 +142,6 @@ final class SupplierController
         }
 
         return $criteria;
-    }
-
-    /** @return array<string, string> */
-    private function queryState(Request $request): array
-    {
-        $state = [];
-
-        foreach (['search', 'status'] as $key) {
-            if ($request->queryString($key) !== '') {
-                $state[$key] = $request->queryString($key);
-            }
-        }
-
-        return $state;
     }
 
     private function requireId(Request $request): int

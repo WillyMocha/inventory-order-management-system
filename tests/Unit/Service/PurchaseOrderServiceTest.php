@@ -281,7 +281,7 @@ final class PurchaseOrderServiceTest extends TestCase
         // Cancel diizinkan pada tahap mana pun SEBELUM Received (spec A-004),
         // termasuk setelah sebagian barang masuk.
         $id = $this->orderedOrder();
-        $this->orders->updateStatus($id, PurchaseOrderStatus::PartiallyReceived);
+        $this->orders->updateStatus($id, PurchaseOrderStatus::Ordered, PurchaseOrderStatus::PartiallyReceived);
 
         $this->service->cancel($id, $this->admin);
 
@@ -292,7 +292,7 @@ final class PurchaseOrderServiceTest extends TestCase
     public function cancelIsRefusedOnceReceived(): void
     {
         $id = $this->orderedOrder();
-        $this->orders->updateStatus($id, PurchaseOrderStatus::Received);
+        $this->orders->updateStatus($id, PurchaseOrderStatus::Ordered, PurchaseOrderStatus::Received);
 
         $this->expectException(DomainException::class);
 
@@ -314,7 +314,7 @@ final class PurchaseOrderServiceTest extends TestCase
     public function noTransitionLeavesAReceivedOrder(): void
     {
         $id = $this->orderedOrder();
-        $this->orders->updateStatus($id, PurchaseOrderStatus::Received);
+        $this->orders->updateStatus($id, PurchaseOrderStatus::Ordered, PurchaseOrderStatus::Received);
 
         foreach (PurchaseOrderStatus::cases() as $target) {
             self::assertFalse(

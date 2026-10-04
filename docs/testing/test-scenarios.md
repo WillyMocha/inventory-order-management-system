@@ -119,19 +119,15 @@ Empat layar utama, masing-masing pada **desktop** dan **360px**:
 
 | Layar | Berkas desktop | Berkas 360px |
 | --- | --- | --- |
-| Login | `screenshots/login-desktop.png` | `screenshots/login-360.png` |
-| Dashboard (per role) | `screenshots/dashboard-{role}-desktop.png` | `screenshots/dashboard-{role}-360.png` |
-| Daftar product | `screenshots/products-desktop.png` | `screenshots/products-360.png` |
-| Form Sales Order | `screenshots/sales-order-form-desktop.png` | `screenshots/sales-order-form-360.png` |
+| Login | [`01-login-desktop.png`](./screenshots/01-login-desktop.png) | [`01-login-mobile.png`](./screenshots/01-login-mobile.png) |
+| Dashboard Admin / Sales / Warehouse Staff | [`02`](./screenshots/02-admin-dashboard-desktop.png), [`03`](./screenshots/03-sales-dashboard-desktop.png), [`04`](./screenshots/04-warehouse-dashboard-desktop.png) | [`02`](./screenshots/02-admin-dashboard-mobile.png), [`03`](./screenshots/03-sales-dashboard-mobile.png), [`04`](./screenshots/04-warehouse-dashboard-mobile.png) |
+| Daftar product | [`05-products-list-desktop.png`](./screenshots/05-products-list-desktop.png) | [`05-products-list-mobile.png`](./screenshots/05-products-list-mobile.png) |
+| Form Sales Order | [`16-sales-order-form-desktop.png`](./screenshots/16-sales-order-form-desktop.png) | [`16-sales-order-form-mobile.png`](./screenshots/16-sales-order-form-mobile.png) |
 
-> **BELUM DIAMBIL.** Screenshot belum dibuat karena sesi pengerjaan tidak memiliki tooling
-> browser. Ini pekerjaan manual yang **harus dijalankan manusia** sebelum submission, bukan
-> sesuatu yang dapat diklaim selesai dari pembacaan kode.
->
-> Yang perlu diperiksa pada setiap screenshot: tidak ada konten yang terpotong atau meluber,
-> navigasi tidak terklip pada 360px, tabel dapat digeser mendatar di dalam wadahnya sendiri
-> tanpa membuat halaman ikut bergeser, setiap input punya label, dan focus state terlihat
-> jelas saat navigasi keyboard.
->
-> Yang sudah diperiksa secara statis dicatat di
+> **Diambil 2026-10-03** dengan Chrome headless terhadap stack Docker dan data seed. Set
+> lengkapnya (34 gambar ditambah satu screenshot ring fokus, termasuk detail, empty state, dan
+> drawer navigasi), cara pengambilan,
+> hasil pengukuran overflow, dan tiga cacat yang ditemukan lalu diperbaiki ada di
 > [`responsive-accessibility.md`](./responsive-accessibility.md).
+>
+> Navigasi keyboard-only dan rasio kontras WCAG AA juga sudah diaudit; lihat dokumen yang sama.

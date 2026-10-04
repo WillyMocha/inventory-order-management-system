@@ -7,10 +7,12 @@
  * tidak ada session, tidak ada authorization guard, tidak ada HTTP. Itulah
  * yang dibuktikan script ini — business rule-nya tidak terikat pada web.
  *
- * Yang dipakai di sini adalah ProductService YANG SAMA dengan yang menyuplai
- * dashboard, dirakit oleh config/container.php yang sama pula. Menulis query
- * sendiri di script ini akan membuat script dan dashboard bisa berbeda
- * jawaban (research R-012) — justru kebalikan dari yang diinginkan.
+ * Yang dipakai di sini adalah ProductService::lowStock(), dirakit oleh
+ * config/container.php yang sama dengan aplikasi web. Ia menjalankan query
+ * repository yang SAMA (ProductRepositoryInterface::lowStock()) dengan daftar
+ * low-stock di dashboard dan /api/dashboard/low-stock. Menulis query sendiri di
+ * script ini akan membuat script dan dashboard bisa berbeda jawaban
+ * (research R-012) — justru kebalikan dari yang diinginkan.
  *
  * Tidak ada cron yang dipasang di image; §4.3 menempatkan penjadwalan otomatis
  * di luar scope, dan script ini memang dijalankan manual.

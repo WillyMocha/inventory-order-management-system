@@ -44,6 +44,12 @@ final class InMemorySalesOrderRepository implements SalesOrderRepositoryInterfac
         return $this->rows[$id] ?? null;
     }
 
+    /** Tanpa konkurensi di memory, lock cukup berupa pembacaan biasa. */
+    public function lockForUpdate(int $id): ?SalesOrder
+    {
+        return $this->findById($id);
+    }
+
     public function orderNumberExists(string $orderNumber): bool
     {
         foreach ($this->rows as $order) {
@@ -88,12 +94,13 @@ final class InMemorySalesOrderRepository implements SalesOrderRepositoryInterfac
         return $id;
     }
 
-    public function updateStatus(int $id, SalesOrderStatus $status): void
+    public function updateStatus(int $id, SalesOrderStatus $expected, SalesOrderStatus $status): bool
     {
         $order = $this->rows[$id] ?? null;
 
-        if ($order === null) {
-            return;
+        // Compare-and-set, sama seperti WHERE status = :expected di MySQL.
+        if ($order === null || $order->status !== $expected) {
+            return false;
         }
 
         $this->rows[$id] = new SalesOrder(
@@ -107,14 +114,16 @@ final class InMemorySalesOrderRepository implements SalesOrderRepositoryInterfac
             $order->orderDate,
             $order->items,
         );
+
+        return true;
     }
 
-    public function markApproved(int $id, int $approvedBy, string $approvedAt): void
+    public function markApproved(int $id, int $approvedBy, string $approvedAt): bool
     {
         $order = $this->rows[$id] ?? null;
 
-        if ($order === null) {
-            return;
+        if ($order === null || $order->status !== SalesOrderStatus::PendingApproval) {
+            return false;
         }
 
         $this->rows[$id] = new SalesOrder(
@@ -130,6 +139,8 @@ final class InMemorySalesOrderRepository implements SalesOrderRepositoryInterfac
         );
 
         $this->approvedAt[$id] = $approvedAt;
+
+        return true;
     }
 
     public function approvedAt(int $id): ?string

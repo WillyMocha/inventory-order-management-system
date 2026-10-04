@@ -1,0 +1,734 @@
+{
+  "contrast": [
+    {
+      "url": "/login",
+      "role": "guest",
+      "checked": 6,
+      "failing": [],
+      "minRatio": 4.76
+    },
+    {
+      "url": "/dashboard",
+      "role": "admin@ioms.test",
+      "checked": 83,
+      "failing": [],
+      "minRatio": 4.55
+    },
+    {
+      "url": "/products",
+      "role": "admin@ioms.test",
+      "checked": 121,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/products?search=zz-none",
+      "role": "admin@ioms.test",
+      "checked": 33,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/sales-orders/1",
+      "role": "admin@ioms.test",
+      "checked": 65,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/reports",
+      "role": "admin@ioms.test",
+      "checked": 60,
+      "failing": [],
+      "minRatio": 4.55
+    },
+    {
+      "url": "/sales-orders/create",
+      "role": "sales1@ioms.test",
+      "checked": 32,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/dashboard",
+      "role": "warehouse1@ioms.test",
+      "checked": 88,
+      "failing": [],
+      "minRatio": 4.55
+    },
+    {
+      "url": "/profile",
+      "role": "sales1@ioms.test",
+      "checked": 26,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/profile (422)",
+      "role": "sales1@ioms.test",
+      "checked": 29,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/profile (success flash)",
+      "role": "sales1@ioms.test",
+      "checked": 27,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/products/1/adjust-stock",
+      "role": "warehouse1@ioms.test",
+      "checked": 26,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/products/1/adjust-stock (422)",
+      "role": "warehouse1@ioms.test",
+      "checked": 29,
+      "failing": [],
+      "minRatio": 4.75
+    },
+    {
+      "url": "/products/1",
+      "role": "warehouse1@ioms.test",
+      "checked": 48,
+      "failing": [],
+      "minRatio": 4.75
+    }
+  ],
+  "keyboard": [
+    {
+      "url": "/login",
+      "role": "guest",
+      "stops": [
+        {
+          "tag": "input",
+          "name": "password",
+          "label": "Password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Sign in",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "email",
+          "label": "Email",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "password",
+          "label": "Password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Sign in",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        }
+      ],
+      "missingIndicator": 0
+    },
+    {
+      "url": "/sales-orders/create",
+      "role": "sales1@ioms.test",
+      "stops": [
+        {
+          "tag": "a",
+          "name": "",
+          "label": "IOMS",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Dashboard",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Products",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Sales Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Customers",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Reports",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "My profile",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Bagus Prakoso · Sales",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Sign out",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Cancel",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "customer_id",
+          "label": "Customer",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "warehouse_id",
+          "label": "Source warehouse",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "order_date",
+          "label": "Order date",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "order_date",
+          "label": "Order date",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "order_date",
+          "label": "Order date",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "order_date",
+          "label": "Order date",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Add line",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "items[0][product_id]",
+          "label": "Product",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "items[0][quantity]",
+          "label": "Quantity",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Remove",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "items[1][product_id]",
+          "label": "Product",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "items[1][quantity]",
+          "label": "Quantity",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Remove",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "items[2][product_id]",
+          "label": "Product",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "items[2][quantity]",
+          "label": "Quantity",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Remove",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Create draft order",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Cancel",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        }
+      ],
+      "missingIndicator": 0
+    },
+    {
+      "url": "/products?search=zz-none",
+      "role": "admin@ioms.test",
+      "stops": [
+        {
+          "tag": "a",
+          "name": "",
+          "label": "IOMS",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Dashboard",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Products",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Purchase Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Sales Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Customers",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Suppliers",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Users",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Reports",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "My profile",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Rina Kusuma · Admin",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Sign out",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Create product",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "search",
+          "label": "Search",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "category",
+          "label": "Category",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "stock",
+          "label": "Stock status",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Apply",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Clear",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Clear filters",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "IOMS",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Dashboard",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Products",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Purchase Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        }
+      ],
+      "missingIndicator": 0
+    },
+    {
+      "url": "/profile",
+      "role": "sales1@ioms.test",
+      "stops": [
+        {
+          "tag": "a",
+          "name": "",
+          "label": "IOMS",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Dashboard",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Products",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Sales Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Customers",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Reports",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "My profile",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Bagus Prakoso · Sales",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Sign out",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "current_password",
+          "label": "Current password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "new_password",
+          "label": "New password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "new_password_confirmation",
+          "label": "Confirm new password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Change password",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        }
+      ],
+      "missingIndicator": 0
+    },
+    {
+      "url": "/products/1/adjust-stock",
+      "role": "warehouse1@ioms.test",
+      "stops": [
+        {
+          "tag": "a",
+          "name": "",
+          "label": "IOMS",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Dashboard",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Products",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Purchase Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Sales Orders",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Reports",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "My profile",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Tono Wijaya · Warehouse Staff",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Sign out",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Back to product",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "select",
+          "name": "warehouse_id",
+          "label": "Warehouse",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Show",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "input",
+          "name": "counted_quantity",
+          "label": "Counted quantity",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "textarea",
+          "name": "note",
+          "label": "Reason",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "button",
+          "name": "",
+          "label": "Record adjustment",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        },
+        {
+          "tag": "a",
+          "name": "",
+          "label": "Cancel",
+          "visibleIndicator": true,
+          "indicator": "outline 2px solid rgb(37, 99, 235)"
+        }
+      ],
+      "missingIndicator": 0
+    }
+  ]
+}

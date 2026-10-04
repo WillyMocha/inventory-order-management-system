@@ -16,9 +16,21 @@ final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryIn
 
     private int $nextId = 1;
 
-    /** @param list<PurchaseOrder> $orders */
-    public function __construct(array $orders = [])
-    {
+    /**
+     * Nama supplier, warehouse dan user di-inject agar ordersBetween() dapat
+     * mengembalikan kolom nama persis seperti query MySQL-nya.
+     *
+     * @param list<PurchaseOrder> $orders
+     * @param array<int, string>  $supplierNames
+     * @param array<int, string>  $warehouseNames
+     * @param array<int, string>  $userNames
+     */
+    public function __construct(
+        array $orders = [],
+        private readonly array $supplierNames = [],
+        private readonly array $warehouseNames = [],
+        private readonly array $userNames = [],
+    ) {
         foreach ($orders as $order) {
             $this->save($order);
         }
@@ -27,6 +39,12 @@ final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryIn
     public function findById(int $id): ?PurchaseOrder
     {
         return $this->rows[$id] ?? null;
+    }
+
+    /** Tanpa konkurensi di memory, lock cukup berupa pembacaan biasa. */
+    public function lockForUpdate(int $id): ?PurchaseOrder
+    {
+        return $this->findById($id);
     }
 
     public function orderNumberExists(string $orderNumber): bool
@@ -63,15 +81,18 @@ final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryIn
         return $id;
     }
 
-    public function updateStatus(int $id, PurchaseOrderStatus $status): void
+    public function updateStatus(int $id, PurchaseOrderStatus $expected, PurchaseOrderStatus $status): bool
     {
         $order = $this->rows[$id] ?? null;
 
-        if ($order === null) {
-            return;
+        // Compare-and-set, sama seperti WHERE status = :expected di MySQL.
+        if ($order === null || $order->status !== $expected) {
+            return false;
         }
 
         $this->rows[$id] = $this->withId($order, $id, $status, $order->items);
+
+        return true;
     }
 
     public function addReceivedQuantity(int $itemId, int $quantity): void
@@ -125,6 +146,46 @@ final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryIn
         );
 
         return array_slice(array_values($matching), 0, $limit);
+    }
+
+    /**
+     * Bentuk baris sengaja identik dengan
+     * MysqlPurchaseOrderRepository::ordersBetween() — nama dan jumlah kolom
+     * yang sama, agar ReportService tidak lulus di sini lalu gagal di MySQL.
+     */
+    public function ordersBetween(string $startDate, string $endDate): array
+    {
+        $result = [];
+
+        foreach ($this->rows as $order) {
+            if ($order->orderDate < $startDate || $order->orderDate > $endDate) {
+                continue;
+            }
+
+            $ordered = 0;
+            $received = 0;
+            $total = 0.0;
+
+            foreach ($order->items as $item) {
+                $ordered += $item->quantity;
+                $received += $item->receivedQuantity;
+                $total += $item->quantity * (float) $item->purchasePrice;
+            }
+
+            $result[] = [
+                'order_number'      => $order->orderNumber,
+                'order_date'        => $order->orderDate,
+                'status'            => $order->status->value,
+                'supplier_name'     => $this->supplierNames[$order->supplierId] ?? 'Supplier ' . $order->supplierId,
+                'warehouse_name'    => $this->warehouseNames[$order->warehouseId] ?? 'Warehouse ' . $order->warehouseId,
+                'created_by_name'   => $this->userNames[$order->createdBy] ?? 'User ' . $order->createdBy,
+                'ordered_quantity'  => $ordered,
+                'received_quantity' => $received,
+                'total_value'       => number_format($total, 2, '.', ''),
+            ];
+        }
+
+        return $result;
     }
 
     /**

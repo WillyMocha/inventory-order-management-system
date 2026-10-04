@@ -28,6 +28,18 @@ interface ProductStockRepositoryInterface
     public function lockForUpdate(int $productId, int $warehouseId): ?ProductStock;
 
     /**
+     * Memastikan baris stock untuk pasangan (product, warehouse) ada, dengan
+     * quantity 0 bila belum pernah ada. Baris yang sudah ada tidak berubah.
+     *
+     * Dipanggil sebelum lockForUpdate() pada koreksi stock (spec 003, research
+     * R-002): tanpa baris, SELECT ... FOR UPDATE hanya memasang gap lock, dua
+     * koreksi pertama untuk pasangan yang sama lolos bersamaan, lalu bertabrakan
+     * sebagai deadlock saat insert. Baris bernilai 0 tidak melanggar invariant,
+     * karena jumlah ledger untuk pasangan tanpa pergerakan juga 0.
+     */
+    public function ensureRow(int $productId, int $warehouseId): void;
+
+    /**
      * Menambah atau mengurangi quantity. Delta positif untuk receipt, negatif
      * untuk issue. Baris dibuat bila belum ada.
      */

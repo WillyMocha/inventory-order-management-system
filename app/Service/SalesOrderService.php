@@ -86,9 +86,7 @@ final class SalesOrderService
     {
         $order = $this->requireVisibleOrder($id, $actingUser);
 
-        $this->assertCanTransition($order, SalesOrderStatus::PendingApproval);
-
-        $this->orders->updateStatus($id, SalesOrderStatus::PendingApproval);
+        $this->transition($order, SalesOrderStatus::PendingApproval);
     }
 
     /**
@@ -101,9 +99,7 @@ final class SalesOrderService
     {
         $order = $this->requireVisibleOrder($id, $actingUser);
 
-        $this->assertCanTransition($order, SalesOrderStatus::Cancelled);
-
-        $this->orders->updateStatus($id, SalesOrderStatus::Cancelled);
+        $this->transition($order, SalesOrderStatus::Cancelled);
     }
 
     /**
@@ -126,11 +122,15 @@ final class SalesOrderService
 
         $this->assertCanTransition($order, SalesOrderStatus::Approved);
 
-        $this->orders->markApproved(
+        $approved = $this->orders->markApproved(
             $id,
             (int) $actingUser->id,
             $this->clock->now()->format('Y-m-d H:i:s'),
         );
+
+        if (!$approved) {
+            throw self::changedMeanwhile();
+        }
     }
 
     /**
@@ -155,7 +155,7 @@ final class SalesOrderService
             );
         }
 
-        $this->orders->updateStatus($id, SalesOrderStatus::Cancelled);
+        $this->transition($order, SalesOrderStatus::Cancelled);
     }
 
     /**
@@ -244,6 +244,32 @@ final class SalesOrderService
         }
 
         return $order;
+    }
+
+    /**
+     * Memvalidasi transisi lalu menyimpannya secara compare-and-set: status
+     * baru hanya ditulis bila status tersimpan masih sama dengan yang dibaca.
+     *
+     * Tanpa syarat itu, cancel yang membaca order sebagai Approved dapat
+     * menimpa order yang sementara itu sudah Fulfilled oleh goods issue —
+     * stock sudah keluar, tetapi order tercatat Cancelled.
+     *
+     * @throws DomainException
+     */
+    private function transition(SalesOrder $order, SalesOrderStatus $target): void
+    {
+        $this->assertCanTransition($order, $target);
+
+        if (!$this->orders->updateStatus((int) $order->id, $order->status, $target)) {
+            throw self::changedMeanwhile();
+        }
+    }
+
+    private static function changedMeanwhile(): DomainException
+    {
+        return new DomainException(
+            'This order was changed by someone else. Reload the page and try again.',
+        );
     }
 
     /** @throws DomainException */

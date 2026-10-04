@@ -22,9 +22,11 @@ use App\Controller\CategoryController;
 use App\Controller\CustomerController;
 use App\Controller\HealthController;
 use App\Controller\ProductController;
+use App\Controller\ProfileController;
 use App\Controller\ReportController;
 use App\Controller\PurchaseOrderController;
 use App\Controller\SalesOrderController;
+use App\Controller\StockAdjustmentController;
 use App\Controller\SupplierController;
 use App\Controller\UserController;
 use App\Controller\WarehouseController;
@@ -138,19 +140,25 @@ return static function (array $config): array {
         $productStockRepository,
         $stockLedgerRepository,
         $productRepository,
+        $warehouseRepository,
         $database,
     );
 
-    // Dashboard dan Report memanggil METHOD QUERY YANG SAMA pada repository
-    // yang sama — itulah yang membuat angka di layar dan isi file export tidak
-    // punya jalur untuk berbeda (research R-008, FR-027).
+    // Dashboard dan Report menerima instance repository yang sama. Angka
+    // agregasi dashboard dan baris export dicocokkan oleh
+    // DashboardReportConsistencyTest terhadap MySQL (FR-027).
     $dashboardService = new DashboardService(
         $productRepository,
         $salesOrderRepository,
         $purchaseOrderRepository,
     );
 
-    $reportService = new ReportService($stockLedgerRepository, $salesOrderRepository, $clock);
+    $reportService = new ReportService(
+        $stockLedgerRepository,
+        $salesOrderRepository,
+        $purchaseOrderRepository,
+        $clock,
+    );
 
     /** @var array{path: string, max_bytes: int, allowed_mimes: list<string>} $uploadConfig */
     $uploadConfig = $config['upload'];
@@ -215,11 +223,30 @@ return static function (array $config): array {
             $session,
             $csrf,
         ),
+        // Profil sendiri untuk seluruh role (002-user-profile-page).
+        'ProfileController' => static fn (): ProfileController => new ProfileController(
+            $view,
+            $userService,
+            $authService,
+            $session,
+            $csrf,
+        ),
         'ProductController' => static fn (): ProductController => new ProductController(
             $view,
             $productService,
             $productImageService,
             $masterDataService,
+            $stockService,
+            $session,
+            $csrf,
+        ),
+        // Koreksi stock dari hasil hitung fisik (spec 003).
+        'StockAdjustmentController' => static fn (): StockAdjustmentController => new StockAdjustmentController(
+            $view,
+            $stockService,
+            $productService,
+            $masterDataService,
+            $userService,
             $session,
             $csrf,
         ),

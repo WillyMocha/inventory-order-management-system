@@ -55,6 +55,11 @@ final class FailOnSecondAppendLedger implements StockLedgerRepositoryInterface
         return $this->inner->movementsBetween($startDate, $endDate);
     }
 
+    public function recentAdjustmentsForProduct(int $productId, int $limit): array
+    {
+        return $this->inner->recentAdjustmentsForProduct($productId, $limit);
+    }
+
     public function sumQuantity(int $productId, int $warehouseId): int
     {
         return $this->inner->sumQuantity($productId, $warehouseId);

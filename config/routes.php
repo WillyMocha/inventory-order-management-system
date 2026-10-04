@@ -49,6 +49,16 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('GET', '/dashboard', 'DashboardController', 'index', $all);
 
     // ---------------------------------------------------------------------
+    // Profil sendiri (002-user-profile-page) - seluruh role
+    // Tidak ada parameter id: pemilik profil SELALU diambil dari session,
+    // sehingga user tidak dapat membuka profil milik orang lain (FR-003).
+    // ---------------------------------------------------------------------
+    $router->add('GET', '/profile', 'ProfileController', 'show', $all);
+    // Ganti password sendiri. Password saat ini menjadi re-auth, dan batas
+    // percobaannya berbagi counter dengan login (FR-005, FR-008).
+    $router->add('POST', '/profile/password', 'ProfileController', 'changePassword', $all);
+
+    // ---------------------------------------------------------------------
     // User management (USR-01) - Admin saja
     // ---------------------------------------------------------------------
     $router->add('GET', '/users', 'UserController', 'index', $adminOnly);
@@ -72,6 +82,10 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('POST', '/products/{id}/toggle-active', 'ProductController', 'toggleActive', $adminOnly);
     // Menyajikan file dari luar document root (research R-006).
     $router->add('GET', '/products/{id}/image', 'ProductController', 'image', $all);
+    // Koreksi stock dari hasil hitung fisik (spec 003) - Admin dan Warehouse
+    // Staff. Sales ditolak di sini DAN di StockService::adjustStock().
+    $router->add('GET', '/products/{id}/adjust-stock', 'StockAdjustmentController', 'create', $adminWarehouse);
+    $router->add('POST', '/products/{id}/adjust-stock', 'StockAdjustmentController', 'store', $adminWarehouse);
 
     // ---------------------------------------------------------------------
     // Category - Admin saja
@@ -149,6 +163,14 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('GET', '/reports', 'ReportController', 'index', $all);
     $router->add('GET', '/reports/stock-movement.csv', 'ReportController', 'stockMovementCsv', $adminWarehouse);
     $router->add('GET', '/reports/orders.csv', 'ReportController', 'ordersCsv', $all);
+    // PO bukan bagian Sales (§1.2) - Sales menerima 403.
+    $router->add(
+        'GET',
+        '/reports/purchase-orders.csv',
+        'ReportController',
+        'purchaseOrdersCsv',
+        $adminWarehouse,
+    );
 
     // ---------------------------------------------------------------------
     // JSON API (API-01) - contracts/openapi.yaml

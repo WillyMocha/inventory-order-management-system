@@ -7,9 +7,10 @@ namespace App\Entity\Enum;
 /**
  * Tipe pergerakan pada stock_ledger (src §1.3).
  *
- * Adjustment ada pada model sumber namun tidak ada screen yang membuatnya —
- * tidak satu pun requirement pada brief meminta manual stock adjustment
- * (spec A-006). Nilai ini disediakan untuk koreksi di luar alur normal.
+ * Adjustment adalah koreksi stock dari hasil hitung fisik, dibuat hanya oleh
+ * StockService::adjustStock() dengan reference Manual dan alasan wajib
+ * (spec 003-stock-adjustment). Brief menyediakan nilainya tanpa requirement
+ * alurnya; spec 001 A-006 semula mencadangkannya.
  */
 enum MovementType: string
 {

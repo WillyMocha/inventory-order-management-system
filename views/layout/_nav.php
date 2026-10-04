@@ -52,6 +52,9 @@ if ($isAdmin) {
 
 $items[] = ['key' => 'reports', 'href' => '/reports', 'label' => 'Reports', 'icon' => 'file-text'];
 
+// Profil sendiri tersedia untuk seluruh role (002-user-profile-page).
+$items[] = ['key' => 'profile', 'href' => '/profile', 'label' => 'My profile', 'icon' => 'users'];
+
 /** @var Csrf $csrf */
 $csrf = $csrf ?? null;
 ?>
@@ -82,10 +85,10 @@ $csrf = $csrf ?? null;
     </ul>
 
     <div class="nav-user">
-        <span class="nav-user-name">
+        <a class="nav-user-name" href="/profile" title="My profile">
             <?= View::e($session->userName() ?? '') ?>
             <span class="muted">· <?= View::e($role->label()) ?></span>
-        </span>
+        </a>
         <form method="post" action="/logout">
             <?= $csrf instanceof Csrf ? $csrf->field() : '' ?>
             <button type="submit" class="btn btn--ghost btn--sm">

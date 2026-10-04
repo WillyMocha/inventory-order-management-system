@@ -11,6 +11,13 @@ use App\Entity\Enum\Role;
  */
 final class User
 {
+    /**
+     * Panjang minimum password, berlaku di mana pun password disetel: oleh
+     * Admin (UserService) maupun oleh user sendiri (AuthService). Satu sumber
+     * agar kedua jalur tidak pernah berbeda aturan.
+     */
+    public const int MIN_PASSWORD_LENGTH = 8;
+
     public function __construct(
         public readonly ?int $id,
         public readonly string $name,

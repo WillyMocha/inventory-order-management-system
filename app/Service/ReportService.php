@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Enum\PurchaseOrderStatus;
 use App\Entity\Enum\Role;
 use App\Entity\Enum\SalesOrderStatus;
+use App\Repository\PurchaseOrderRepositoryInterface;
 use App\Repository\SalesOrderRepositoryInterface;
 use App\Repository\StockLedgerRepositoryInterface;
 use App\Support\ClockInterface;
@@ -17,13 +19,15 @@ use DateTimeImmutable;
  * Report stock movement dan status order untuk rentang tanggal pilihan user
  * (REPORT-01, FR-027).
  *
- * FR-027 mewajibkan isi export SEPAKAT dengan angka dashboard. Cara menjaganya
- * di sini bukan dengan mencocokkan dua perhitungan, melainkan dengan
- * menghapus kemungkinan keduanya berbeda: Service ini dan DashboardService
- * memanggil METHOD QUERY YANG SAMA pada repository yang sama — tidak ada satu
- * pun SQL yang ditulis dua kali (research R-008). Angka yang tampil di layar
- * report dihitung dari baris yang PERSIS akan ditulis ke file, lewat
- * statusTotals(), sehingga layar dan file tidak punya jalur untuk berbeda.
+ * FR-027 mewajibkan isi export SEPAKAT dengan angka dashboard. Keduanya membaca
+ * tabel yang sama lewat repository yang sama, tetapi dengan method berbeda:
+ * dashboard memakai agregasi countByStatus(), report memakai baris
+ * ordersBetween(). Kesepakatan keduanya karena itu dibuktikan, bukan diasumsikan:
+ * DashboardReportConsistencyTest membandingkannya terhadap MySQL sungguhan.
+ *
+ * Di dalam halaman report sendiri, angka yang tampil di layar dihitung dari
+ * baris yang PERSIS akan ditulis ke file, lewat statusTotals(), sehingga layar
+ * dan file tidak punya jalur untuk berbeda.
  *
  * Role acting user di-pass sebagai argument, tidak dibaca dari session, dan
  * scoping Sales diterapkan di dalam WHERE clause repository — bukan dengan
@@ -57,6 +61,8 @@ final class ReportService
         'reference_type',
         'reference_id',
         'performed_by_name',
+        // Alasan koreksi stock (spec 003); kosong untuk Receipt dan Issue.
+        'note',
     ];
 
     /** @var list<string> */
@@ -70,6 +76,7 @@ final class ReportService
         'Reference Type',
         'Reference',
         'Performed By',
+        'Reason',
     ];
 
     /** @var list<string> */
@@ -96,9 +103,36 @@ final class ReportService
         'Total Value (IDR)',
     ];
 
+    /** @var list<string> */
+    public const array PURCHASE_ORDER_FIELDS = [
+        'order_number',
+        'order_date',
+        'status',
+        'supplier_name',
+        'warehouse_name',
+        'created_by_name',
+        'ordered_quantity',
+        'received_quantity',
+        'total_value',
+    ];
+
+    /** @var list<string> */
+    public const array PURCHASE_ORDER_HEADER = [
+        'Order Number',
+        'Order Date',
+        'Status',
+        'Supplier',
+        'Warehouse',
+        'Created By',
+        'Ordered Qty',
+        'Received Qty',
+        'Total Value (IDR)',
+    ];
+
     public function __construct(
         private readonly StockLedgerRepositoryInterface $ledger,
         private readonly SalesOrderRepositoryInterface $salesOrders,
+        private readonly PurchaseOrderRepositoryInterface $purchaseOrders,
         private readonly ClockInterface $clock,
     ) {
     }
@@ -188,8 +222,8 @@ final class ReportService
     /**
      * Baris sales order pada rentang tersebut.
      *
-     * Method repository yang dipanggil di sini adalah method yang sama dengan
-     * yang menyuplai dashboard — itulah alasan keduanya tidak bisa berbeda.
+     * Dashboard menghitung status yang sama lewat countByStatus(); keduanya
+     * dicocokkan oleh DashboardReportConsistencyTest (FR-027).
      *
      * @param int|null $createdBy hasil scopeFor(); null berarti seluruh pemilik
      * @return list<array<string, mixed>>
@@ -209,11 +243,69 @@ final class ReportService
      */
     public function statusTotals(array $rows): array
     {
-        $totals = [];
+        return $this->tally($rows, array_map(
+            static fn (SalesOrderStatus $status): string => $status->value,
+            SalesOrderStatus::cases(),
+        ));
+    }
 
-        foreach (SalesOrderStatus::cases() as $status) {
-            $totals[$status->value] = 0;
-        }
+    /**
+     * Baris Purchase Order pada rentang tersebut.
+     *
+     * Tanpa scoping: PO tidak dimiliki Sales, dan route export-nya hanya
+     * terbuka untuk Admin dan Warehouse Staff (§1.2).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function purchaseOrders(string $startDate, string $endDate): array
+    {
+        return $this->purchaseOrders->ordersBetween($startDate, $endDate);
+    }
+
+    /**
+     * Tally status PO, dihitung dari baris yang diekspor — sama seperti
+     * statusTotals(), agar layar dan file tidak dapat berbeda.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @return array<string, int>
+     */
+    public function purchaseOrderStatusTotals(array $rows): array
+    {
+        return $this->tally($rows, array_map(
+            static fn (PurchaseOrderStatus $status): string => $status->value,
+            PurchaseOrderStatus::cases(),
+        ));
+    }
+
+    /**
+     * Satu baris CSV Purchase Order, urutannya mengikuti PURCHASE_ORDER_HEADER.
+     *
+     * @param array<string, mixed> $row
+     * @return list<string>
+     */
+    public function purchaseOrderCsvRow(array $row): array
+    {
+        $cells = array_map(
+            fn (string $field): string => $this->cell($row[$field] ?? null),
+            self::PURCHASE_ORDER_FIELDS,
+        );
+
+        $cells[8] = Money::formatPlain($cells[8] === '' ? '0' : $cells[8]);
+
+        return $cells;
+    }
+
+    /**
+     * Setiap status mendapat angka, termasuk nol, agar layar tidak
+     * menyembunyikan status yang kosong.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @param list<string>               $statuses
+     * @return array<string, int>
+     */
+    private function tally(array $rows, array $statuses): array
+    {
+        $totals = array_fill_keys($statuses, 0);
 
         foreach ($rows as $row) {
             $status = (string) $row['status'];

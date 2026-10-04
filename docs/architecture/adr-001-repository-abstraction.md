@@ -39,7 +39,8 @@ dibaca dari session.
 
 **Yang diperoleh.**
 
-Unit suite berjalan tanpa database sama sekali: 363 test dalam ± 10 detik. Aturan approval
+Unit suite berjalan tanpa database sama sekali, dalam ± 10 detik (jumlah test terkini di
+`docs/testing/test-results.md`). Aturan approval
 diuji dengan meneruskan dua object `User` berbeda ke `SalesOrderService::approve()` — tidak
 ada session, tidak ada HTTP, tidak ada MySQL.
 

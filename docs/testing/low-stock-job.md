@@ -52,7 +52,9 @@ memunculkannya hanya menambah derau.
    ```
 
    Harapan: tabel berisi SKU, nama product, stock saat ini, dan reorder point, ditutup
-   kalimat jumlah total.
+   kalimat jumlah total. Bila tidak ada product yang menipis, script mencetak
+   "Every active product is above its reorder point…" tanpa tabel maupun baris total, dan
+   tetap keluar dengan kode `0`.
 
 2. **Buktikan angkanya berasal dari data, bukan nilai tetap.** Catat satu SKU pada daftar,
    tambahkan stocknya lewat goods receipt sampai di atas reorder point, lalu jalankan ulang.
