@@ -7,7 +7,7 @@ Item yang sudah diperbaiki **tidak dihapus**: keadaan awal, biayanya, dan cara
 memperbaikinya tetap dicatat sebagai riwayat. Pelajarannya sama pentingnya dengan
 perbaikannya.
 
-## Ringkasan status (2026-10-03)
+## Ringkasan status (2026-10-04)
 
 | ID | Topik | Status |
 | --- | --- | --- |
@@ -21,6 +21,8 @@ perbaikannya.
 | TD-7 | Pemeriksaan visual di browser | **Selesai.** Screenshot, keyboard-only, dan kontras WCAG AA |
 | TD-8 | `config/database.php` tidak dipakai | **Selesai.** Dihapus beserta `config/env.php` |
 | TD-9 | Append-only `stock_ledger` hanya dijaga konvensi | **Terbuka.** Dicatat 2026-10-03 |
+| TD-10 | Validasi order memeriksa "ada", bukan "aktif" | **Terbuka.** Dicatat 2026-10-04 (004-edit-draft-orders) |
+| TD-11 | Class order melewati batas ukuran Sonar | **Terbuka.** Dicatat 2026-10-04 (004-edit-draft-orders) |
 
 ---
 
@@ -269,3 +271,46 @@ brief. Dicatat agar tidak dianggap sudah dijamin.
 
 Sebelumnya kelemahan ini dirujuk dari `erd.md` ke dokumen `sql-training-coverage.md` yang tidak
 pernah ada di repository. Rujukan itu kini menunjuk ke sini.
+
+---
+
+## TD-10 — Validasi order memeriksa bahwa referensi **ada**, bukan bahwa ia **aktif**
+
+**Keadaan.** `validate()` di `SalesOrderService` dan `PurchaseOrderService` memakai
+`existsById()` untuk customer/supplier, warehouse, dan product. Repository `exists()` hanya
+memeriksa bahwa baris ada; status `is_active` tidak diperiksa. Yang membatasi pilihan ke
+record aktif hanyalah dropdown form, yang memang hanya berisi record aktif. Request yang
+dirakit sendiri (DevTools, curl) dapat membuat — dan sejak 004 juga **mengedit** — order yang
+mereferensikan customer, supplier, warehouse, atau product yang sudah dinonaktifkan.
+
+**Mengapa tidak diperbaiki di 004.** Edit sengaja memakai `validate()` yang sama dengan create
+(research R-005 spec 004): dua aturan berbeda untuk order yang sama akan membuat Draft dapat
+dibuat dalam keadaan yang tidak dapat disimpan lagi. Memperketat aturan berarti mengubah perilaku
+create juga, jadi itu perubahan tersendiri, bukan bagian fitur edit.
+
+**Dampak.** Rendah: hanya pengguna yang sudah berhak membuat order, dan record nonaktif tetap
+ada (tidak pernah di-hard-delete), sehingga tidak ada foreign key yang rusak. Yang dilanggar
+adalah aturan bisnis "record nonaktif tidak dapat dipilih di order baru".
+
+**Perbaikan ideal.** Pemeriksaan "ada **dan** aktif" di `validate()` kedua service order —
+misalnya `CustomerRepositoryInterface::isActive()` dan padanannya — dipakai create dan edit,
+dengan unit test untuk setiap jenis referensi nonaktif.
+
+---
+
+## TD-11 — `SalesOrderService` dan dua controller order melewati batas ukuran class
+
+**Keadaan.** Standar SonarQube project (`.rudis/templates/sonarqube-standard.md` §2) membatasi
+file ≤ 300 baris; Sonar juga memperingatkan class dengan > 20 method (S1448). Sebelum 004,
+`SalesOrderController` (24 method, 479 baris) dan `PurchaseOrderController` (470 baris) sudah
+melewatinya, dan `SalesOrderService` (19 method, 405 baris) sudah melewati batas baris. Fitur 004
+menambah `update()`, `canEdit()`, `assertMayEdit()`, dan dua helper kecil, sehingga
+`SalesOrderService` kini 24 method.
+
+**Mengapa tidak dipecah di 004.** Memecah service dan controller adalah refactor struktural yang
+tidak diminta fitur edit, dan constitution C-003 menilai layer tambahan tanpa masalah nyata
+sebagai negatif. Method baru sengaja dibuat pendek (masing-masing < 40 baris).
+
+**Perbaikan ideal.** Memisahkan alur edit dan alur approval Sales Order ke class tersendiri
+(misalnya `SalesOrderApprovalService`) dan memecah controller per kelompok aksi, dicatat di
+refactor log bila dikerjakan.

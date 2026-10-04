@@ -41,6 +41,9 @@ classDiagram
 
     class SalesOrderService {
         +create(array, User) int
+        +update(int, array, User) void
+        +canEdit(SalesOrder, User) bool
+        +assertMayEdit(SalesOrder, User) void
         +submit(int, User) void
         +approve(int, User) void
         +reject(int, User) void
@@ -48,6 +51,9 @@ classDiagram
     }
     class PurchaseOrderService {
         +create(array, User) int
+        +update(int, array, User) void
+        +canEdit(PurchaseOrder, User) bool
+        +assertMayEdit(PurchaseOrder, User) void
         +submit(int, User) void
         +cancel(int, User) void
     }
@@ -78,6 +84,8 @@ classDiagram
         <<interface>>
         +lockForUpdate(int) ?SalesOrder
         +updateStatus(int, SalesOrderStatus, SalesOrderStatus) bool
+        +updateDraft(SalesOrder) bool
+        +replaceItems(int, list) void
         +markApproved(int, int, string) bool
         +countByStatus(?int) array
         +ordersBetween(string, string, ?int) array
@@ -86,6 +94,8 @@ classDiagram
         <<interface>>
         +lockForUpdate(int) ?PurchaseOrder
         +updateStatus(int, PurchaseOrderStatus, PurchaseOrderStatus) bool
+        +updateDraft(PurchaseOrder) bool
+        +replaceItems(int, list) void
         +addReceivedQuantity(int, int) void
         +ordersBetween(string, string) array
     }
@@ -127,12 +137,14 @@ classDiagram
     SalesOrderService ..> WarehouseRepositoryInterface
     SalesOrderService ..> ProductRepositoryInterface
     SalesOrderService ..> ClockInterface
+    SalesOrderService ..> TransactionRunner
 
     PurchaseOrderService ..> PurchaseOrderRepositoryInterface
     PurchaseOrderService ..> SupplierRepositoryInterface
     PurchaseOrderService ..> WarehouseRepositoryInterface
     PurchaseOrderService ..> ProductRepositoryInterface
     PurchaseOrderService ..> ClockInterface
+    PurchaseOrderService ..> TransactionRunner
 
     StockService ..> SalesOrderRepositoryInterface
     StockService ..> PurchaseOrderRepositoryInterface
@@ -364,6 +376,16 @@ ketujuh, `WarehouseRepositoryInterface` (warehouse koreksi harus aktif), dan
 `ProductController` kini bergantung pada `StockService` untuk riwayat koreksi di detail product,
 yang hanya dimuat untuk Admin dan Warehouse Staff. `ProductController` sebelumnya tidak digambar
 karena bukan alur kritikal; ia muncul di diagram 3 karena kini menyentuh `StockService`.
+
+### Edit order Draft (004-edit-draft-orders)
+
+`SalesOrderService` dan `PurchaseOrderService` masing-masing mendapat `update()`, `canEdit()`, dan
+`assertMayEdit()`, serta dependency keenam, `TransactionRunner` — pola yang sama dengan
+`StockService` — karena header dan line hasil edit harus tersimpan bersama atau tidak sama sekali.
+Kedua repository interface mendapat `updateDraft()` (UPDATE bersyarat `status = 'Draft'`) dan
+`replaceItems()`. Controller-nya mendapat action `edit()` dan `update()`; panah controller → service
+di diagram 3 tidak berubah. `assertMayEdit()` dipakai controller **dan** service supaya layar edit
+dan penyimpanan memeriksa dengan urutan yang sama (D-04).
 
 ## Yang berubah dari diagram awal, dan mengapa
 

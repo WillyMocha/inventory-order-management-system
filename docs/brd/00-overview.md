@@ -155,6 +155,9 @@ flowchart LR
 
 ## Change Log
 
+- **2026-10-04**: Modul `sales-order` dan `purchase-order` diperbarui setelah 004-edit-draft-orders:
+  order Draft dapat diedit (SO-CAP-008: pembuatnya saja; PO-CAP-006: Admin, atau WS pembuatnya).
+  Tambahan di luar brief, dicatat sebagai `decisions.md` D-04.
 - **2026-10-03**: Modul `stock` diperbarui setelah 003-stock-adjustment: koreksi stock dari hasil
   hitung fisik oleh Admin dan Warehouse Staff (STOCK-CAP-005/006). Celah Adjustment dihapus dari
   Known Gaps.

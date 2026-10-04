@@ -16,9 +16,9 @@ Dibuat pada T144 dengan menyilangkan seluruh method `public` di `app/Service/` t
 | `PartyService` | 16/16 | — |
 | `ProductImageService` | 3/6 | `store` `read` `delete` |
 | `ProductService` | 11/15 | `totalInventoryValue` `totalStockFor` `updateImagePath` `requireProduct` |
-| `PurchaseOrderService` | 7/7 | — |
+| `PurchaseOrderService` | 10/10 | — |
 | `ReportService` | 11/11 | — |
-| `SalesOrderService` | 10/10 | — |
+| `SalesOrderService` | 13/13 | — |
 | `StockService` | 5/8 | `availableFor` `movementsForSalesOrder` `movementsForPurchaseOrder` |
 | `UserService` | 6/7 | `requireUser` |
 
@@ -32,6 +32,18 @@ Audit ini menemukan kekurangan yang nyata, bukan sekadar mencatat keadaan:
 | `AuthService::verifyPasswordFor` tidak teruji padahal ia adalah step-up re-auth sebelum aksi sensitif (security standard §7) | 4 test pada `AuthServiceTest` |
 | `PartyService` sisi Customer tertinggal dari sisi Supplier — `updateCustomer`, `countCustomers`, `activeCustomers`, `countSuppliers` | 3 test pada `PartyServiceTest` |
 | `ProductService::stockBreakdownBySku` dan `availableQuantity` hanya teruji tidak langsung lewat controller API | 5 test pada `ProductServiceTest` |
+
+## Yang ditambahkan pada 004-edit-draft-orders
+
+| Method baru | Unit test |
+| --- | --- |
+| `SalesOrderService::update` | 16 test (`SalesOrderServiceEditTest`): pembuat Sales dan Admin, harga dari katalog, field yang tidak boleh dari payload, Sales lain 404, Admin lain dan WS 403, tiga status non-Draft, race saat menyimpan, lima payload tidak valid tanpa partial save |
+| `SalesOrderService::canEdit` / `assertMayEdit` | 2 test: hanya pembuat dan hanya Draft; penolakan izin tidak bergantung status |
+| `PurchaseOrderService::update` | 15 test (`PurchaseOrderServiceEditTest`): WS pembuat dan Admin, pembuat tetap, harga beli dari katalog, WS lain dan Sales 403, id tidak dikenal 404, empat status non-Draft, race saat menyimpan, empat payload tidak valid |
+| `PurchaseOrderService::canEdit` / `assertMayEdit` | 2 test: Admin siapa pun, WS hanya miliknya, hanya Draft |
+
+SQL-nya (`updateDraft`, `replaceItems`, rollback, route roles) dieksekusi terhadap MySQL oleh
+`EditDraftOrderTest` (18 test).
 
 ## Yang ditambahkan pada 003-stock-adjustment
 

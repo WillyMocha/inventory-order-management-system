@@ -1,21 +1,23 @@
 # Hasil test suite
 
-Bukti untuk T145 dan SC-006. Dijalankan ulang **2026-10-03** (setelah 003-stock-adjustment) di dalam Docker terhadap
+Bukti untuk T145 dan SC-006. Dijalankan ulang **2026-10-04** (setelah 004-edit-draft-orders) di dalam Docker terhadap
 PHP 8.4.26 dan MySQL 8.0.46.
 
 ## Ringkasan
 
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
-| Unit | `composer test:unit` | **OK — 409 test, 1116 assertion** |
-| Integration | `composer test:integration` | **OK — 169 test, 625 assertion** |
-| Gabungan | `composer test` | **OK — 578 test, 1741 assertion** |
-| JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 11 test** |
+| Unit | `composer test:unit` | **OK — 448 test, 1291 assertion** |
+| Integration | `composer test:integration` | **OK — 188 test, 726 assertion** |
+| Gabungan | `composer test` | **OK — 636 test, 2017 assertion** |
+| JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 18 test** |
 | Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning; lulus di Docker, dari `cmd.exe` Windows, dan dari salinan repo bersih |
 
 **Coverage repository MySQL oleh integration suite: 116 dari 116 method** (diukur dengan pcov di
 container sekali pakai; lihat `docs/quality/tech-debt.md` TD-2b). Ini bukti bahwa setiap query
 SQL di repository pernah benar-benar dieksekusi MySQL, bukan hanya fake in-memory-nya.
+Empat method yang ditambahkan 004 (`updateDraft` dan `replaceItems` pada kedua repository order)
+dieksekusi `EditDraftOrderTest`; angka pcov di atas belum diukur ulang sejak itu.
 
 **Nol test yang di-skip, incomplete, atau risky.** `phpunit.xml` menyetel `failOnWarning`,
 `failOnRisky`, dan `failOnNotice` ke `true`, sehingga test yang diam-diam tidak menguji apa

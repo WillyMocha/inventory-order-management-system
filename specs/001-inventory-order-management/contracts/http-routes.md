@@ -110,6 +110,8 @@ terbatas sesuai §1.2.
 | POST | `/purchase-orders` | wajib | A W | CSRF. Minimal satu item. Status awal `Draft` |
 | GET | `/purchase-orders/{id}` | wajib | A W | Detail + item + outstanding qty + riwayat movement |
 | POST | `/purchase-orders/{id}/submit` | wajib | A W | CSRF. `Draft` → `Ordered` |
+| GET | `/purchase-orders/{id}/edit` | wajib | A W | Form edit PO **Draft** (spec 004, D-04). S → 403 di guard. W pada PO buatan orang lain → 403 (`PurchaseOrderService::assertMayEdit`). Bukan Draft → 302 ke detail dengan flash |
+| POST | `/purchase-orders/{id}` | wajib | A W | CSRF. Simpan edit: supplier, warehouse tujuan, tanggal, dan seluruh line; harga beli diambil ulang dari katalog. Admin: PO Draft siapa pun; W: hanya PO buatannya. Status diperiksa ulang saat menyimpan (`UPDATE … WHERE status = 'Draft'`), header dan line dalam satu transaction. Validasi → 422. Rincian: [`specs/004-edit-draft-orders/contracts/http-routes.md`](../../004-edit-draft-orders/contracts/http-routes.md) |
 | POST | `/purchase-orders/{id}/cancel` | wajib | **A** | CSRF. Diizinkan sebelum `Received` (A-004) |
 | GET | `/purchase-orders/{id}/receive` | wajib | A W | Form goods receipt |
 | POST | `/purchase-orders/{id}/receive` | wajib | A W | CSRF. **Transaction**: tambah `product_stock`, tulis `stock_ledger` type `Receipt`. Ditolak bila melebihi outstanding qty (A-005) |
@@ -126,6 +128,8 @@ layer, bukan hanya oleh route table.
 | POST | `/sales-orders` | wajib | A S | CSRF. `created_by` diambil dari session, tidak pernah dari payload. Status awal `Draft` |
 | GET | `/sales-orders/{id}` | wajib | A S W | S mengakses order milik orang lain → **404**, bukan 403 |
 | POST | `/sales-orders/{id}/submit` | wajib | A S | CSRF. `Draft` → `PendingApproval`. S hanya untuk order miliknya |
+| GET | `/sales-orders/{id}/edit` | wajib | A S | Form edit SO **Draft** (spec 004, D-04). W → 403 di guard. **Hanya pembuat order**: S pada order orang lain → **404**; A pada order orang lain → 403 — Admin tidak boleh mengubah isi order lalu meng-approve-nya. Bukan Draft → 302 ke detail dengan flash |
+| POST | `/sales-orders/{id}` | wajib | A S | CSRF. Simpan edit: customer, warehouse asal, tanggal, dan seluruh line; harga jual diambil ulang dari katalog; `created_by`, status, nomor, dan approver tidak pernah dari payload. Aturan sama dengan GET, diperiksa ulang saat menyimpan. Validasi → 422. Rincian: [`specs/004-edit-draft-orders/contracts/http-routes.md`](../../004-edit-draft-orders/contracts/http-routes.md) |
 | POST | `/sales-orders/{id}/approve` | wajib | **A** | CSRF. S → **403 selalu**, termasuk untuk order miliknya sendiri (§1.2, FR-018). Service memeriksa `approved_by <> created_by` **dan** role Admin |
 | POST | `/sales-orders/{id}/reject` | wajib | **A** | CSRF. `PendingApproval` → `Cancelled` |
 | POST | `/sales-orders/{id}/cancel` | wajib | A S | CSRF. S hanya order miliknya, hanya sebelum `Fulfilled` |

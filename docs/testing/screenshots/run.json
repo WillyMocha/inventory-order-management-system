@@ -460,5 +460,71 @@
     "clippedTables": 0,
     "scrollableTables": 0,
     "title": "Adjust stock · IOMS"
+  },
+  {
+    "file": "24-sales-order-edit-desktop.png",
+    "role": "sales1@ioms.test",
+    "url": "/sales-orders/15/edit",
+    "viewport": "desktop",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Edit sales order SO-20261004-0001 · IOMS"
+  },
+  {
+    "file": "24-sales-order-edit-mobile.png",
+    "role": "sales1@ioms.test",
+    "url": "/sales-orders/15/edit",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Edit sales order SO-20261004-0001 · IOMS"
+  },
+  {
+    "file": "26-sales-order-edit-error-desktop.png",
+    "role": "sales1@ioms.test",
+    "url": "/sales-orders/15/edit",
+    "viewport": "desktop",
+    "status": 422,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Edit sales order SO-20261004-0001 · IOMS"
+  },
+  {
+    "file": "26-sales-order-edit-error-mobile.png",
+    "role": "sales1@ioms.test",
+    "url": "/sales-orders/15/edit",
+    "viewport": "mobile",
+    "status": 422,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Edit sales order SO-20261004-0001 · IOMS"
+  },
+  {
+    "file": "25-purchase-order-edit-desktop.png",
+    "role": "admin@ioms.test",
+    "url": "/purchase-orders/12/edit",
+    "viewport": "desktop",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 0,
+    "title": "Edit purchase order PO-20261001-0001 · IOMS"
+  },
+  {
+    "file": "25-purchase-order-edit-mobile.png",
+    "role": "admin@ioms.test",
+    "url": "/purchase-orders/12/edit",
+    "viewport": "mobile",
+    "status": 200,
+    "pageOverflowPx": 0,
+    "clippedTables": 0,
+    "scrollableTables": 1,
+    "title": "Edit purchase order PO-20261001-0001 · IOMS"
   }
 ]

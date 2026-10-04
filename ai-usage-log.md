@@ -18,6 +18,7 @@ Development (`/rudis.specify` → `/rudis.plan` → `/rudis.tasks` → `/rudis.i
 | 4 | Implementasi per phase | "Kerjakan phase N sesuai tasks.md" | Sebagian | Setiap phase melewati gate: PHPStan level 6, PHPCS PSR-12, unit test |
 | 5 | Unit dan integration test | "Tulis test lebih dulu, pastikan gagal sebelum implementasi" | Ya | Red-green diverifikasi tiap kali; lihat catatan #3 di bawah |
 | 6 | Dokumen evidence (ADR, refactor log, kritik) | "Tulis ADR/kritik berdasarkan kode yang benar-benar ada" | Ya | Setiap klaim ditelusuri ke file dan test yang disebut |
+| 7 | Fitur 004 edit order Draft (spec → plan → tasks → analyze → implement) | "Tambahkan fitur edit untuk order Draft, aturan di service (hanya Draft, Sales hanya order miliknya)" | Ya, setelah tiga keputusan izin dijawab owner (Q1–Q3) dan temuan `/rudis.analyze` diterapkan | Test ditulis lebih dulu dan gagal dulu; MySQL integration; verifikasi HTTP per role di browser headless; data demo dipulihkan; lihat catatan #5 |
 
 ---
 
@@ -43,6 +44,16 @@ Pelajarannya: penjelasan yang koheren dari AI bukan bukti. Reproduksi terisolasi
 | Usulan menambah kolom `version` untuk optimistic locking | Menyimpang dari data model sumber tanpa alasan yang cukup |
 | Fake in-memory yang mengembalikan kolom lebih sedikit daripada query MySQL | Membuat unit test lulus untuk bentuk data yang produksinya tidak punya |
 | Menandai task T138/T139 selesai | Kesalahan pola `sed` dari AI sendiri; dikoreksi setelah ketahuan |
+
+### 5. Fitur 004: klaim AI yang dikoreksi sebelum menjadi kode
+
+| Klaim / output AI | Yang sebenarnya | Tindakan |
+| --- | --- | --- |
+| Spec FR-009: validasi order memeriksa customer/supplier/warehouse/product "exist **and be active**" | `validate()` hanya memeriksa **ada**; "aktif" hanya dijaga dropdown form | FR-009 disesuaikan saat planning; celahnya dicatat sebagai tech debt TD-10, bukan diam-diam dianggap aman |
+| Quickstart: PO Draft 12 dan 13 sama-sama dibuat `warehouse1` | PO 13 dibuat `admin` (diperiksa dengan query) | Skenario quickstart diperbaiki — justru menjadi uji yang lebih baik (WS ditolak pada PO buatan Admin) |
+| Tasks T010: uji race lewat "test-only subclass" fake repository | Kedua fake bersifat `final` | Ditemukan `/rudis.analyze`; diganti hook `failNextUpdateDraft()` pada fake |
+| "Baseline hijau" setelah perubahan SKU sebelumnya | PHPCS mengembalikan 1 warning (baris 124 karakter) sehingga `composer check` exit 1 — sebelumnya hanya ekor output yang dibaca | Baris diperbaiki di T001; exit code PHPCS kini selalu diperiksa langsung |
+| Judul form edit tampil benar | Pada 360px nomor order terpotong di tanda hubung — baru terlihat setelah screenshot dilihat | `.page-title .tabular { white-space: nowrap; }`, screenshot diambil ulang |
 
 ### 3. Test yang ditulis tetapi tidak dijalankan
 

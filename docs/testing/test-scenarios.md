@@ -51,6 +51,10 @@ yang disembunyikan.
 | Coba terima melebihi outstanding | Ditolak, menyebut sisa yang sebenarnya |
 | Terima seluruh sisanya | Status `Received`; stock bertambah |
 | Periksa stock ledger | Satu baris `Receipt` **positif** per penerimaan |
+| Sebagai `warehouse1`, edit PO Draft buatannya (warehouse dan quantity) | Tersimpan; nomor sama, tetap `Draft`, harga beli dari katalog (spec 004) |
+| Sebagai `admin`, edit PO Draft buatan `warehouse1` | Diizinkan — Admin boleh mengedit PO Draft siapa pun |
+| Sebagai `warehouse1`, buka edit PO Draft buatan `admin`; sebagai `sales1`, buka edit PO mana pun | **403**; tidak ada tombol Edit |
+| Buka form edit PO, submit PO itu dari tab lain, lalu simpan form edit | Ditolak "Only a draft order can be edited."; line tidak berubah |
 
 ---
 
@@ -58,7 +62,11 @@ yang disembunyikan.
 
 | Langkah | Hasil yang diharapkan |
 | --- | --- |
-| Sebagai `sales1`, buat SO lalu submit | Status `PendingApproval` |
+| Sebagai `sales1`, buat SO, edit (ubah quantity, tambah/hapus line), simpan | Nomor sama, tetap `Draft`, line dan total baru (spec 004) |
+| Sebagai `sales1`, buka edit SO milik `sales2` | **404** |
+| Sebagai `admin`, buka edit SO buatan `sales1` (Draft maupun sudah diajukan) | **403** — Admin tidak boleh mengubah isi order lalu meng-approve-nya |
+| Sebagai `sales1`, simpan edit tanpa line | **422**, input tetap terisi |
+| Sebagai `sales1`, buat SO lalu submit | Status `PendingApproval`; tombol Edit hilang |
 | Sebagai `sales1`, coba approve ordernya sendiri | **Tidak ada tombol approve**, dan POST langsung ke endpoint tetap ditolak server |
 | Sebagai `sales2`, buka order milik `sales1` | **404**, bukan 403 — keberadaan record tidak boleh bocor |
 | Sebagai `admin`, approve | Berhasil; `approved_by` tercatat |

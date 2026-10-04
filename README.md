@@ -22,8 +22,8 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 | **Master data** | Category, Warehouse, Supplier, Customer — dinonaktifkan, tidak pernah dihapus |
 | **Product** | Katalog dengan SKU unik, harga beli/jual, reorder point, dan upload image |
 | **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock`; koreksi dari hasil hitung fisik (Adjustment) dengan alasan wajib, aman dari race condition |
-| **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap |
-| **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue |
+| **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap; PO Draft dapat diedit |
+| **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue; SO Draft dapat diedit pembuatnya |
 | **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation |
 | **Report** | Export CSV stock movement, status Sales Order, dan status Purchase Order untuk rentang tanggal pilihan |
 | **JSON API** | Ketersediaan stock per warehouse, dengan session auth yang sama dengan halaman |
@@ -33,9 +33,9 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 
 | Role | Tanggung jawab |
 | --- | --- |
-| **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order, koreksi stock, seluruh report |
-| **Sales** | Membuat dan mengajukan Sales Order miliknya, export CSV order miliknya — **tidak boleh approve**, termasuk order miliknya sendiri |
-| **Warehouse Staff** | Membuat Purchase Order, goods receipt, goods issue, koreksi stock dari hasil hitung fisik, antrean fulfillment, report stock |
+| **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order (termasuk mengedit PO Draft siapa pun), koreksi stock, seluruh report |
+| **Sales** | Membuat, mengedit (selama Draft), dan mengajukan Sales Order miliknya, export CSV order miliknya — **tidak boleh approve**, termasuk order miliknya sendiri |
+| **Warehouse Staff** | Membuat Purchase Order (dan mengedit PO Draft buatannya), goods receipt, goods issue, koreksi stock dari hasil hitung fisik, antrean fulfillment, report stock |
 
 Ketiga role memiliki menu **My profile** untuk melihat data akunnya dan mengganti password
 sendiri. Nama, email, dan role tetap hanya dapat diubah Admin.

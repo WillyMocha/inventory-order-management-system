@@ -82,6 +82,14 @@ SKU dibuat otomatis: field SKU kini read-only dengan latar sunken dan hint "Assi
 automatically when you save". Diambil dengan viewport dan pengukuran yang sama — `overflow` =
 0px, `clipped` = 0 — sehingga entri 09 di `run.json` tetap berlaku.
 
+**Pembaruan 2026-10-04 (004-edit-draft-orders).** Enam tangkapan baru: form edit Sales Order
+(24), form edit Purchase Order (25), dan form edit Sales Order yang ditolak karena tanpa line
+(26, status 422), masing-masing desktop dan 360px. Hasilnya `overflow` = 0px dan `clipped` = 0;
+tabel line order pada 360px digeser di dalam `.table-wrap`, sama dengan form create. Keyboard
+walk pada form edit Sales Order: Cancel → Customer → Source warehouse → Order date → Add line →
+setiap Product / Quantity / Remove → Save changes → Cancel; **setiap** titik fokus memiliki
+indikator yang terlihat. Total kini 48 tangkapan di `run.json`.
+
 | Layar | Desktop | 360px |
 | --- | --- | --- |
 | Login | [01](./screenshots/01-login-desktop.png) | [01](./screenshots/01-login-mobile.png) |
@@ -106,6 +114,9 @@ automatically when you save". Diambil dengan viewport dan pengukuran yang sama �
 | My profile, ganti password gagal (422) | [21](./screenshots/21-profile-password-error-desktop.png) | [21](./screenshots/21-profile-password-error-mobile.png) |
 | Koreksi stock (sebagai Warehouse Staff) | [22](./screenshots/22-stock-adjustment-form-desktop.png) | [22](./screenshots/22-stock-adjustment-form-mobile.png) |
 | Koreksi stock ditolak, selisih nol (422) | [23](./screenshots/23-stock-adjustment-error-desktop.png) | [23](./screenshots/23-stock-adjustment-error-mobile.png) |
+| Edit Sales Order Draft (sebagai Sales pembuatnya) | [24](./screenshots/24-sales-order-edit-desktop.png) | [24](./screenshots/24-sales-order-edit-mobile.png) |
+| Edit Purchase Order Draft (sebagai Admin) | [25](./screenshots/25-purchase-order-edit-desktop.png) | [25](./screenshots/25-purchase-order-edit-mobile.png) |
+| Edit Sales Order ditolak, tanpa line (422) | [26](./screenshots/26-sales-order-edit-error-desktop.png) | [26](./screenshots/26-sales-order-edit-error-mobile.png) |
 
 Empty state ditangkap lewat pencarian yang pasti tidak cocok (`?search=zz-no-such-...`), bukan
 dengan mengosongkan database. Pesan yang tampil sama, dan data demo tetap utuh.
@@ -120,6 +131,7 @@ Ketiganya baru terlihat setelah gambarnya benar-benar dilihat.
 | Dropdown product pada line order menyusut menjadi dua huruf ("Se") pada 360px | Form PO/SO praktis tidak dapat dipakai di mobile (melanggar UI-01) | `.table .select { min-width: 14rem; }`. Baris yang lebih lebar digeser di dalam `.table-wrap` |
 | Label wajib tertulis "Customer \* \*" pada form PO dan SO | Penanda wajib ganda | Form PO/SO memakai `class="field-label field-required"` seperti form lain, bukan `*` literal yang ditambah `::after` |
 | Topbar mobile turun 24px dari tepi atas layar | Celah abu-abu di atas topbar | Pada `max-width: 640px`, padding atas `.page` dipindah menjadi `margin-bottom` topbar |
+| (004) Nomor order di judul form edit terpotong di tanda hubung pada 360px (`PO-` / `20261001-0001`) | Nomor order — identitas yang dicari user — terbaca terpecah | `.page-title .tabular { white-space: nowrap; }`; tangkapan 24–26 diambil ulang sesudahnya |
 
 ### Ditemukan saat mengambil ulang bukti (002-user-profile-page)
 

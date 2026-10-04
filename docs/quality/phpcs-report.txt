@@ -1,5 +1,5 @@
 PHP_CodeSniffer PSR-12 — laporan lengkap
-Dijalankan: 2026-10-03, di dalam Docker (PHP 8.4.26)
+Dijalankan: 2026-10-04, di dalam Docker (PHP 8.4.26)
 Perintah:   docker compose exec app composer cs   (juga bagian dari composer check)
 Konfigurasi: phpcs.xml (PSR12 + Generic.PHP.RequireStrictTypes)
 
@@ -13,9 +13,9 @@ config/database.php) hilang karena file itu — PDO factory yang tidak lagi
 dipakai — dihapus (docs/quality/tech-debt.md TD-8).
 
 ----------------------------------------------------------------------
-............................................................  60 / 150 (40%)
-............................................................ 120 / 150 (80%)
-..............................                               150 / 150 (100%)
+............................................................  60 / 153 (39%)
+............................................................ 120 / 153 (78%)
+.................................                            153 / 153 (100%)
 
 
-Time: 2.18 secs; Memory: 16MB
+Time: 2.33 secs; Memory: 16MB
