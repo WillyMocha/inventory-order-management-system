@@ -113,11 +113,16 @@ abstract class IntegrationTestCase extends TestCase
         ];
 
         $this->pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        // stock_ledger dijaga trigger append-only (005_ledger_append_only.sql);
+        // pengosongan fixture adalah satu-satunya DELETE yang sah, dan harus
+        // dinyatakan eksplisit untuk sesi ini saja.
+        $this->pdo->exec('SET @ioms_allow_ledger_cleanup = 1');
 
         foreach ($tables as $table) {
             $this->pdo->exec('DELETE FROM `' . $table . '`');
         }
 
+        $this->pdo->exec('SET @ioms_allow_ledger_cleanup = NULL');
         $this->pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
     }
 }

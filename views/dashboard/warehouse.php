@@ -19,7 +19,15 @@ declare(strict_types=1);
  *     lowStockCount: int,
  *     awaitingReceipt: list<PurchaseOrder>,
  *     awaitingIssue: list<SalesOrder>,
- *     lowStock: list<array{product: Product, totalQuantity: int}>
+ *     lowStock: list<array{product: Product, totalQuantity: int}>,
+ *     stockMovement: array{
+ *         start: string,
+ *         end: string,
+ *         days: list<array{date: string, in: int, out: int}>,
+ *         totalIn: int,
+ *         totalOut: int,
+ *         net: int
+ *     }
  * } $figures
  */
 
@@ -213,6 +221,8 @@ $lowStock = (int) $figures['lowStockCount'];
         </div>
     <?php endif; ?>
 </div>
+
+<?= $view->renderPartial('dashboard/_movement-chart', ['movement' => $figures['stockMovement']]) ?>
 
 <div class="card">
     <div class="card-header">

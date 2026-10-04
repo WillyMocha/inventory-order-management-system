@@ -126,7 +126,47 @@ final class MysqlPurchaseOrderRepository extends MysqlRepository implements Purc
 
         $orderId = $this->lastInsertId();
 
-        foreach ($order->items as $item) {
+        $this->insertItems($orderId, $order->items);
+
+        return $orderId;
+    }
+
+    public function updateDraft(PurchaseOrder $order): bool
+    {
+        $params = ['id' => (int) $order->id, 'draft' => PurchaseOrderStatus::Draft->value];
+
+        $updated = $this->run(
+            'UPDATE purchase_order
+                SET supplier_id = :supplier_id, warehouse_id = :warehouse_id,
+                    order_date = :order_date, updated_at = NOW()
+              WHERE id = :id AND status = :draft',
+            $params + [
+                'supplier_id'  => $order->supplierId,
+                'warehouse_id' => $order->warehouseId,
+                'order_date'   => $order->orderDate,
+            ],
+        )->rowCount() === 1;
+
+        // Lihat MysqlSalesOrderRepository::updateDraft(): rowCount() 0 dapat
+        // berarti "tidak ada yang berubah", bukan "bukan Draft".
+        return $updated
+            || $this->fetchInt('SELECT COUNT(*) FROM purchase_order WHERE id = :id AND status = :draft', $params) > 0;
+    }
+
+    public function replaceItems(int $orderId, array $items): void
+    {
+        $this->run(
+            'DELETE FROM purchase_order_item WHERE purchase_order_id = :order_id',
+            ['order_id' => $orderId],
+        );
+
+        $this->insertItems($orderId, $items);
+    }
+
+    /** @param list<PurchaseOrderItem> $items */
+    private function insertItems(int $orderId, array $items): void
+    {
+        foreach ($items as $item) {
             $this->run(
                 'INSERT INTO purchase_order_item (purchase_order_id, product_id, quantity,
                                                   received_quantity, purchase_price)
@@ -140,8 +180,6 @@ final class MysqlPurchaseOrderRepository extends MysqlRepository implements Purc
                 ],
             );
         }
-
-        return $orderId;
     }
 
     public function updateStatus(int $id, PurchaseOrderStatus $expected, PurchaseOrderStatus $status): bool

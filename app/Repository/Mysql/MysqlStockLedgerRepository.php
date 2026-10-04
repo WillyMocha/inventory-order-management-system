@@ -83,6 +83,33 @@ final class MysqlStockLedgerRepository extends MysqlRepository implements StockL
     }
 
     /**
+     * Satu query agregasi tanpa JOIN (NFR-001): nama product dan warehouse
+     * tidak dibutuhkan grafik, dan product yang sudah dinonaktifkan tetap
+     * terhitung karena ledger adalah riwayat.
+     */
+    public function dailyMovementTotals(string $startDate, string $endDate): array
+    {
+        $rows = $this->fetchAll(
+            'SELECT DATE(created_at) AS day,
+                    SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END) AS units_in,
+                    SUM(CASE WHEN quantity < 0 THEN -quantity ELSE 0 END) AS units_out
+               FROM stock_ledger
+              WHERE created_at >= :start_date AND created_at < (:end_date + INTERVAL 1 DAY)
+           GROUP BY DATE(created_at)
+           ORDER BY day ASC',
+            ['start_date' => $startDate, 'end_date' => $endDate],
+        );
+
+        $totals = [];
+
+        foreach ($rows as $row) {
+            $totals[(string) $row['day']] = ['in' => (int) $row['units_in'], 'out' => (int) $row['units_out']];
+        }
+
+        return $totals;
+    }
+
+    /**
      * Saldo berjalan dihitung window function di SELURUH riwayat product,
      * baru kemudian disaring ke Adjustment — menyaring lebih dulu akan
      * menghilangkan Receipt dan Issue dari saldonya.

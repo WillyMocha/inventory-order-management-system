@@ -136,9 +136,14 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('POST', '/purchase-orders', 'PurchaseOrderController', 'store', $adminWarehouse);
     $router->add('GET', '/purchase-orders/{id}', 'PurchaseOrderController', 'show', $adminWarehouse);
     $router->add('POST', '/purchase-orders/{id}/submit', 'PurchaseOrderController', 'submit', $adminWarehouse);
+    // Edit PO Draft (spec 004, keputusan owner D-04). PurchaseOrderService
+    // mempersempit: Admin PO Draft siapa pun, Warehouse Staff hanya miliknya.
+    $router->add('GET', '/purchase-orders/{id}/edit', 'PurchaseOrderController', 'edit', $adminWarehouse);
+    $router->add('POST', '/purchase-orders/{id}', 'PurchaseOrderController', 'update', $adminWarehouse);
     $router->add('POST', '/purchase-orders/{id}/cancel', 'PurchaseOrderController', 'cancel', $adminOnly);
-    $router->add('GET', '/purchase-orders/{id}/receive', 'PurchaseOrderController', 'receiveForm', $adminWarehouse);
-    $router->add('POST', '/purchase-orders/{id}/receive', 'PurchaseOrderController', 'receive', $adminWarehouse);
+    // Goods receipt di controller sendiri (tech-debt TD-11); URL dan role tidak berubah.
+    $router->add('GET', '/purchase-orders/{id}/receive', 'GoodsReceiptController', 'receiveForm', $adminWarehouse);
+    $router->add('POST', '/purchase-orders/{id}/receive', 'GoodsReceiptController', 'receive', $adminWarehouse);
 
     // ---------------------------------------------------------------------
     // Sales Order, approval & goods issue (SO-01)
@@ -150,27 +155,29 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('POST', '/sales-orders', 'SalesOrderController', 'store', $adminSales);
     $router->add('GET', '/sales-orders/{id}', 'SalesOrderController', 'show', $all);
     $router->add('POST', '/sales-orders/{id}/submit', 'SalesOrderController', 'submit', $adminSales);
-    // Sales tidak pernah boleh approve, termasuk order miliknya (FR-018).
-    $router->add('POST', '/sales-orders/{id}/approve', 'SalesOrderController', 'approve', $adminOnly);
-    $router->add('POST', '/sales-orders/{id}/reject', 'SalesOrderController', 'reject', $adminOnly);
+    // Edit order Draft (spec 004, keputusan owner D-04). Role di sini sama
+    // dengan role pembuat order; SalesOrderService mempersempitnya menjadi
+    // pembuat order itu saja, dan hanya selama Draft.
+    $router->add('GET', '/sales-orders/{id}/edit', 'SalesOrderController', 'edit', $adminSales);
+    $router->add('POST', '/sales-orders/{id}', 'SalesOrderController', 'update', $adminSales);
+    // Sales tidak pernah boleh approve, termasuk order miliknya (FR-018). Approve
+    // dan reject di controller sendiri (tech-debt TD-11); URL dan role tidak berubah.
+    $router->add('POST', '/sales-orders/{id}/approve', 'SalesOrderApprovalController', 'approve', $adminOnly);
+    $router->add('POST', '/sales-orders/{id}/reject', 'SalesOrderApprovalController', 'reject', $adminOnly);
     $router->add('POST', '/sales-orders/{id}/cancel', 'SalesOrderController', 'cancel', $adminSales);
-    $router->add('GET', '/sales-orders/{id}/issue', 'SalesOrderController', 'issueForm', $adminWarehouse);
-    $router->add('POST', '/sales-orders/{id}/issue', 'SalesOrderController', 'issue', $adminWarehouse);
+    $router->add('GET', '/sales-orders/{id}/issue', 'GoodsIssueController', 'issueForm', $adminWarehouse);
+    $router->add('POST', '/sales-orders/{id}/issue', 'GoodsIssueController', 'issue', $adminWarehouse);
 
     // ---------------------------------------------------------------------
     // Report (REPORT-01)
     // ---------------------------------------------------------------------
     $router->add('GET', '/reports', 'ReportController', 'index', $all);
     $router->add('GET', '/reports/stock-movement.csv', 'ReportController', 'stockMovementCsv', $adminWarehouse);
-    $router->add('GET', '/reports/orders.csv', 'ReportController', 'ordersCsv', $all);
-    // PO bukan bagian Sales (§1.2) - Sales menerima 403.
-    $router->add(
-        'GET',
-        '/reports/purchase-orders.csv',
-        'ReportController',
-        'purchaseOrdersCsv',
-        $adminWarehouse,
-    );
+    // Matriks §1.2 "Download CSV report": Admin semua, Sales order miliknya,
+    // Warehouse Staff HANYA report stock. Export order karenanya tertutup bagi
+    // Warehouse Staff (403), dan export PO hanya untuk Admin.
+    $router->add('GET', '/reports/orders.csv', 'ReportController', 'ordersCsv', $adminSales);
+    $router->add('GET', '/reports/purchase-orders.csv', 'ReportController', 'purchaseOrdersCsv', $adminOnly);
 
     // ---------------------------------------------------------------------
     // JSON API (API-01) - contracts/openapi.yaml

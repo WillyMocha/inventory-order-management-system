@@ -37,7 +37,7 @@ tetap terjadi karena transaction bersarang memakai SAVEPOINT (`tech-debt.md` TD-
 ### 3. Sales memanggil endpoint approval langsung untuk ordernya sendiri
 
 **Penanganan**: dua lapis. Route table membatasi `/sales-orders/{id}/approve` pada Admin, dan
-`SalesOrderService::approve()` memeriksa role Admin **dan** `approved_by <> created_by` di
+`SalesOrderApprovalService::approve()` memeriksa role Admin **dan** `approved_by <> created_by` di
 server.
 **Ke user**: `ForbiddenException` → halaman 403 yang aman.
 **Bukti**: `ApprovalAuthorizationTest` memanggil Service dan guard LANGSUNG, meniru penyerang
@@ -134,7 +134,7 @@ perlu melihat pesannya di samping input yang salah (FR-029).
 | --- | --- |
 | Setiap controller memvalidasi lewat Service, bukan sendiri | ✓ |
 | Tidak ada `echo` variabel mentah di controller | ✓ — seluruh output lewat `View::render()` |
-| `ValidationException` ditangkap dan dirender ulang bersama input sebelumnya | ✓ pada seluruh form (`ProductController`, `SalesOrderController`, `PurchaseOrderController`, `UserController`, `CategoryController`, `WarehouseController`, `SupplierController`, `CustomerController`) |
+| `ValidationException` ditangkap dan dirender ulang bersama input sebelumnya | ✓ pada seluruh form (`ProductController`, `SalesOrderController`, `PurchaseOrderController`, `UserController`, `CategoryController`, `WarehouseController`, `SupplierController`, `CustomerController`, `ProfileController`, `StockAdjustmentController`); `ReportController` mengembalikan rentang tanggal yang tidak sah ke form beserta pesannya |
 | Status HTTP pada kegagalan validasi | ✓ 422, bukan 200 |
 | CSRF pada setiap method non-GET | ✓ ditegakkan front controller, bukan per controller |
 | Tidak ada detail exception yang sampai ke user | ✓ |

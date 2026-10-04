@@ -1,6 +1,6 @@
 # Class Diagram — As-built (setelah implementasi)
 
-**Diperbarui**: 2026-10-03 (+ 002-user-profile-page) · **Pasangannya**: [`../planning/class-diagram-initial.md`](../planning/class-diagram-initial.md)
+**Diperbarui**: 2026-10-04 (+ 005-stock-movement-chart) · **Pasangannya**: [`../planning/class-diagram-initial.md`](../planning/class-diagram-initial.md)
 
 Diagram ini menggambarkan kode yang **benar-benar ada**, bukan rancangan awalnya. Setiap panah
 dependency di bawah sesuai dengan parameter constructor class-nya, yang dirangkai di
@@ -8,7 +8,10 @@ dependency di bawah sesuai dengan parameter constructor class-nya, yang dirangka
 di bagian akhir.
 
 **Cakupan.** Yang digambar adalah alur kritikal: Sales Order, Purchase Order, stock, dashboard,
-report, dan JSON API, beserta seluruh dependency class-class tersebut. Service master data
+report, dan JSON API (`StockApiController`; `DashboardApiController` hanya bergantung pada
+`ProductService` dan tidak digambar), beserta seluruh dependency Service-nya. Untuk controller,
+hanya panah ke Service yang relevan dengan alur itu yang digambar — `View`, `Session`, `Csrf`, dan
+Service master data pada constructor-nya (misalnya `ProductController`) tidak ditampilkan. Service master data
 (`ProductService`, `MasterDataService`, `PartyService`, `UserService`, `AuthService`) hanya
 muncul sebagai dependency controller. Pola mereka sama: Service final yang bergantung pada
 interface repository.
@@ -41,13 +44,22 @@ classDiagram
 
     class SalesOrderService {
         +create(array, User) int
+        +update(int, array, User) void
+        +canEdit(SalesOrder, User) bool
+        +assertMayEdit(SalesOrder, User) void
         +submit(int, User) void
+        +cancel(int, User) void
+        +requireVisibleOrder(int, User) SalesOrder
+    }
+    class SalesOrderApprovalService {
         +approve(int, User) void
         +reject(int, User) void
-        +cancel(int, User) void
     }
     class PurchaseOrderService {
         +create(array, User) int
+        +update(int, array, User) void
+        +canEdit(PurchaseOrder, User) bool
+        +assertMayEdit(PurchaseOrder, User) void
         +submit(int, User) void
         +cancel(int, User) void
     }
@@ -78,6 +90,8 @@ classDiagram
         <<interface>>
         +lockForUpdate(int) ?SalesOrder
         +updateStatus(int, SalesOrderStatus, SalesOrderStatus) bool
+        +updateDraft(SalesOrder) bool
+        +replaceItems(int, list) void
         +markApproved(int, int, string) bool
         +countByStatus(?int) array
         +ordersBetween(string, string, ?int) array
@@ -86,6 +100,8 @@ classDiagram
         <<interface>>
         +lockForUpdate(int) ?PurchaseOrder
         +updateStatus(int, PurchaseOrderStatus, PurchaseOrderStatus) bool
+        +updateDraft(PurchaseOrder) bool
+        +replaceItems(int, list) void
         +addReceivedQuantity(int, int) void
         +ordersBetween(string, string) array
     }
@@ -99,6 +115,7 @@ classDiagram
         <<interface>>
         +append(StockLedger) int
         +movementsBetween(string, string) array
+        +dailyMovementTotals(string, string) array
         +recentAdjustmentsForProduct(int, int) array
     }
     class ProductRepositoryInterface {
@@ -127,12 +144,18 @@ classDiagram
     SalesOrderService ..> WarehouseRepositoryInterface
     SalesOrderService ..> ProductRepositoryInterface
     SalesOrderService ..> ClockInterface
+    SalesOrderService ..> TransactionRunner
+
+    SalesOrderApprovalService --> SalesOrderService : requireVisibleOrder
+    SalesOrderApprovalService ..> SalesOrderRepositoryInterface
+    SalesOrderApprovalService ..> ClockInterface
 
     PurchaseOrderService ..> PurchaseOrderRepositoryInterface
     PurchaseOrderService ..> SupplierRepositoryInterface
     PurchaseOrderService ..> WarehouseRepositoryInterface
     PurchaseOrderService ..> ProductRepositoryInterface
     PurchaseOrderService ..> ClockInterface
+    PurchaseOrderService ..> TransactionRunner
 
     StockService ..> SalesOrderRepositoryInterface
     StockService ..> PurchaseOrderRepositoryInterface
@@ -145,6 +168,8 @@ classDiagram
     DashboardService ..> ProductRepositoryInterface
     DashboardService ..> SalesOrderRepositoryInterface
     DashboardService ..> PurchaseOrderRepositoryInterface
+    DashboardService ..> StockLedgerRepositoryInterface
+    DashboardService ..> ClockInterface
 
     ReportService ..> StockLedgerRepositoryInterface
     ReportService ..> SalesOrderRepositoryInterface
@@ -152,8 +177,10 @@ classDiagram
     ReportService ..> ClockInterface
 ```
 
-Tidak ada satu pun Service yang bergantung pada class konkret. Seluruh panah keluar dari
-Service adalah `..>`.
+Satu-satunya Service yang bergantung pada class konkret adalah `SalesOrderApprovalService --> SalesOrderService`
+(tech-debt TD-11): ia memakai `requireVisibleOrder()` agar aturan scoping 404 untuk Sales tidak disalin. Keduanya
+Service di lapisan yang sama, dan unit test merakit `SalesOrderService` asli di atas fake repository. Panah lain
+yang keluar dari Service seluruhnya `..>` ke interface.
 
 ## 2. Implementasi di balik interface
 
@@ -234,7 +261,10 @@ classDiagram
     direction LR
 
     class SalesOrderController
+    class SalesOrderApprovalController
+    class GoodsIssueController
     class PurchaseOrderController
+    class GoodsReceiptController
     class DashboardController
     class ReportController
     class StockApiController
@@ -243,6 +273,7 @@ classDiagram
     class ProductController
 
     class SalesOrderService
+    class SalesOrderApprovalService
     class PurchaseOrderService
     class StockService
     class DashboardService
@@ -265,6 +296,22 @@ classDiagram
     SalesOrderController --> View
     SalesOrderController --> Session
     SalesOrderController --> Csrf
+
+    SalesOrderApprovalController --> SalesOrderApprovalService
+    SalesOrderApprovalController --> UserService
+    SalesOrderApprovalController --> Session
+
+    GoodsIssueController --> SalesOrderService
+    GoodsIssueController --> StockService
+    GoodsIssueController --> ProductService
+    GoodsIssueController --> PartyService
+    GoodsIssueController --> MasterDataService
+
+    GoodsReceiptController --> PurchaseOrderService
+    GoodsReceiptController --> StockService
+    GoodsReceiptController --> ProductService
+    GoodsReceiptController --> PartyService
+    GoodsReceiptController --> MasterDataService
 
     PurchaseOrderController --> PurchaseOrderService
     PurchaseOrderController --> StockService
@@ -348,12 +395,12 @@ classDiagram
     ProfileController --> AuthService
     AuthService ..> UserRepositoryInterface
     AuthService ..> LoginAttemptRepositoryInterface
-    AuthService ..> User
 ```
 
 `changeOwnPassword()` memakai counter `login_attempt` yang sama dengan `attempt()`, jadi tebakan
 password di halaman login dan di halaman profil dihitung bersama. Panjang minimum password
-kini satu konstanta di `User`, dipakai `AuthService` dan `UserService` (refactor-log R-7).
+kini satu konstanta `User::MIN_PASSWORD_LENGTH`, dipakai `AuthService` dan `UserService` (refactor-log R-7);
+itu pemakaian konstanta, bukan dependency constructor, jadi tidak digambar sebagai panah.
 
 ### Koreksi stock (003-stock-adjustment)
 
@@ -364,6 +411,37 @@ ketujuh, `WarehouseRepositoryInterface` (warehouse koreksi harus aktif), dan
 `ProductController` kini bergantung pada `StockService` untuk riwayat koreksi di detail product,
 yang hanya dimuat untuk Admin dan Warehouse Staff. `ProductController` sebelumnya tidak digambar
 karena bukan alur kritikal; ia muncul di diagram 3 karena kini menyentuh `StockService`.
+
+### Edit order Draft (004-edit-draft-orders)
+
+`SalesOrderService` dan `PurchaseOrderService` masing-masing mendapat `update()`, `canEdit()`, dan
+`assertMayEdit()`, serta dependency keenam, `TransactionRunner` — pola yang sama dengan
+`StockService` — karena header dan line hasil edit harus tersimpan bersama atau tidak sama sekali.
+Kedua repository interface mendapat `updateDraft()` (UPDATE bersyarat `status = 'Draft'`) dan
+`replaceItems()`. Controller-nya mendapat action `edit()` dan `update()`; panah controller → service
+di diagram 3 tidak berubah. `assertMayEdit()` dipakai controller **dan** service supaya layar edit
+dan penyimpanan memeriksa dengan urutan yang sama (D-04).
+
+### Pemecahan class order (tech-debt TD-11)
+
+Approve/reject keluar dari `SalesOrderService` menjadi `SalesOrderApprovalService` (dengan
+`SalesOrderApprovalController`), sehingga aturan segregation of duties berada di satu class kecil;
+service itu memakai `SalesOrderService::requireVisibleOrder()` agar scoping 404 untuk Sales tidak
+disalin. Goods issue dan goods receipt keluar dari controller order menjadi `GoodsIssueController`
+dan `GoodsReceiptController` — pergerakan stock, seperti `StockAdjustmentController`. URL tidak
+berubah. Helper total line pindah ke `Support\Money::lineTotal()`. Rinciannya di refactor-log
+R-9 … R-11. Untuk keterbacaan, dependency `View`/`UserService`/`Session`/`Csrf` milik
+`GoodsIssueController` dan `GoodsReceiptController` tidak digambar.
+
+### Grafik stock movement di dashboard (005-stock-movement-chart, bonus)
+
+`DashboardService` mendapat dependency keempat dan kelima, `StockLedgerRepositoryInterface` dan
+`ClockInterface`, untuk figure `stockMovement` (unit masuk/keluar per hari, 30 hari terakhir) yang
+hanya dihitung untuk Admin dan Warehouse Staff. Repository ledger mendapat `dailyMovementTotals()`:
+satu query `GROUP BY DATE(created_at)` dengan aturan rentang yang sama dengan `movementsBetween()`,
+sehingga grafik dan CSV stock movement tidak bisa berbeda. Geometri grafik dihitung class tampilan
+kecil `Support\BarChartScale` (tanpa dependency, dipanggil oleh view `dashboard/_movement-chart`);
+ia tidak digambar karena tidak memiliki collaborator.
 
 ## Yang berubah dari diagram awal, dan mengapa
 
@@ -377,7 +455,8 @@ Rinciannya:
 
 **1. Service memerlukan lebih banyak collaborator daripada yang digambar.**
 `SalesOrderService` dirancang dengan tiga dependency (`orders`, `stocks`, `clock`). Nyatanya
-lima: `orders`, `customers`, `warehouses`, `products`, `clock`. `stocks` tidak lagi
+enam: `orders`, `customers`, `warehouses`, `products`, `clock`, dan — sejak edit order Draft (004) —
+`TransactionRunner`. `stocks` tidak lagi
 dibutuhkan, karena Sales Order tidak pernah menyentuh stock; hanya `StockService` yang boleh.
 Penyebab tambahannya adalah validasi: membuat order menuntut pembuktian bahwa customer,
 warehouse, dan setiap product benar-benar ada dan aktif. `PurchaseOrderService` mengikuti

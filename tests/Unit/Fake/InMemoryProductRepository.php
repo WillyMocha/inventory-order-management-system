@@ -72,6 +72,25 @@ final class InMemoryProductRepository implements ProductRepositoryInterface
         return false;
     }
 
+    public function highestSkuSequence(string $prefix): int
+    {
+        $highest = 0;
+
+        foreach ($this->rows as $product) {
+            if (!str_starts_with($product->sku, $prefix)) {
+                continue;
+            }
+
+            $suffix = substr($product->sku, strlen($prefix));
+
+            if ($suffix !== '' && ctype_digit($suffix)) {
+                $highest = max($highest, (int) $suffix);
+            }
+        }
+
+        return $highest;
+    }
+
     public function allActive(): array
     {
         return array_values(array_filter(

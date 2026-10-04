@@ -6,6 +6,7 @@ namespace Tests\Unit\Fake;
 
 use App\Entity\Enum\SalesOrderStatus;
 use App\Entity\SalesOrder;
+use App\Entity\SalesOrderItem;
 use App\Repository\SalesOrderRepositoryInterface;
 
 final class InMemorySalesOrderRepository implements SalesOrderRepositoryInterface
@@ -14,6 +15,11 @@ final class InMemorySalesOrderRepository implements SalesOrderRepositoryInterfac
     private array $rows = [];
 
     private int $nextId = 1;
+
+    /** Id untuk line yang ditulis ulang replaceItems(); jauh dari id fixture. */
+    private int $nextItemId = 10_000;
+
+    private bool $failNextUpdateDraft = false;
 
     /** @var array<int, string> orderId => approvedAt */
     private array $approvedAt = [];
@@ -116,6 +122,82 @@ final class InMemorySalesOrderRepository implements SalesOrderRepositoryInterfac
         );
 
         return true;
+    }
+
+    public function updateDraft(SalesOrder $order): bool
+    {
+        $id = (int) $order->id;
+        $stored = $this->rows[$id] ?? null;
+
+        if ($this->failNextUpdateDraft) {
+            $this->failNextUpdateDraft = false;
+
+            return false;
+        }
+
+        // Compare-and-set, sama seperti WHERE status = 'Draft' di MySQL.
+        if ($stored === null || $stored->status !== SalesOrderStatus::Draft) {
+            return false;
+        }
+
+        // Hanya header yang dapat diubah; nomor, pembuat, approver, status,
+        // dan line diambil dari baris tersimpan.
+        $this->rows[$id] = new SalesOrder(
+            $id,
+            $stored->orderNumber,
+            $order->customerId,
+            $stored->createdBy,
+            $stored->approvedBy,
+            $order->warehouseId,
+            $stored->status,
+            $order->orderDate,
+            $stored->items,
+        );
+
+        return true;
+    }
+
+    public function replaceItems(int $orderId, array $items): void
+    {
+        $stored = $this->rows[$orderId] ?? null;
+
+        if ($stored === null) {
+            return;
+        }
+
+        $replaced = [];
+        foreach ($items as $item) {
+            $replaced[] = new SalesOrderItem(
+                $this->nextItemId++,
+                $orderId,
+                $item->productId,
+                $item->quantity,
+                $item->sellingPrice,
+            );
+        }
+
+        $this->rows[$orderId] = new SalesOrder(
+            $orderId,
+            $stored->orderNumber,
+            $stored->customerId,
+            $stored->createdBy,
+            $stored->approvedBy,
+            $stored->warehouseId,
+            $stored->status,
+            $stored->orderDate,
+            $replaced,
+        );
+    }
+
+    /**
+     * Khusus test: updateDraft() berikutnya mengembalikan false tanpa
+     * mengubah apa pun. Memodelkan order yang keluar dari Draft di antara
+     * pembacaan dan penyimpanan (spec 004, research R-003) — kelas ini final,
+     * jadi perilaku itu tidak dapat dibuat lewat subclass.
+     */
+    public function failNextUpdateDraft(): void
+    {
+        $this->failNextUpdateDraft = true;
     }
 
     public function markApproved(int $id, int $approvedBy, string $approvedAt): bool

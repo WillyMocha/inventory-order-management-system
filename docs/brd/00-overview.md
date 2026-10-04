@@ -3,7 +3,7 @@
 **Scope**: Whole system
 **Source**: Reverse-engineered from existing codebase by `/rudis.brd`
 **Created**: 2026-10-03
-**Last Updated**: 2026-10-03
+**Last Updated**: 2026-10-04
 **Status**: Draft
 
 > **Catatan pemetaan modul.** Kode disusun **per lapisan** (`app/Controller`, `app/Service`,
@@ -55,8 +55,8 @@
 | Product Catalog | `product` | Product, image, stock per warehouse, low-stock, JSON availability, JOB-01 | [modules/product.md](modules/product.md) |
 | Purchase Order | `purchase-order` | PO Draft → Ordered → (Partially)Received / Cancelled | [modules/purchase-order.md](modules/purchase-order.md) |
 | Sales Order | `sales-order` | SO Draft → PendingApproval → Approved → Fulfilled / Cancelled | [modules/sales-order.md](modules/sales-order.md) |
-| Stock & Ledger | `stock` | Satu-satunya jalur perubahan stock: goods receipt dan goods issue | [modules/stock.md](modules/stock.md) |
-| Dashboard | `dashboard` | Tiga dashboard per role dan API low-stock | [modules/dashboard.md](modules/dashboard.md) |
+| Stock & Ledger | `stock` | Satu-satunya jalur perubahan stock: goods receipt, goods issue, dan koreksi stock (Adjustment) | [modules/stock.md](modules/stock.md) |
+| Dashboard | `dashboard` | Tiga dashboard per role, grafik stock movement 30 hari (Admin, WS), dan API low-stock | [modules/dashboard.md](modules/dashboard.md) |
 | Report | `report` | Export CSV stock movement, status SO, dan status PO | [modules/report.md](modules/report.md) |
 | Platform | `platform` | Router, guard, session, CSRF, DB/transaction, view, migration, Docker | [modules/platform.md](modules/platform.md) |
 
@@ -155,6 +155,13 @@ flowchart LR
 
 ## Change Log
 
+- **2026-10-04**: Modul `dashboard` dan `stock` diperbarui setelah 005-stock-movement-chart (bonus):
+  grafik unit masuk/keluar 30 hari dari `stock_ledger` untuk Admin dan WS (DASH-CAP-005). Modul
+  `report`: Warehouse Staff kini hanya mengunduh report stock, export PO hanya Admin. Modul `product`:
+  SKU dibuat otomatis oleh server.
+- **2026-10-04**: Modul `sales-order` dan `purchase-order` diperbarui setelah 004-edit-draft-orders:
+  order Draft dapat diedit (SO-CAP-008: pembuatnya saja; PO-CAP-006: Admin, atau WS pembuatnya).
+  Tambahan di luar brief, dicatat sebagai `decisions.md` D-04.
 - **2026-10-03**: Modul `stock` diperbarui setelah 003-stock-adjustment: koreksi stock dari hasil
   hitung fisik oleh Admin dan Warehouse Staff (STOCK-CAP-005/006). Celah Adjustment dihapus dari
   Known Gaps.

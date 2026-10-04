@@ -43,6 +43,9 @@ final class InMemoryStockLedgerRepository implements StockLedgerRepositoryInterf
 
     private int $nextId = 1;
 
+    /** Jumlah panggilan dailyMovementTotals() — bukti satu query per dashboard (spec 005 NFR-001). */
+    private int $dailyTotalsCalls = 0;
+
     public function append(StockLedger $entry): int
     {
         $id = $this->nextId++;
@@ -117,6 +120,37 @@ final class InMemoryStockLedgerRepository implements StockLedgerRepositoryInterf
         }
 
         return $result;
+    }
+
+    /**
+     * Aturan tanggal sama dengan movementsBetween() milik fake ini; masuk dan
+     * keluar dipisah dari tanda quantity, seperti versi MySQL.
+     */
+    public function dailyMovementTotals(string $startDate, string $endDate): array
+    {
+        $this->dailyTotalsCalls++;
+
+        $totals = [];
+
+        foreach ($this->entries as $index => $entry) {
+            $date = substr($this->createdAt[$index], 0, 10);
+
+            if ($date < $startDate || $date > $endDate) {
+                continue;
+            }
+
+            $totals[$date] ??= ['in' => 0, 'out' => 0];
+            $totals[$date][$entry->quantity > 0 ? 'in' : 'out'] += abs($entry->quantity);
+        }
+
+        ksort($totals);
+
+        return $totals;
+    }
+
+    public function dailyTotalsCalls(): int
+    {
+        return $this->dailyTotalsCalls;
     }
 
     /** @param array<int, string> $labels */

@@ -6,7 +6,6 @@ namespace App\Support;
 
 use App\Entity\Enum\Role;
 use App\Support\Exception\ForbiddenException;
-use App\Support\Exception\NotFoundException;
 use App\Support\Exception\UnauthenticatedException;
 
 /**
@@ -14,6 +13,11 @@ use App\Support\Exception\UnauthenticatedException;
  *
  * Route yang tidak mencantumkan role secara eksplisit tidak dapat diakses
  * siapa pun. Menyembunyikan URL bukan proteksi (security standard §2).
+ *
+ * Guard ini hanya memeriksa role terhadap route. Scoping kepemilikan — Sales
+ * membuka order milik Sales lain menerima 404, bukan 403 — ditegakkan di
+ * Service (`SalesOrderService::requireVisibleOrder()`), tempat order-nya
+ * memang dibaca.
  */
 final class Authorization
 {
@@ -50,61 +54,6 @@ final class Authorization
 
         if ($role === null || !in_array($role, $allowedRoles, true)) {
             throw new ForbiddenException();
-        }
-    }
-
-    public function requireRole(Role ...$roles): void
-    {
-        $this->authorizeRoute(array_values($roles));
-    }
-
-    public function currentRole(): ?Role
-    {
-        return $this->session->role();
-    }
-
-    public function currentUserId(): int
-    {
-        $id = $this->session->userId();
-
-        if ($id === null) {
-            throw new UnauthenticatedException();
-        }
-
-        return $id;
-    }
-
-    public function hasRole(Role $role): bool
-    {
-        return $this->session->role() === $role;
-    }
-
-    /**
-     * Menolak akses ke resource yang ada tetapi berada di luar scope
-     * pemanggil, dengan 404 alih-alih 403.
-     *
-     * Contoh: seorang Sales membuka Sales Order milik Sales lain. Membalas 403
-     * akan mengonfirmasi bahwa order tersebut ada (security standard §2).
-     *
-     * @throws NotFoundException
-     */
-    public function denyAsNotFound(): never
-    {
-        throw new NotFoundException();
-    }
-
-    /**
-     * Sales hanya boleh menyentuh record miliknya sendiri; Admin dan Warehouse
-     * Staff tidak dibatasi kepemilikan.
-     */
-    public function assertOwnershipForSales(int $ownerId): void
-    {
-        if ($this->currentRole() !== Role::Sales) {
-            return;
-        }
-
-        if ($ownerId !== $this->currentUserId()) {
-            $this->denyAsNotFound();
         }
     }
 }

@@ -56,7 +56,7 @@ koneksi DB dan transaction, view, migration, wiring dependency, dan runtime Dock
 - `Request::queryState/sortCriteria` — unit (`RequestTest`); `Paginator` — unit (`PaginatorTest`); envelope error API — unit (`ApiErrorEnvelopeTest`)
 - Guard dan session — integration (`AuthFlowTest`, `ApprovalAuthorizationTest`, `UserAccessTest`)
 - `Database::transaction` + SAVEPOINT — integration (`NestedTransactionTest`)
-- Repository SQL 116/116 method — integration (`RepositoryCoverageTest` dkk.)
+- Repository SQL 126/126 method — integration (`RepositoryCoverageTest` dkk.)
 - Migration otomatis dan prosedur Docker — diverifikasi manual dari salinan bersih (`implementation-log.md`), tanpa test otomatis
 - `generate-seed.php` — diverifikasi output identik byte demi byte dan pengaman exit 1; tanpa test otomatis
 

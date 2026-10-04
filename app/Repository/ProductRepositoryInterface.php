@@ -16,6 +16,12 @@ interface ProductRepositoryInterface
 
     public function skuExists(string $sku, ?int $exceptId = null): bool;
 
+    /**
+     * Nomor urut tertinggi di antara SKU berbentuk `<prefix><digit>`, atau 0
+     * bila belum ada. SKU dengan bentuk lain diabaikan.
+     */
+    public function highestSkuSequence(string $prefix): int;
+
     /** @return list<Product> */
     public function allActive(): array;
 

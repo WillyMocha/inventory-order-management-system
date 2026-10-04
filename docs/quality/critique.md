@@ -119,7 +119,7 @@ perubahan kontrak interface menuntut dua pembaruan, dan bila satu tertinggal, un
 lulus untuk perilaku yang produksinya tidak punya. Ini sudah terjadi (lihat `refactor-log.md`
 R-2).
 
-Mitigasinya kini lebih kuat. Integration suite mengeksekusi **116 dari 116** method
+Mitigasinya kini lebih kuat. Integration suite mengeksekusi **126 dari 126** method
 repository MySQL (`tech-debt.md` TD-2b), sehingga fake tidak lagi menjadi satu-satunya bukti
 bahwa sebuah query berjalan. Biaya pemeliharaan dua implementasi tetap ada.
 
@@ -130,7 +130,7 @@ bahwa sebuah query berjalan. Biaya pemeliharaan dua implementasi tetap ada.
 | **S**ingle Responsibility | Sebagian besar terpenuhi. `MasterDataService` dipecah dengan memindahkan Supplier dan Customer ke `PartyService`. `StockService` sengaja menampung dua alur, dengan alasan yang dicatat di `refactor-log.md`. Parsing state query string kini tinggal di `Request`, bukan di enam controller. |
 | **O**pen/Closed | **Tidak sepenuhnya, dan sengaja.** Menambah role baru menuntut perubahan pada `Role`, route table, `DashboardService::forRole()`, dan view-nya. Dengan tiga role tetap yang dinyatakan brief, membangun mekanisme role yang extensible adalah over-engineering (spec C-003). `match` yang exhaustive juga membuat PHPStan menunjukkan sendiri setiap tempat yang perlu disentuh. |
 | **L**iskov | Terpenuhi. `Mysql*Repository` dan `InMemory*Repository` dapat saling menggantikan, tetapi kelemahannya sudah terbukti: substitusi yang benar secara tipe bisa tetap salah secara perilaku bila fake-nya mengembalikan bentuk data yang berbeda. |
-| **I**nterface Segregation | **Paling lemah.** `ProductRepositoryInterface` punya **13** method. `ProductService` memakai hampir semuanya, `DashboardService` hanya **tiga** (`countBy`, `lowStock`, `totalInventoryValue`), sedangkan `PurchaseOrderService`, `SalesOrderService`, dan `StockService` hanya **satu** (`findById`). Interface per konsumen akan lebih tepat, tetapi berarti banyak interface kecil untuk satu implementasi MySQL. Biayanya lebih besar daripada masalah yang dipecahkan pada ukuran project ini. _(Koreksi 2026-10-03: versi sebelumnya menyebut 14 method, `ReportService` sebagai konsumen satu method — padahal ia tidak memakai interface ini sama sekali — dan `DashboardService` dua method.)_ |
+| **I**nterface Segregation | **Paling lemah.** `ProductRepositoryInterface` punya **14** method. `ProductService` memakai hampir semuanya, `DashboardService` hanya **tiga** (`countBy`, `lowStock`, `totalInventoryValue`), sedangkan `PurchaseOrderService`, `SalesOrderService`, dan `StockService` hanya **satu** (`findById`). Interface per konsumen akan lebih tepat, tetapi berarti banyak interface kecil untuk satu implementasi MySQL. Biayanya lebih besar daripada masalah yang dipecahkan pada ukuran project ini. _(Koreksi 2026-10-04: SKU otomatis menambah `highestSkuSequence`, jadi kini 14. Koreksi 2026-10-03: versi sebelumnya menyebut 14 method, `ReportService` sebagai konsumen satu method — padahal ia tidak memakai interface ini sama sekali — dan `DashboardService` dua method.)_ |
 | **D**ependency Inversion | Terpenuhi di tempat yang penting. Service bergantung pada interface repository dan `TransactionRunner`. Controller bergantung pada Service konkret, dan itu keputusan sadar (lihat `class-diagram-as-built.md`). |
 
 ## B.3 Kesalahan terbesar dalam pengerjaan ini

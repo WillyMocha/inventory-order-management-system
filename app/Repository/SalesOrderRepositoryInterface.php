@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\Enum\SalesOrderStatus;
 use App\Entity\SalesOrder;
+use App\Entity\SalesOrderItem;
 
 interface SalesOrderRepositoryInterface
 {
@@ -38,6 +39,29 @@ interface SalesOrderRepositoryInterface
     public function countBy(array $criteria): int;
 
     public function save(SalesOrder $order): int;
+
+    /**
+     * Menulis header order Draft yang sedang diedit: customer, warehouse asal,
+     * dan tanggal order (spec 004, research R-003).
+     *
+     * Berlaku HANYA bila status tersimpan masih Draft (compare-and-set);
+     * false bila order sudah keluar dari Draft. Nomor order, status, pembuat,
+     * dan approver tidak pernah ditulis di sini. Line tidak disentuh — lihat
+     * replaceItems().
+     */
+    public function updateDraft(SalesOrder $order): bool;
+
+    /**
+     * Mengganti seluruh line sebuah order dengan $items (research R-004).
+     *
+     * Aman hanya untuk order Draft: belum ada ledger dan tidak ada yang
+     * mereferensikan id line-nya. Wajib dipanggil di dalam transaction milik
+     * pemanggil, setelah updateDraft() berhasil, agar header dan line
+     * tersimpan bersama atau tidak sama sekali.
+     *
+     * @param list<SalesOrderItem> $items
+     */
+    public function replaceItems(int $orderId, array $items): void;
 
     /**
      * Mengubah status HANYA bila status tersimpan masih $expected

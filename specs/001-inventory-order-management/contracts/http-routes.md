@@ -50,7 +50,7 @@ Tidak ada route registrasi publik dan tidak ada password reset (spec A-012, USR-
 
 | Method | Path | Auth | Role | Authorization / catatan |
 | --- | --- | --- | --- | --- |
-| GET | `/` | wajib | A S W | Dialihkan ke dashboard sesuai role |
+| GET | `/` | wajib | A S W | Dilayani `DashboardController::index` yang sama dengan `/dashboard` (tanpa redirect) |
 | GET | `/dashboard` | wajib | A S W | Isi berbeda per role. Sales hanya melihat ringkasan order miliknya — di-scope lewat `created_by` di dalam query (§1.2) |
 
 ## Profil sendiri (002-user-profile-page)
@@ -93,12 +93,16 @@ terbatas sesuai §1.2.
 | GET | `/products/{id}/adjust-stock` | wajib | **A W** | S → 403. Form koreksi stock dari hasil hitung fisik; `?warehouse_id=` memilih warehouse aktif (spec 003) |
 | POST | `/products/{id}/adjust-stock` | wajib | **A W** | S → 403 di guard **dan** di `StockService`. CSRF. Ledger `Adjustment`/`Manual` + alasan wajib, satu transaction dengan lock `product_stock`. Selisih nol, input tidak sah, atau quantity berubah selama penghitungan → 422. Berhasil → 302 `/products/{id}` dengan flash. Rincian: [`specs/003-stock-adjustment/contracts/http-routes.md`](../../003-stock-adjustment/contracts/http-routes.md) |
 | GET | `/categories` | wajib | **A** | |
-| POST | `/categories`, `/categories/{id}`, `/categories/{id}/toggle-active` | wajib | **A** | CSRF |
+| GET | `/categories/create`, `/categories/{id}/edit` | wajib | **A** | Form |
+| POST | `/categories`, `/categories/{id}` | wajib | **A** | CSRF. Category tidak memiliki status aktif (resource sumber hanya punya nama dan deskripsi), jadi tidak ada toggle-active |
 | GET | `/warehouses` | wajib | A W | W hanya baca |
+| GET | `/warehouses/create`, `/warehouses/{id}/edit` | wajib | **A** | Form |
 | POST | `/warehouses`, `/warehouses/{id}`, `/warehouses/{id}/toggle-active` | wajib | **A** | CSRF |
 | GET | `/suppliers` | wajib | **A** | |
+| GET | `/suppliers/create`, `/suppliers/{id}/edit` | wajib | **A** | Form |
 | POST | `/suppliers`, `/suppliers/{id}`, `/suppliers/{id}/toggle-active` | wajib | **A** | CSRF |
 | GET | `/customers` | wajib | A S | S hanya baca — dibutuhkan saat membuat Sales Order |
+| GET | `/customers/create`, `/customers/{id}/edit` | wajib | **A** | Form |
 | POST | `/customers`, `/customers/{id}`, `/customers/{id}/toggle-active` | wajib | **A** | CSRF |
 
 ## Purchase Order & goods receipt (PO-01)
@@ -110,6 +114,8 @@ terbatas sesuai §1.2.
 | POST | `/purchase-orders` | wajib | A W | CSRF. Minimal satu item. Status awal `Draft` |
 | GET | `/purchase-orders/{id}` | wajib | A W | Detail + item + outstanding qty + riwayat movement |
 | POST | `/purchase-orders/{id}/submit` | wajib | A W | CSRF. `Draft` → `Ordered` |
+| GET | `/purchase-orders/{id}/edit` | wajib | A W | Form edit PO **Draft** (spec 004, D-04). S → 403 di guard. W pada PO buatan orang lain → 403 (`PurchaseOrderService::assertMayEdit`). Bukan Draft → 302 ke detail dengan flash |
+| POST | `/purchase-orders/{id}` | wajib | A W | CSRF. Simpan edit: supplier, warehouse tujuan, tanggal, dan seluruh line; harga beli diambil ulang dari katalog. Admin: PO Draft siapa pun; W: hanya PO buatannya. Status diperiksa ulang saat menyimpan (`UPDATE … WHERE status = 'Draft'`), header dan line dalam satu transaction. Validasi → 422. Rincian: [`specs/004-edit-draft-orders/contracts/http-routes.md`](../../004-edit-draft-orders/contracts/http-routes.md) |
 | POST | `/purchase-orders/{id}/cancel` | wajib | **A** | CSRF. Diizinkan sebelum `Received` (A-004) |
 | GET | `/purchase-orders/{id}/receive` | wajib | A W | Form goods receipt |
 | POST | `/purchase-orders/{id}/receive` | wajib | A W | CSRF. **Transaction**: tambah `product_stock`, tulis `stock_ledger` type `Receipt`. Ditolak bila melebihi outstanding qty (A-005) |
@@ -126,6 +132,8 @@ layer, bukan hanya oleh route table.
 | POST | `/sales-orders` | wajib | A S | CSRF. `created_by` diambil dari session, tidak pernah dari payload. Status awal `Draft` |
 | GET | `/sales-orders/{id}` | wajib | A S W | S mengakses order milik orang lain → **404**, bukan 403 |
 | POST | `/sales-orders/{id}/submit` | wajib | A S | CSRF. `Draft` → `PendingApproval`. S hanya untuk order miliknya |
+| GET | `/sales-orders/{id}/edit` | wajib | A S | Form edit SO **Draft** (spec 004, D-04). W → 403 di guard. **Hanya pembuat order**: S pada order orang lain → **404**; A pada order orang lain → 403 — Admin tidak boleh mengubah isi order lalu meng-approve-nya. Bukan Draft → 302 ke detail dengan flash |
+| POST | `/sales-orders/{id}` | wajib | A S | CSRF. Simpan edit: customer, warehouse asal, tanggal, dan seluruh line; harga jual diambil ulang dari katalog; `created_by`, status, nomor, dan approver tidak pernah dari payload. Aturan sama dengan GET, diperiksa ulang saat menyimpan. Validasi → 422. Rincian: [`specs/004-edit-draft-orders/contracts/http-routes.md`](../../004-edit-draft-orders/contracts/http-routes.md) |
 | POST | `/sales-orders/{id}/approve` | wajib | **A** | CSRF. S → **403 selalu**, termasuk untuk order miliknya sendiri (§1.2, FR-018). Service memeriksa `approved_by <> created_by` **dan** role Admin |
 | POST | `/sales-orders/{id}/reject` | wajib | **A** | CSRF. `PendingApproval` → `Cancelled` |
 | POST | `/sales-orders/{id}/cancel` | wajib | A S | CSRF. S hanya order miliknya, hanya sebelum `Fulfilled` |
@@ -138,8 +146,8 @@ layer, bukan hanya oleh route table.
 | --- | --- | --- | --- | --- |
 | GET | `/reports` | wajib | A S W | Form pemilihan rentang tanggal |
 | GET | `/reports/stock-movement.csv` | wajib | A W | Rentang tanggal dibatasi maksimal 366 hari. Satu export berjalan per session (R-005). Streaming `fputcsv`. Kolom terakhir `Reason` berisi alasan koreksi stock (kosong untuk Receipt/Issue; dinetralkan dari rumus spreadsheet) |
-| GET | `/reports/orders.csv` | wajib | A S W | **S: hanya order miliknya** — di-scope di `WHERE`. Batas rentang sama |
-| GET | `/reports/purchase-orders.csv` | wajib | A W | Status Purchase Order beserta qty dipesan/diterima. Batas rentang sama. Tafsiran REPORT-01: `docs/planning/decisions.md` D-03 |
+| GET | `/reports/orders.csv` | wajib | A S | **S: hanya order miliknya** — di-scope di `WHERE`. Batas rentang sama. W → 403 (§1.2: Warehouse Staff hanya report stock) |
+| GET | `/reports/purchase-orders.csv` | wajib | A | Status Purchase Order beserta qty dipesan/diterima. Batas rentang sama. S dan W → 403. Tafsiran REPORT-01: `docs/planning/decisions.md` D-03 |
 
 ## JSON API
 
@@ -150,6 +158,12 @@ Didefinisikan lengkap pada [`openapi.yaml`](./openapi.yaml). Ringkasan:
 | GET | `/api/products/{sku}/availability` | wajib | A S W | 401 sebagai JSON, bukan redirect |
 | GET | `/api/products/{productId}/warehouses/{warehouseId}/available` | wajib | A S W | Indikatif; binding check tetap di goods issue |
 | GET | `/api/dashboard/low-stock` | wajib | **A W** | S → 403 |
+
+## Health check
+
+| Method | Path | Auth | Role | Authorization / catatan |
+| --- | --- | --- | --- | --- |
+| GET | `/_health` | publik | — | `HealthController::index`; dipakai healthcheck container. Tidak memuat data aplikasi |
 
 ## Error route
 

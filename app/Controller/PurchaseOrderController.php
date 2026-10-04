@@ -18,6 +18,7 @@ use App\Support\Exception\DomainException;
 use App\Support\Exception\NotFoundException;
 use App\Support\Exception\UnauthenticatedException;
 use App\Support\Exception\ValidationException;
+use App\Support\Money;
 use App\Support\Paginator;
 use App\Support\Request;
 use App\Support\Response;
@@ -25,15 +26,16 @@ use App\Support\Session;
 use App\Support\View;
 
 /**
- * Purchase Order — draft, submit, cancel dan goods receipt (PO-01).
+ * Purchase Order — draft, edit, submit, dan cancel (PO-01).
  *
  * HTTP saja: membaca request, memanggil Service, memilih view. Tidak ada
- * aturan bisnis di sini.
+ * aturan bisnis di sini. Goods receipt ada di GoodsReceiptController
+ * (tech-debt TD-11).
  *
  * Role per action TIDAK uniform, dan itu sesuai route table
  * (contracts/http-routes.md):
  *   index/create/store/show/submit   Admin, Warehouse Staff
- *   receiveForm/receive              Admin, Warehouse Staff
+ *   edit/update                      Admin, Warehouse Staff (service: WS hanya PO buatannya)
  *   cancel                           **Admin saja**
  * Sales tidak punya akses ke satu pun action di sini dan menerima 403 dari
  * Authorization guard sebelum request sampai ke kelas ini.
@@ -49,6 +51,9 @@ final class PurchaseOrderController
      * masuk ke SQL secara langsung (security standard §5).
      */
     private const array SORT_KEYS = ['date', 'number', 'status'];
+
+    /** Prefix halaman detail; setiap aksi kembali ke sini setelah selesai. */
+    private const string DETAIL_PATH = '/purchase-orders/';
 
     public function __construct(
         private readonly View $view,
@@ -117,7 +122,52 @@ final class PurchaseOrderController
 
         $this->session->flash('success', 'Purchase order created as a draft.');
 
-        return Response::redirect('/purchase-orders/' . $id);
+        return Response::redirect(self::DETAIL_PATH . $id);
+    }
+
+    /**
+     * Form edit Purchase Order Draft (spec 004).
+     *
+     * Urutan pemeriksaannya sama dengan PurchaseOrderService::update() — ada
+     * (404), boleh mengedit (403), baru status Draft (contracts "Check order").
+     */
+    public function edit(Request $request): Response
+    {
+        $order = $this->purchaseOrders->requireOrder($this->requireId($request));
+        $this->purchaseOrders->assertMayEdit($order, $this->actingUser());
+
+        if ($order->status !== PurchaseOrderStatus::Draft) {
+            $this->session->flash('error', 'Only a draft order can be edited.');
+
+            return Response::redirect(self::DETAIL_PATH . (int) $order->id);
+        }
+
+        return Response::html($this->renderForm($this->oldFromOrder($order), [], $order));
+    }
+
+    /**
+     * Menyimpan edit. Aturan siapa boleh dan kapan ditegakkan
+     * PurchaseOrderService; CSRF sudah diperiksa front controller.
+     */
+    public function update(Request $request): Response
+    {
+        $id = $this->requireId($request);
+
+        try {
+            $this->purchaseOrders->update($id, $this->payloadFrom($request), $this->actingUser());
+        } catch (ValidationException $e) {
+            $order = $this->purchaseOrders->requireOrder($id);
+
+            return Response::html($this->renderForm($this->payloadFrom($request), $e->errors(), $order), 422);
+        } catch (DomainException $e) {
+            $this->session->flash('error', $e->getMessage());
+
+            return Response::redirect(self::DETAIL_PATH . $id);
+        }
+
+        $this->session->flash('success', 'Purchase order updated.');
+
+        return Response::redirect(self::DETAIL_PATH . $id);
     }
 
     public function submit(Request $request): Response
@@ -144,56 +194,6 @@ final class PurchaseOrderController
     }
 
     /**
-     * Form goods receipt — setiap line menampilkan outstanding di samping
-     * input-nya (FR-014).
-     */
-    public function receiveForm(Request $request): Response
-    {
-        $order = $this->purchaseOrders->requireOrder($this->requireId($request));
-
-        if (!$order->canReceiveGoods()) {
-            $this->session->flash(
-                'error',
-                'Goods can only be received for an ordered or partially received order.',
-            );
-
-            return Response::redirect('/purchase-orders/' . (int) $order->id);
-        }
-
-        return Response::html($this->renderReceiveForm($order));
-    }
-
-    /**
-     * Goods receipt. Validasi terhadap outstanding dan penulisan ledger
-     * berada di StockService di dalam satu transaction (FR-014, FR-015,
-     * FR-022).
-     */
-    public function receive(Request $request): Response
-    {
-        $order = $this->purchaseOrders->requireOrder($this->requireId($request));
-        $quantities = $this->receivedQuantitiesFrom($request);
-
-        try {
-            $this->stockService->receiveGoods((int) $order->id, $quantities, $this->actingUser());
-        } catch (DomainException $e) {
-            // Nilai yang diisi user dipertahankan, dan penolakannya dijelaskan
-            // beserta angkanya — bukan redirect yang membuang konteks.
-            return Response::html(
-                $this->renderReceiveForm(
-                    $this->purchaseOrders->requireOrder((int) $order->id),
-                    $e->getMessage(),
-                    $quantities,
-                ),
-                422,
-            );
-        }
-
-        $this->session->flash('success', 'Goods received. Stock and ledger updated.');
-
-        return Response::redirect('/purchase-orders/' . (int) $order->id);
-    }
-
-    /**
      * @param callable(int, User): void $action
      */
     private function transition(Request $request, callable $action, string $successMessage): Response
@@ -206,12 +206,12 @@ final class PurchaseOrderController
         } catch (DomainException $e) {
             $this->session->flash('error', $e->getMessage());
 
-            return Response::redirect('/purchase-orders/' . $id);
+            return Response::redirect(self::DETAIL_PATH . $id);
         }
 
         $this->session->flash('success', $successMessage);
 
-        return Response::redirect('/purchase-orders/' . $id);
+        return Response::redirect(self::DETAIL_PATH . $id);
     }
 
     /** @return array<string, mixed> */
@@ -228,7 +228,7 @@ final class PurchaseOrderController
                 'received'    => $item->receivedQuantity,
                 'outstanding' => $item->outstandingQuantity(),
                 'unitPrice'   => $item->purchasePrice,
-                'lineTotal'   => $this->lineTotal($item->quantity, $item->purchasePrice),
+                'lineTotal'   => Money::lineTotal($item->quantity, $item->purchasePrice),
             ];
         }
 
@@ -242,6 +242,7 @@ final class PurchaseOrderController
             'warehouse'   => $this->masterData->requireWarehouse($order->warehouseId),
             'creator'     => $this->users->requireUser($order->createdBy),
             'movements'   => $this->stockService->movementsForPurchaseOrder($orderId),
+            'canEdit'     => $this->purchaseOrders->canEdit($order, $actingUser),
             'canSubmit'   => $order->canTransitionTo(PurchaseOrderStatus::Ordered),
             'canReceive'  => $order->canReceiveGoods(),
             // Hanya Admin yang boleh membatalkan (route table).
@@ -251,46 +252,18 @@ final class PurchaseOrderController
         ];
     }
 
-    /** @param array<int, int> $submitted */
-    private function renderReceiveForm(
-        PurchaseOrder $order,
-        ?string $error = null,
-        array $submitted = [],
-    ): string {
-        $lines = [];
-
-        foreach ($order->items as $item) {
-            $lines[] = [
-                'itemId'      => (int) $item->id,
-                'product'     => $this->productService->requireProduct($item->productId),
-                'quantity'    => $item->quantity,
-                'received'    => $item->receivedQuantity,
-                'outstanding' => $item->outstandingQuantity(),
-                'submitted'   => $submitted[(int) $item->id] ?? null,
-            ];
-        }
-
-        return $this->view->render('purchase-orders/receive', [
-            'title'     => 'Receive goods — ' . $order->orderNumber,
-            'activeNav' => 'purchase-orders',
-            'order'     => $order,
-            'lines'     => $lines,
-            'supplier'  => $this->parties->requireSupplier($order->supplierId),
-            'warehouse' => $this->masterData->requireWarehouse($order->warehouseId),
-            'error'     => $error,
-            'csrf'      => $this->csrf,
-        ]);
-    }
-
     /**
+     * Form yang sama melayani create dan edit; $order terisi berarti mode edit.
+     *
      * @param array<string, mixed> $old
      * @param array<string, string> $errors
      */
-    private function renderForm(array $old = [], array $errors = []): string
+    private function renderForm(array $old = [], array $errors = [], ?PurchaseOrder $order = null): string
     {
         return $this->view->render('purchase-orders/form', [
-            'title'      => 'Create purchase order',
+            'title'      => $order === null ? 'Create purchase order' : 'Edit purchase order ' . $order->orderNumber,
             'activeNav'  => 'purchase-orders',
+            'order'      => $order,
             'old'        => $old,
             'errors'     => $errors,
             'suppliers'  => $this->parties->activeSuppliers(),
@@ -299,6 +272,28 @@ final class PurchaseOrderController
             'today'      => date('Y-m-d'),
             'csrf'       => $this->csrf,
         ]);
+    }
+
+    /**
+     * Isi form edit dari order tersimpan, dalam bentuk yang sama dengan
+     * payloadFrom() — form memakai logika isi-ulang yang sama dengan create.
+     *
+     * @return array<string, mixed>
+     */
+    private function oldFromOrder(PurchaseOrder $order): array
+    {
+        $items = [];
+
+        foreach ($order->items as $item) {
+            $items[] = ['product_id' => (string) $item->productId, 'quantity' => (string) $item->quantity];
+        }
+
+        return [
+            'supplier_id'  => (string) $order->supplierId,
+            'warehouse_id' => (string) $order->warehouseId,
+            'order_date'   => $order->orderDate,
+            'items'        => $items,
+        ];
     }
 
     /**
@@ -335,35 +330,6 @@ final class PurchaseOrderController
             'order_date'   => $request->input('order_date'),
             'items'        => $items,
         ];
-    }
-
-    /**
-     * Quantity yang diterima, dikunci pada item id.
-     *
-     * Line yang dibiarkan kosong dihilangkan, bukan dikirim sebagai nol:
-     * menerima sebagian line saja adalah hal yang wajar.
-     *
-     * @return array<int, int>
-     */
-    private function receivedQuantitiesFrom(Request $request): array
-    {
-        $body = $request->bodyAll();
-        $raw = is_array($body['received'] ?? null) ? $body['received'] : [];
-
-        $quantities = [];
-
-        foreach ($raw as $itemId => $quantity) {
-            $itemId = (int) $itemId;
-            $value = trim((string) (is_scalar($quantity) ? $quantity : ''));
-
-            if ($itemId <= 0 || $value === '') {
-                continue;
-            }
-
-            $quantities[$itemId] = (int) $value;
-        }
-
-        return $quantities;
     }
 
     /** @return array{total: int, awaitingReceipt: int, draft: int} */
@@ -406,27 +372,10 @@ final class PurchaseOrderController
         $total = 0;
 
         foreach ($order->items as $item) {
-            $total += $this->rupiah($item->purchasePrice) * $item->quantity;
+            $total += (int) Money::lineTotal($item->quantity, $item->purchasePrice);
         }
 
         return (string) $total;
-    }
-
-    /**
-     * Total line dalam rupiah satuan penuh, dihitung sebagai integer.
-     *
-     * bcmath tidak dipasang di image (Dockerfile hanya memasang pdo_mysql),
-     * dan rupiah tidak memakai sen dalam praktik — konvensi yang sama dipakai
-     * Support\Money (spec A-011).
-     */
-    private function lineTotal(int $quantity, string $unitPrice): string
-    {
-        return (string) ($this->rupiah($unitPrice) * $quantity);
-    }
-
-    private function rupiah(string $amount): int
-    {
-        return (int) round((float) $amount);
     }
 
     /** @return array{search?: string, status?: string} */

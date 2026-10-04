@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use App\Entity\Enum\Role;
+use App\Entity\Product;
 use App\Entity\StockLedger;
 use App\Entity\Warehouse;
 use App\Repository\Mysql\MysqlCategoryRepository;
@@ -29,6 +30,10 @@ use PHPUnit\Framework\Attributes\Test;
  * MySQL belum pernah melihat query-nya. Dua bug produksi sebelumnya lolos
  * persis lewat celah ini. Setiap test di sini menjalankan query sungguhan dan
  * memeriksa hasilnya terhadap fixture, bukan sekadar "tidak error".
+ *
+ * updateDraft() dan replaceItems() milik MysqlSalesOrderRepository dan
+ * MysqlPurchaseOrderRepository (spec 004) dieksekusi EditDraftOrderTest,
+ * termasuk syarat status Draft dan rollback-nya, sehingga tidak diulang di sini.
  */
 final class RepositoryCoverageTest extends IntegrationTestCase
 {
@@ -105,6 +110,10 @@ final class RepositoryCoverageTest extends IntegrationTestCase
         self::assertTrue((new MysqlCustomerRepository($this->database))->exists($this->customerId));
         self::assertTrue((new MysqlSupplierRepository($this->database))->exists($this->supplierId));
 
+        $warehouses = new MysqlWarehouseRepository($this->database);
+        self::assertTrue($warehouses->exists($this->warehouseId));
+        self::assertFalse($warehouses->exists(PHP_INT_MAX));
+
         $users = new MysqlUserRepository($this->database);
         self::assertTrue($users->emailExists('fixture-sales@test'));
         self::assertFalse($users->emailExists('fixture-sales@test', (int) $this->salesCreator->id));
@@ -113,6 +122,30 @@ final class RepositoryCoverageTest extends IntegrationTestCase
             ->findById($this->orderedPurchaseOrder([[$this->productId, 1]]))->orderNumber ?? '';
         self::assertTrue((new MysqlPurchaseOrderRepository($this->database))->orderNumberExists($orderNumber));
         self::assertFalse((new MysqlSalesOrderRepository($this->database))->orderNumberExists('SO-NOPE-0000'));
+    }
+
+    /**
+     * highestSkuSequence(): LIKE, SUBSTRING, dan REGEXP dieksekusi MySQL
+     * sungguhan — hanya SKU `<prefix><digit>` yang dihitung, dan karakter
+     * wildcard pada prefix tidak ikut mencocokkan.
+     */
+    #[Test]
+    public function highestSkuSequenceReadsOnlyNumericSkusWithThePrefix(): void
+    {
+        $products = new MysqlProductRepository($this->database);
+        $categoryId = $products->findById($this->productId)->categoryId ?? 0;
+
+        self::assertSame(0, $products->highestSkuSequence('SKU-'), 'fixture memakai FIXTURE-SKU-*');
+
+        foreach (['SKU-000041', 'SKU-000007', 'SKU-ABC', 'SKU-12X', 'SKUX000999'] as $sku) {
+            $products->save(
+                new Product(null, $sku, 'Sequence ' . $sku, $categoryId, 'pcs', '1.00', '1.00', 0, null, true),
+            );
+        }
+
+        self::assertSame(41, $products->highestSkuSequence('SKU-'));
+        // "_" adalah wildcard LIKE; tanpa escape, "SKU_" akan cocok dengan "SKU-".
+        self::assertSame(0, $products->highestSkuSequence('SKU_'));
     }
 
     // -------------------------------------------- daftar untuk dropdown

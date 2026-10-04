@@ -35,6 +35,22 @@ final class Money
     }
 
     /**
+     * Total satu line order (quantity × harga satuan) dalam rupiah penuh.
+     *
+     * Satu-satunya tempat aturan pembulatan total line; sebelumnya
+     * diduplikasi di controller Sales Order dan Purchase Order (tech-debt TD-11).
+     *
+     * Dihitung sebagai INTEGER, bukan float dan bukan bcmath: bcmath tidak
+     * dipasang di image (Dockerfile hanya memasang pdo_mysql), sehingga
+     * memakainya akan fatal di container meskipun jalan di host. Rupiah tidak
+     * memakai sen dalam praktik, jadi satuan penuh sudah tepat (spec A-011).
+     */
+    public static function lineTotal(int $quantity, string $unitPrice): string
+    {
+        return (string) (self::toWholeRupiah($unitPrice) * $quantity);
+    }
+
+    /**
      * Rupiah dibulatkan ke satuan penuh: sen tidak dipakai dalam praktik.
      */
     private static function toWholeRupiah(string $amount): int
