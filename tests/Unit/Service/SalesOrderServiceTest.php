@@ -284,7 +284,7 @@ final class SalesOrderServiceTest extends TestCase
     public function cancelIsRefusedOnceFulfilled(): void
     {
         $id = $this->approvedOrder();
-        $this->orders->updateStatus($id, SalesOrderStatus::Fulfilled);
+        $this->orders->updateStatus($id, SalesOrderStatus::Approved, SalesOrderStatus::Fulfilled);
 
         $this->expectException(DomainException::class);
 
@@ -295,7 +295,7 @@ final class SalesOrderServiceTest extends TestCase
     public function noTransitionLeavesAFulfilledOrder(): void
     {
         $id = $this->approvedOrder();
-        $this->orders->updateStatus($id, SalesOrderStatus::Fulfilled);
+        $this->orders->updateStatus($id, SalesOrderStatus::Approved, SalesOrderStatus::Fulfilled);
 
         foreach (SalesOrderStatus::cases() as $target) {
             self::assertFalse(

@@ -15,9 +15,14 @@ use PHPUnit\Framework\TestCase;
  * test tetap independen dan cepat tanpa perlu membangun ulang database
  * (FIRST: Independent, Fast, Repeatable — TEST-03).
  *
- * Test yang perlu menguji perilaku transaction itu sendiri — terutama
- * ConcurrentGoodsIssueTest yang membuka dua connection nyata — harus
- * mematikan pembungkus ini dengan meng-override wrapsInTransaction().
+ * Transaction milik Service tetap bekerja di dalam pembungkus ini: nested
+ * Database::transaction() menjadi SAVEPOINT, sehingga rollback di tengah
+ * operasi benar-benar terjadi (lihat NestedTransactionTest, tech-debt TD-1).
+ *
+ * Pembungkus hanya perlu dimatikan — dengan meng-override
+ * wrapsInTransaction() — oleh test yang memakai DUA connection, seperti
+ * ConcurrentGoodsIssueTest: connection kedua tidak dapat melihat data yang
+ * belum di-commit connection pertama.
  */
 abstract class IntegrationTestCase extends TestCase
 {

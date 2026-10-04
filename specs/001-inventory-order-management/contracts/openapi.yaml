@@ -1,0 +1,346 @@
+openapi: 3.1.0
+
+# Kontrak JSON API untuk Inventory & Order Management System.
+# Surface ini sengaja kecil (API-01 hanya mewajibkan minimal satu endpoint JSON).
+# Route HTML server-rendered TIDAK diduplikasi sebagai REST resource — lihat
+# http-routes.md. Menambah REST surface penuh tanpa consumer adalah over-engineering
+# yang dilarang spec C-003.
+
+info:
+  title: Inventory & Order Management System — JSON API
+  version: 1.0.0
+  description: |
+    JSON surface yang dikonsumsi oleh Vanilla JS di frontend. Menggunakan session
+    authentication yang sama persis dengan halaman HTML (cookie session), melewati
+    authorization guard yang sama, dan selalu mengembalikan `application/json` —
+    tidak pernah halaman HTML error (API-01).
+
+    Semua endpoint di sini bersifat read-only (GET), sehingga tidak memerlukan CSRF
+    token. Jika kelak ada endpoint JSON non-GET, endpoint tersebut WAJIB memvalidasi
+    CSRF token seperti form HTML.
+
+servers:
+  - url: /api
+    description: Same-origin, di belakang front controller yang sama
+
+tags:
+  - name: stock
+    description: Query ketersediaan stock
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: IOMS_SESSION
+      description: |
+        Session cookie PHP (HttpOnly, SameSite=Lax, Secure bila HTTPS aktif).
+        Dibuat saat login dan di-regenerate setelah login berhasil (AUTH-01).
+
+  schemas:
+    WarehouseStock:
+      type: object
+      required: [warehouseId, warehouseName, quantity]
+      properties:
+        warehouseId:
+          type: integer
+          format: int64
+          examples: [1]
+        warehouseName:
+          type: string
+          examples: ["Gudang Pusat Jakarta"]
+        quantity:
+          type: integer
+          minimum: 0
+          description: Quantity on hand di warehouse ini. Tidak pernah negatif.
+          examples: [42]
+
+    ProductAvailability:
+      type: object
+      required: [sku, productName, unit, reorderPoint, totalQuantity, lowStock, warehouses]
+      properties:
+        sku:
+          type: string
+          examples: ["SKU-000123"]
+        productName:
+          type: string
+          examples: ["Kabel UTP Cat6 305m"]
+        unit:
+          type: string
+          examples: ["roll"]
+        reorderPoint:
+          type: integer
+          minimum: 0
+          examples: [10]
+        totalQuantity:
+          type: integer
+          minimum: 0
+          description: Jumlah quantity di seluruh warehouse.
+          examples: [42]
+        lowStock:
+          type: boolean
+          description: true bila totalQuantity <= reorderPoint (spec A-008).
+          examples: [false]
+        warehouses:
+          type: array
+          description: Rincian stock per warehouse (WH-01).
+          items:
+            $ref: '#/components/schemas/WarehouseStock'
+
+    AvailableQuantity:
+      type: object
+      required: [productId, warehouseId, availableQuantity]
+      properties:
+        productId:
+          type: integer
+          format: int64
+        warehouseId:
+          type: integer
+          format: int64
+        availableQuantity:
+          type: integer
+          minimum: 0
+          description: |
+            Quantity on hand saat ini. Bersifat indikatif untuk form Sales Order —
+            binding stock check tetap dilakukan saat goods issue di dalam transaction
+            dengan SELECT ... FOR UPDATE (ARCH-02).
+
+    LowStockProduct:
+      type: object
+      required: [productId, sku, productName, totalQuantity, reorderPoint]
+      properties:
+        productId:
+          type: integer
+          format: int64
+        sku:
+          type: string
+        productName:
+          type: string
+        totalQuantity:
+          type: integer
+          minimum: 0
+        reorderPoint:
+          type: integer
+          minimum: 0
+
+    LowStockSummary:
+      type: object
+      required: [count, products]
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/LowStockProduct'
+
+    Error:
+      type: object
+      required: [error]
+      description: |
+        Error envelope seragam. Pesan bersifat generic dan tidak pernah memuat
+        exception message, stack trace, atau detail internal (ERR-01, security §7).
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [unauthorized, forbidden, not_found, invalid_request, rate_limited, server_error]
+            message:
+              type: string
+              examples: ["Authentication required."]
+
+  responses:
+    Unauthorized:
+      description: |
+        Tidak ada session yang valid. Dikembalikan sebagai JSON, bukan redirect ke
+        halaman login — ini yang membedakan endpoint API dari route HTML (API-01).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: unauthorized
+              message: "Authentication required."
+
+    Forbidden:
+      description: |
+        Session valid, tetapi role tidak diizinkan mengakses endpoint ini sama sekali.
+        Untuk resource milik user lain, lihat catatan 404 di setiap endpoint.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: forbidden
+              message: "You do not have access to this resource."
+
+    NotFound:
+      description: Resource tidak ditemukan, atau berada di luar scope pemanggil.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: not_found
+              message: "Resource not found."
+
+    ServerError:
+      description: Kegagalan tak terduga. Detail hanya masuk ke server log (ERR-01).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: server_error
+              message: "Something went wrong. Please try again."
+
+security:
+  - sessionCookie: []
+
+paths:
+
+  /products/{sku}/availability:
+    get:
+      tags: [stock]
+      operationId: getProductAvailability
+      summary: Ketersediaan stock satu product per warehouse
+      description: |
+        Endpoint wajib API-01. Mengembalikan stock per warehouse beserta totalnya.
+
+        **Authentication**: session cookie wajib.
+        **Authorization**: semua role yang sudah login (Admin, Sales, WarehouseStaff).
+        Data stock bukan data per-owner, sehingga tidak ada ownership scoping.
+        **Rate limit**: tidak ada; endpoint murah dan read-only.
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          description: SKU product. Selalu dipakai sebagai bound parameter, tidak pernah diinterpolasi ke SQL.
+          schema:
+            type: string
+            maxLength: 64
+            pattern: '^[A-Za-z0-9._-]{1,64}$'
+          examples:
+            found:
+              value: "SKU-000123"
+      responses:
+        '200':
+          description: Product ditemukan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductAvailability'
+              example:
+                sku: "SKU-000123"
+                productName: "Kabel UTP Cat6 305m"
+                unit: "roll"
+                reorderPoint: 10
+                totalQuantity: 42
+                lowStock: false
+                warehouses:
+                  - warehouseId: 1
+                    warehouseName: "Gudang Pusat Jakarta"
+                    quantity: 30
+                  - warehouseId: 2
+                    warehouseName: "Gudang Surabaya"
+                    quantity: 12
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /products/{productId}/warehouses/{warehouseId}/available:
+    get:
+      tags: [stock]
+      operationId: getAvailableQuantity
+      summary: Quantity tersedia untuk satu pasangan product dan warehouse
+      description: |
+        Dikonsumsi oleh form Sales Order untuk menampilkan available stock di samping
+        setiap line saat diisi (lihat Primary Interactions di spec).
+
+        **Authentication**: session cookie wajib.
+        **Authorization**: Admin, Sales, WarehouseStaff.
+        **Catatan penting**: nilai ini indikatif. Keputusan mengikat tetap terjadi di
+        dalam transaction goods issue (ARCH-02) — angka di sini bisa sudah basah saat
+        goods issue dijalankan, dan itu memang diharapkan.
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: integer, format: int64, minimum: 1 }
+        - name: warehouseId
+          in: path
+          required: true
+          schema: { type: integer, format: int64, minimum: 1 }
+      responses:
+        '200':
+          description: Pasangan product dan warehouse ditemukan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailableQuantity'
+              example:
+                productId: 123
+                warehouseId: 2
+                availableQuantity: 12
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /dashboard/low-stock:
+    get:
+      tags: [stock]
+      operationId: getLowStockSummary
+      summary: Product yang berada pada atau di bawah reorder point
+      description: |
+        Dikonsumsi oleh dashboard Admin dan Warehouse Staff (DASH-01). Angka dihitung
+        dari aggregation query, bukan nilai statis.
+
+        **Authentication**: session cookie wajib.
+        **Authorization**: **Admin dan WarehouseStaff saja**. Role Sales menerima 403 —
+        low stock bukan bagian dari dashboard Sales menurut §1.2.
+        **Rate limit**: tidak ada; query di-index dan murah.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Jumlah maksimum baris yang dikembalikan.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Ringkasan low stock.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LowStockSummary'
+              example:
+                count: 3
+                products:
+                  - productId: 123
+                    sku: "SKU-000123"
+                    productName: "Kabel UTP Cat6 305m"
+                    totalQuantity: 4
+                    reorderPoint: 10
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'

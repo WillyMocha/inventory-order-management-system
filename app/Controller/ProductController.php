@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Enum\Role;
 use App\Service\MasterDataService;
 use App\Service\ProductImageService;
 use App\Service\ProductService;
+use App\Service\StockService;
 use App\Support\Csrf;
 use App\Support\Exception\NotFoundException;
 use App\Support\Exception\ValidationException;
@@ -26,6 +28,9 @@ use RuntimeException;
  */
 final class ProductController
 {
+    /** Key query string yang dibawa link pagination dan sort (FIND-01). */
+    private const array FILTER_KEYS = ['search', 'category', 'stock', 'sort', 'direction'];
+
     /**
      * Key sort yang boleh muncul di query string. Pemetaan ke nama kolom
      * dilakukan allowlist MysqlProductRepository::SORTABLE; daftar di sini
@@ -39,6 +44,7 @@ final class ProductController
         private readonly ProductService $productService,
         private readonly ProductImageService $imageService,
         private readonly MasterDataService $masterData,
+        private readonly StockService $stockService,
         private readonly Session $session,
         private readonly Csrf $csrf,
     ) {
@@ -47,11 +53,11 @@ final class ProductController
     public function index(Request $request): Response
     {
         $criteria = $this->criteriaFrom($request);
-        $filters = $this->queryState($request);
+        $filters = $request->queryState(self::FILTER_KEYS);
 
         // Sort dipisahkan dari filter: menghitung total tidak peduli urutan,
         // dan countBy() memang tidak menerima key sort.
-        $sorted = $criteria + $this->sortCriteriaFrom($request);
+        $sorted = $criteria + $request->sortCriteria(self::SORT_KEYS, 'asc');
 
         $paginator = new Paginator($this->productService->count($criteria), $request->queryInt('page', 1), $filters);
         $products = $this->productService->search($sorted, $paginator->perPage(), $paginator->offset());
@@ -83,6 +89,9 @@ final class ProductController
     {
         $breakdown = $this->productService->stockBreakdown($this->requireId($request));
         $product = $breakdown['product'];
+        // Tombol koreksi dan riwayatnya untuk Admin dan Warehouse Staff saja
+        // (spec 003 A-009). Presentasi: route table dan StockService yang menegakkan.
+        $canAdjust = in_array($this->session->role(), [Role::Admin, Role::WarehouseStaff], true);
 
         return Response::html($this->view->render('products/detail', [
             'title'      => $product->name,
@@ -92,6 +101,9 @@ final class ProductController
             'category'   => $this->masterData->requireCategory($product->categoryId),
             'referenced' => $this->productService->isReferencedByOrder((int) $product->id),
             'canManage'  => $this->session->role()?->value === 'Admin',
+            'canAdjust'  => $canAdjust,
+            // Query riwayat tidak dijalankan untuk Sales.
+            'adjustments' => $canAdjust ? $this->stockService->recentAdjustments((int) $product->id) : [],
             'csrf'       => $this->csrf,
         ]));
     }
@@ -258,39 +270,6 @@ final class ProductController
         }
 
         return $criteria;
-    }
-
-    /** @return array<string, string> */
-    private function queryState(Request $request): array
-    {
-        $state = [];
-
-        foreach (['search', 'category', 'stock', 'sort', 'direction'] as $key) {
-            if ($request->queryString($key) !== '') {
-                $state[$key] = $request->queryString($key);
-            }
-        }
-
-        return $state;
-    }
-
-    /**
-     * Sort dan arahnya, hanya bila key-nya dikenal.
-     *
-     * @return array{sort?: string, direction?: string}
-     */
-    private function sortCriteriaFrom(Request $request): array
-    {
-        $sort = $request->queryString('sort');
-
-        if (!in_array($sort, self::SORT_KEYS, true)) {
-            return [];
-        }
-
-        return [
-            'sort'      => $sort,
-            'direction' => strtolower($request->queryString('direction')) === 'desc' ? 'desc' : 'asc',
-        ];
     }
 
     private function requireId(Request $request): int

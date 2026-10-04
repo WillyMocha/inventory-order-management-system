@@ -2,6 +2,15 @@
 # tidak ada requirement yang memintanya dan §4.3 menempatkannya di luar scope.
 services:
   app:
+    # Image diberi nama tetap. `docker compose up` memakai image ini bila sudah
+    # ada dan hanya mem-build-nya bila belum ada (first run). Source code
+    # di-bind-mount, jadi perubahan kode TIDAK butuh rebuild — `--build` hanya
+    # perlu setelah Dockerfile, composer.lock, atau docker/entrypoint.sh berubah.
+    image: ioms-app:local
+    # Image ini hanya ada secara lokal; tanpa pull_policy, Compose mencoba
+    # menariknya dari Docker Hub lebih dulu dan menampilkan "pull access denied"
+    # sebelum akhirnya mem-build.
+    pull_policy: never
     build:
       context: .
       dockerfile: Dockerfile
@@ -45,8 +54,10 @@ services:
     restart: unless-stopped
     # Port publikasi ke host memakai key sendiri, bukan DB_PORT. Default 3307
     # agar tidak bentrok dengan MySQL yang sudah berjalan di host (mis. Laragon).
+    # Di-bind ke 127.0.0.1 saja: cukup untuk menjalankan test dari host, tanpa
+    # membuka MySQL — dengan kredensial development-nya — ke jaringan lain.
     ports:
-      - "${DB_HOST_PORT:-3307}:3306"
+      - "127.0.0.1:${DB_HOST_PORT:-3307}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-root_secret}"
       MYSQL_DATABASE: "${DB_DATABASE:-ioms}"
@@ -61,12 +72,18 @@ services:
       - db_data:/var/lib/mysql
       # Database test dibuat sekali saat volume pertama kali diinisialisasi.
       - ./database/docker-init:/docker-entrypoint-initdb.d:ro
+    # Healthcheck lewat TCP, bukan socket. Saat volume pertama kali
+    # diinisialisasi, MySQL menjalankan server sementara yang hanya menerima
+    # socket; ping lewat socket sudah lulus di fase itu, padahal port 3306 belum
+    # terbuka. Container app — yang langsung menjalankan migration — akan
+    # mendapat "Connection refused" dan restart berulang kali.
     healthcheck:
       test:
         - CMD
         - mysqladmin
         - ping
-        - -hlocalhost
+        - -h127.0.0.1
+        - --protocol=tcp
         - -uroot
         - -p${DB_ROOT_PASSWORD:-root_secret}
       interval: 5s

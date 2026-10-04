@@ -23,9 +23,6 @@ use App\Support\Validator;
  */
 final class UserService
 {
-    /** Panjang minimum password. Cukup untuk demo, tidak melemahkan hashing. */
-    private const int MIN_PASSWORD_LENGTH = 8;
-
     public function __construct(private readonly UserRepositoryInterface $users)
     {
     }
@@ -109,7 +106,7 @@ final class UserService
 
         Validator::make(['password' => $newPassword])
             ->required('password', 'Password')
-            ->minLength('password', 'Password', self::MIN_PASSWORD_LENGTH)
+            ->minLength('password', 'Password', User::MIN_PASSWORD_LENGTH)
             ->validate();
 
         $this->users->updatePasswordHash($id, password_hash($newPassword, PASSWORD_DEFAULT));
@@ -162,7 +159,7 @@ final class UserService
         if ($requirePassword) {
             $validator
                 ->required('password', 'Password')
-                ->minLength('password', 'Password', self::MIN_PASSWORD_LENGTH);
+                ->minLength('password', 'Password', User::MIN_PASSWORD_LENGTH);
         }
 
         // Email unik (USR-01). Dicek hanya bila formatnya sudah valid, agar

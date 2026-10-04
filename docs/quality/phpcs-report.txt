@@ -1,0 +1,21 @@
+PHP_CodeSniffer PSR-12 — laporan lengkap
+Dijalankan: 2026-10-03, di dalam Docker (PHP 8.4.26)
+Perintah:   docker compose exec app composer cs   (juga bagian dari composer check)
+Konfigurasi: phpcs.xml (PSR12 + Generic.PHP.RequireStrictTypes)
+
+Cakupan: app, config, database, scripts, tests.
+declare(strict_types=1) ditegakkan sniff, bukan hanya konvensi.
+
+Hasil: NOL error, NOL warning.
+
+Satu-satunya warning sebelumnya (PSR1.Files.SideEffects pada
+config/database.php) hilang karena file itu — PDO factory yang tidak lagi
+dipakai — dihapus (docs/quality/tech-debt.md TD-8).
+
+----------------------------------------------------------------------
+............................................................  60 / 150 (40%)
+............................................................ 120 / 150 (80%)
+..............................                               150 / 150 (100%)
+
+
+Time: 2.18 secs; Memory: 16MB

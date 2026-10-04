@@ -49,19 +49,29 @@
     --info-bg: #ecfeff;
     --info-border: #a5f3fc;
 
+    /* --- Teks status di atas latar pucatnya -----------------------------
+       Satu tingkat lebih gelap dari warna status di atas. Warna 500/600
+       hanya mencapai 3.07–4.41:1 di atas latar *-bg, di bawah WCAG AA 4.5:1
+       untuk teks 12px pada badge (audit kontras 2026-10-03). Warna status
+       aslinya tetap dipakai untuk ikon dan aksen non-teks. */
+    --success-text: #15803d;
+    --warning-text: #b45309;
+    --danger-text: #b91c1c;
+    --info-text: #0e7490;
+
     /* --- Pemetaan status domain ---------------------------------------
        Satu tempat, sehingga badge status konsisten di seluruh halaman. */
-    --status-draft: var(--neutral-500);
+    --status-draft: var(--neutral-600);
     --status-draft-bg: var(--neutral-100);
-    --status-pending: var(--warning);
+    --status-pending: var(--warning-text);
     --status-pending-bg: var(--warning-bg);
-    --status-approved: var(--info);
+    --status-approved: var(--info-text);
     --status-approved-bg: var(--info-bg);
-    --status-fulfilled: var(--success);
+    --status-fulfilled: var(--success-text);
     --status-fulfilled-bg: var(--success-bg);
-    --status-cancelled: var(--danger);
+    --status-cancelled: var(--danger-text);
     --status-cancelled-bg: var(--danger-bg);
-    --status-low-stock: var(--warning);
+    --status-low-stock: var(--warning-text);
     --status-low-stock-bg: var(--warning-bg);
 
     /* --- Permukaan ----------------------------------------------------- */

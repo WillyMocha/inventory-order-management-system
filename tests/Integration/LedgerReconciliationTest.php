@@ -9,6 +9,7 @@ use App\Repository\Mysql\MysqlProductStockRepository;
 use App\Repository\Mysql\MysqlPurchaseOrderRepository;
 use App\Repository\Mysql\MysqlSalesOrderRepository;
 use App\Repository\Mysql\MysqlStockLedgerRepository;
+use App\Repository\Mysql\MysqlWarehouseRepository;
 use App\Service\StockService;
 use App\Support\Exception\DomainException;
 use PHPUnit\Framework\Attributes\Test;
@@ -49,6 +50,7 @@ final class LedgerReconciliationTest extends IntegrationTestCase
             new MysqlProductStockRepository($this->database),
             $this->ledger,
             new MysqlProductRepository($this->database),
+            new MysqlWarehouseRepository($this->database),
             $this->database,
         );
 

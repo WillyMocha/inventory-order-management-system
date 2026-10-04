@@ -12,6 +12,16 @@ interface PurchaseOrderRepositoryInterface
     /** Memuat order beserta seluruh item-nya. */
     public function findById(int $id): ?PurchaseOrder;
 
+    /**
+     * Memuat order beserta item-nya sambil mengunci baris header dan item
+     * (SELECT ... FOR UPDATE) sampai transaction berjalan selesai.
+     *
+     * Dipakai goods receipt agar status dan received_quantity dibaca ulang di
+     * bawah lock: dua receipt bersamaan tidak dapat sama-sama merencanakan
+     * dari outstanding yang sudah basi (ARCH-02). Wajib di dalam transaction.
+     */
+    public function lockForUpdate(int $id): ?PurchaseOrder;
+
     public function orderNumberExists(string $orderNumber): bool;
 
     /**
@@ -26,7 +36,11 @@ interface PurchaseOrderRepositoryInterface
     /** Menyimpan order beserta item-nya; mengembalikan id order. */
     public function save(PurchaseOrder $order): int;
 
-    public function updateStatus(int $id, PurchaseOrderStatus $status): void;
+    /**
+     * Mengubah status HANYA bila status tersimpan masih $expected
+     * (compare-and-set). False bila order sudah diubah request lain.
+     */
+    public function updateStatus(int $id, PurchaseOrderStatus $expected, PurchaseOrderStatus $status): bool;
 
     /** Menambah received_quantity satu item — dipanggil saat goods receipt. */
     public function addReceivedQuantity(int $itemId, int $quantity): void;
@@ -40,4 +54,14 @@ interface PurchaseOrderRepositoryInterface
      * @return list<PurchaseOrder>
      */
     public function awaitingReceipt(int $limit): array;
+
+    /**
+     * Data Purchase Order untuk report CSV dalam rentang tanggal (REPORT-01).
+     *
+     * Satu baris per order: nama supplier/warehouse/pembuat, total qty dipesan
+     * dan diterima (agar sisa partial receipt terlihat), serta nilai order.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function ordersBetween(string $startDate, string $endDate): array;
 }

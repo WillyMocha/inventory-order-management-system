@@ -230,7 +230,7 @@ trait SalesOrderFixtures
             $items,
         ));
 
-        $orders->updateStatus($orderId, PurchaseOrderStatus::Ordered);
+        $orders->updateStatus($orderId, PurchaseOrderStatus::Draft, PurchaseOrderStatus::Ordered);
 
         return $orderId;
     }
@@ -276,14 +276,17 @@ trait SalesOrderFixtures
         // save() selalu menulis Draft; status akhir di-set terpisah agar
         // fixture dapat memulai dari tahap mana pun tanpa menjalankan seluruh
         // alur approval.
+        // updateStatus() bersifat compare-and-set, jadi status asal ikut
+        // disebut; markApproved() hanya berlaku dari PendingApproval.
         if ($status !== SalesOrderStatus::Draft) {
             if ($approvedBy === null) {
-                $orders->updateStatus($orderId, $status);
+                $orders->updateStatus($orderId, SalesOrderStatus::Draft, $status);
             } else {
+                $orders->updateStatus($orderId, SalesOrderStatus::Draft, SalesOrderStatus::PendingApproval);
                 $orders->markApproved($orderId, $approvedBy, '2026-09-11 10:00:00');
 
                 if ($status !== SalesOrderStatus::Approved) {
-                    $orders->updateStatus($orderId, $status);
+                    $orders->updateStatus($orderId, SalesOrderStatus::Approved, $status);
                 }
             }
         }

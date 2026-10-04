@@ -8,6 +8,7 @@ use App\Entity\Enum\SalesOrderStatus;
 use App\Entity\SalesOrder;
 use App\Entity\SalesOrderItem;
 use App\Repository\SalesOrderRepositoryInterface;
+use RuntimeException;
 
 final class MysqlSalesOrderRepository extends MysqlRepository implements SalesOrderRepositoryInterface
 {
@@ -25,6 +26,27 @@ final class MysqlSalesOrderRepository extends MysqlRepository implements SalesOr
     public function findById(int $id): ?SalesOrder
     {
         $row = $this->fetchOne(self::SELECT . ' WHERE id = :id', ['id' => $id]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return $this->hydrate($row, $this->loadItems($id));
+    }
+
+    /**
+     * Item tidak ikut dikunci: setelah Draft, item Sales Order tidak pernah
+     * berubah. Yang diperebutkan hanya status di baris header.
+     *
+     * @throws RuntimeException bila dipanggil di luar transaction.
+     */
+    public function lockForUpdate(int $id): ?SalesOrder
+    {
+        if (!$this->pdo()->inTransaction()) {
+            throw new RuntimeException('lockForUpdate() wajib dipanggil di dalam transaction.');
+        }
+
+        $row = $this->fetchOne(self::SELECT . ' WHERE id = :id FOR UPDATE', ['id' => $id]);
 
         if ($row === null) {
             return null;
@@ -119,28 +141,33 @@ final class MysqlSalesOrderRepository extends MysqlRepository implements SalesOr
         return $orderId;
     }
 
-    public function updateStatus(int $id, SalesOrderStatus $status): void
+    public function updateStatus(int $id, SalesOrderStatus $expected, SalesOrderStatus $status): bool
     {
-        $this->run(
-            'UPDATE sales_order SET status = :status, updated_at = NOW() WHERE id = :id',
-            ['id' => $id, 'status' => $status->value],
-        );
+        // Syarat status pada WHERE dievaluasi InnoDB sebagai current read di
+        // bawah row lock, bukan dari snapshot request ini — jadi status yang
+        // sudah diubah request lain selalu terlihat.
+        return $this->run(
+            'UPDATE sales_order SET status = :status, updated_at = NOW()
+              WHERE id = :id AND status = :expected',
+            ['id' => $id, 'status' => $status->value, 'expected' => $expected->value],
+        )->rowCount() === 1;
     }
 
-    public function markApproved(int $id, int $approvedBy, string $approvedAt): void
+    public function markApproved(int $id, int $approvedBy, string $approvedAt): bool
     {
-        $this->run(
+        return $this->run(
             'UPDATE sales_order
                 SET status = :status, approved_by = :approved_by, approved_at = :approved_at,
                     updated_at = NOW()
-              WHERE id = :id',
+              WHERE id = :id AND status = :expected',
             [
                 'id'          => $id,
                 'status'      => SalesOrderStatus::Approved->value,
                 'approved_by' => $approvedBy,
                 'approved_at' => $approvedAt,
+                'expected'    => SalesOrderStatus::PendingApproval->value,
             ],
-        );
+        )->rowCount() === 1;
     }
 
     public function countByStatus(?int $createdBy = null): array

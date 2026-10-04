@@ -20,6 +20,9 @@ final class Database implements TransactionRunner
 {
     private ?PDO $pdo = null;
 
+    /** Kedalaman nested transaction saat ini; menjadi nama savepoint. */
+    private int $savepointDepth = 0;
+
     /**
      * @param array{host: string, port: int, database: string, username: string, password: string} $config
      */
@@ -51,6 +54,12 @@ final class Database implements TransactionRunner
                     // Prepared statement yang sesungguhnya, bukan emulasi.
                     PDO::ATTR_EMULATE_PREPARES   => false,
                     PDO::ATTR_STRINGIFY_FETCHES  => false,
+                    // rowCount() pada UPDATE menghitung baris yang COCOK, bukan
+                    // hanya yang nilainya berubah. Perubahan status bersyarat
+                    // (WHERE status = :expected) bergantung pada ini: transisi
+                    // PartiallyReceived -> PartiallyReceived tetap sah walau
+                    // tidak ada kolom yang berubah.
+                    \Pdo\Mysql::ATTR_FOUND_ROWS  => true,
                 ],
             );
         } catch (PDOException $e) {
@@ -71,8 +80,12 @@ final class Database implements TransactionRunner
      * penulisan stock_ledger dan perubahan product_stock tidak pernah terpisah
      * (ARCH-02, constitution Principle IV).
      *
-     * Nested call diizinkan dan ikut transaction terluar — hanya transaction
-     * terluar yang melakukan commit.
+     * Nested call menjadi SAVEPOINT di dalam transaction terluar: hanya
+     * transaction terluar yang commit, tetapi kegagalan di dalam tetap
+     * membatalkan pekerjaan nested call itu sendiri. Dulu nested call hanya
+     * menjalankan callback (passthrough), sehingga di bawah pembungkus
+     * transaction integration test rollback Service tidak pernah terjadi
+     * (tech-debt TD-1).
      *
      * @template T
      * @param callable(): T $callback
@@ -83,7 +96,7 @@ final class Database implements TransactionRunner
         $pdo = $this->pdo();
 
         if ($pdo->inTransaction()) {
-            return $callback();
+            return $this->withinSavepoint($pdo, $callback);
         }
 
         $pdo->beginTransaction();
@@ -104,6 +117,40 @@ final class Database implements TransactionRunner
             if (!$committed) {
                 $pdo->rollBack();
             }
+        }
+    }
+
+    /**
+     * Nama savepoint dibangkitkan dari counter internal, tidak pernah dari
+     * input, sehingga aman disisipkan ke statement.
+     *
+     * @template T
+     * @param callable(): T $callback
+     * @return T
+     */
+    private function withinSavepoint(PDO $pdo, callable $callback): mixed
+    {
+        $name = 'ioms_sp_' . ++$this->savepointDepth;
+        $pdo->exec('SAVEPOINT ' . $name);
+
+        try {
+            $result = $callback();
+            $pdo->exec('RELEASE SAVEPOINT ' . $name);
+
+            return $result;
+        } catch (Throwable $e) {
+            try {
+                $pdo->exec('ROLLBACK TO SAVEPOINT ' . $name);
+            } catch (PDOException $rollbackFailure) {
+                // Deadlock membuat InnoDB me-rollback SELURUH transaction,
+                // dan savepoint-nya ikut hilang. Exception asli yang lebih
+                // penting; kegagalan rollback cukup dicatat.
+                error_log('Rollback to savepoint failed: ' . $rollbackFailure->getMessage());
+            }
+
+            throw $e;
+        } finally {
+            $this->savepointDepth--;
         }
     }
 }

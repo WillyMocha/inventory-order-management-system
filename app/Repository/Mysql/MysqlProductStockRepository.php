@@ -91,20 +91,28 @@ final class MysqlProductStockRepository extends MysqlRepository implements Produ
      */
     public function adjust(int $productId, int $warehouseId, int $delta): void
     {
-        $keys = ['product_id' => $productId, 'warehouse_id' => $warehouseId];
-
-        $this->run(
-            'INSERT INTO product_stock (product_id, warehouse_id, quantity, updated_at)
-                  VALUES (:product_id, :warehouse_id, 0, NOW())
-             ON DUPLICATE KEY UPDATE id = id',
-            $keys,
-        );
+        $this->ensureRow($productId, $warehouseId);
 
         $this->run(
             'UPDATE product_stock
                 SET quantity = quantity + :delta, updated_at = NOW()
               WHERE product_id = :product_id AND warehouse_id = :warehouse_id',
-            $keys + ['delta' => $delta],
+            ['product_id' => $productId, 'warehouse_id' => $warehouseId, 'delta' => $delta],
+        );
+    }
+
+    /**
+     * Nilai kandidat 0 selalu lolos CHECK `quantity >= 0`, dan FK tetap
+     * menolak product atau warehouse yang tidak sah (berbeda dari INSERT
+     * IGNORE yang menelan error itu). Lihat juga penjelasan pada adjust().
+     */
+    public function ensureRow(int $productId, int $warehouseId): void
+    {
+        $this->run(
+            'INSERT INTO product_stock (product_id, warehouse_id, quantity, updated_at)
+                  VALUES (:product_id, :warehouse_id, 0, NOW())
+             ON DUPLICATE KEY UPDATE id = id',
+            ['product_id' => $productId, 'warehouse_id' => $warehouseId],
         );
     }
 

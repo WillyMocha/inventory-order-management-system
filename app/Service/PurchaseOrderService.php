@@ -83,9 +83,7 @@ final class PurchaseOrderService
     {
         $order = $this->requireOrder($id);
 
-        $this->assertCanTransition($order, PurchaseOrderStatus::Ordered);
-
-        $this->orders->updateStatus($id, PurchaseOrderStatus::Ordered);
+        $this->transition($order, PurchaseOrderStatus::Ordered);
     }
 
     /**
@@ -102,9 +100,7 @@ final class PurchaseOrderService
     {
         $order = $this->requireOrder($id);
 
-        $this->assertCanTransition($order, PurchaseOrderStatus::Cancelled);
-
-        $this->orders->updateStatus($id, PurchaseOrderStatus::Cancelled);
+        $this->transition($order, PurchaseOrderStatus::Cancelled);
     }
 
     /** @throws NotFoundException */
@@ -138,6 +134,23 @@ final class PurchaseOrderService
     public function countByStatus(): array
     {
         return $this->orders->countByStatus();
+    }
+
+    /**
+     * Memvalidasi transisi lalu menyimpannya secara compare-and-set, agar
+     * cancel tidak menimpa order yang sementara itu sudah Received.
+     *
+     * @throws DomainException
+     */
+    private function transition(PurchaseOrder $order, PurchaseOrderStatus $target): void
+    {
+        $this->assertCanTransition($order, $target);
+
+        if (!$this->orders->updateStatus((int) $order->id, $order->status, $target)) {
+            throw new DomainException(
+                'This order was changed by someone else. Reload the page and try again.',
+            );
+        }
     }
 
     /** @throws DomainException */

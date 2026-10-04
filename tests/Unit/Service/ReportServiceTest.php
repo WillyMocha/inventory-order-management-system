@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
+use App\Entity\Enum\PurchaseOrderStatus;
 use App\Entity\Enum\Role;
 use App\Entity\Enum\SalesOrderStatus;
+use App\Entity\PurchaseOrder;
+use App\Entity\PurchaseOrderItem;
 use App\Entity\SalesOrder;
 use App\Entity\SalesOrderItem;
 use App\Entity\StockLedger;
@@ -14,6 +17,7 @@ use App\Support\Exception\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Fake\FixedClock;
+use Tests\Unit\Fake\InMemoryPurchaseOrderRepository;
 use Tests\Unit\Fake\InMemorySalesOrderRepository;
 use Tests\Unit\Fake\InMemoryStockLedgerRepository;
 
@@ -74,9 +78,22 @@ final class ReportServiceTest extends TestCase
             [self::SALES_OWNER => 'Sales Satu', self::SALES_OTHER => 'Sales Dua', self::ADMIN => 'Admin Utama'],
         );
 
+        $purchaseOrders = new InMemoryPurchaseOrderRepository(
+            [
+                // Partial receipt: 10 dipesan, 4 diterima — sisanya harus terlihat.
+                $this->purchaseOrder(1, 'PO-2026-0001', '2026-03-06', PurchaseOrderStatus::PartiallyReceived, 10, 4),
+                $this->purchaseOrder(2, 'PO-2026-0002', '2026-03-22', PurchaseOrderStatus::Cancelled, 5, 0),
+                $this->purchaseOrder(3, 'PO-2026-0003', '2026-04-12', PurchaseOrderStatus::Ordered, 3, 0),
+            ],
+            [1 => '=HYPERLINK("http://evil")'],
+            [1 => 'Gudang Pusat Jakarta'],
+            [self::ADMIN => 'Admin Utama'],
+        );
+
         $this->service = new ReportService(
             $this->ledger,
             $this->salesOrders,
+            $purchaseOrders,
             new FixedClock('2026-04-15 10:00:00'),
         );
     }
@@ -299,6 +316,45 @@ final class ReportServiceTest extends TestCase
         self::assertSame('40', $cells[5]);
     }
 
+    // -------------------------------- alasan koreksi stock (spec 003 FR-010)
+
+    #[Test]
+    public function theStockMovementHeaderEndsWithTheReason(): void
+    {
+        $header = ReportService::STOCK_MOVEMENT_HEADER;
+
+        self::assertSame('Reason', $header[count($header) - 1]);
+    }
+
+    #[Test]
+    public function anAdjustmentRowCarriesItsReasonAndAReceiptRowDoesNot(): void
+    {
+        $this->ledger->recordAt('2026-03-07 10:00:00');
+        $this->ledger->append(StockLedger::adjustment(1, 1, -3, '3 units water-damaged', self::ADMIN));
+
+        $rows = $this->service->stockMovements('2026-03-01', '2026-03-10');
+        $receipt = $this->service->stockMovementCsvRow($rows[0]);
+        $adjustment = $this->service->stockMovementCsvRow($rows[1]);
+
+        self::assertSame('', $receipt[count($receipt) - 1]);
+        self::assertSame('Adjustment', $adjustment[4]);
+        self::assertSame('-3', $adjustment[5]);
+        self::assertSame('Manual', $adjustment[6]);
+        self::assertSame('3 units water-damaged', $adjustment[count($adjustment) - 1]);
+    }
+
+    /** Alasan adalah teks bebas dari user: rumus spreadsheet harus dinetralkan (NFR-001). */
+    #[Test]
+    public function aReasonThatLooksLikeAFormulaIsWrittenAsText(): void
+    {
+        $this->ledger->recordAt('2026-03-07 10:00:00');
+        $this->ledger->append(StockLedger::adjustment(1, 1, 2, '=1+1', self::ADMIN));
+
+        $cells = $this->service->stockMovementCsvRow($this->service->stockMovements('2026-03-07', '2026-03-07')[0]);
+
+        self::assertSame("'=1+1", $cells[count($cells) - 1]);
+    }
+
     // ------------------------------------- CSV formula injection (CWE-1236)
 
     #[Test]
@@ -373,7 +429,80 @@ final class ReportServiceTest extends TestCase
         self::assertSame(count($rows), array_sum($this->service->statusTotals($rows)));
     }
 
+    // ------------------------------------------ Purchase order export
+
+    #[Test]
+    public function purchaseOrdersAreFilteredByTheRequestedRange(): void
+    {
+        $rows = $this->service->purchaseOrders('2026-03-01', '2026-03-31');
+
+        self::assertSame(
+            ['PO-2026-0001', 'PO-2026-0002'],
+            array_map(static fn (array $row): mixed => $row['order_number'], $rows),
+        );
+    }
+
+    #[Test]
+    public function aPurchaseOrderCsvRowShowsWhatIsStillOutstanding(): void
+    {
+        $row = $this->service->purchaseOrders('2026-03-06', '2026-03-06')[0];
+        $cells = $this->service->purchaseOrderCsvRow($row);
+
+        self::assertCount(count(ReportService::PURCHASE_ORDER_HEADER), $cells);
+        self::assertSame('PO-2026-0001', $cells[0]);
+        self::assertSame('PartiallyReceived', $cells[2]);
+        self::assertSame('10', $cells[6], 'Ordered Qty');
+        self::assertSame('4', $cells[7], 'Received Qty');
+        // 10 x 250.000, angka polos agar dapat dijumlahkan spreadsheet.
+        self::assertSame('2500000', $cells[8]);
+    }
+
+    #[Test]
+    public function aSupplierNameThatLooksLikeAFormulaIsWrittenAsText(): void
+    {
+        $row = $this->service->purchaseOrders('2026-03-06', '2026-03-06')[0];
+
+        self::assertSame('\'=HYPERLINK("http://evil")', $this->service->purchaseOrderCsvRow($row)[3]);
+    }
+
+    #[Test]
+    public function purchaseOrderTotalsCoverEveryStatusAndMatchTheExport(): void
+    {
+        $rows = $this->service->purchaseOrders('2026-03-01', '2026-04-30');
+        $totals = $this->service->purchaseOrderStatusTotals($rows);
+
+        self::assertSame(
+            array_map(static fn (PurchaseOrderStatus $s): string => $s->value, PurchaseOrderStatus::cases()),
+            array_keys($totals),
+        );
+        self::assertSame(1, $totals[PurchaseOrderStatus::PartiallyReceived->value]);
+        self::assertSame(1, $totals[PurchaseOrderStatus::Cancelled->value]);
+        self::assertSame(1, $totals[PurchaseOrderStatus::Ordered->value]);
+        self::assertSame(0, $totals[PurchaseOrderStatus::Received->value]);
+        self::assertSame(count($rows), array_sum($totals));
+    }
+
     // --------------------------------------------------------- Helpers
+
+    private function purchaseOrder(
+        int $id,
+        string $number,
+        string $orderDate,
+        PurchaseOrderStatus $status,
+        int $quantity,
+        int $received,
+    ): PurchaseOrder {
+        return new PurchaseOrder(
+            $id,
+            $number,
+            1,
+            1,
+            $status,
+            $orderDate,
+            self::ADMIN,
+            [new PurchaseOrderItem(null, $id, 1, $quantity, $received, '250000.00')],
+        );
+    }
 
     private function salesOrder(
         int $id,

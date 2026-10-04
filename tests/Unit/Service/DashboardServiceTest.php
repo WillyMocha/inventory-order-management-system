@@ -234,7 +234,7 @@ final class DashboardServiceTest extends TestCase
     {
         $before = $this->service->warehouseFigures()['issueQueueCount'];
 
-        $this->salesOrders->updateStatus(2, SalesOrderStatus::Approved);
+        $this->salesOrders->updateStatus(2, SalesOrderStatus::PendingApproval, SalesOrderStatus::Approved);
 
         self::assertSame(1, $before);
         self::assertSame(2, $this->service->warehouseFigures()['issueQueueCount']);

@@ -34,8 +34,9 @@ dan US8 hanya bergantung pada fondasi, sehingga dapat dikerjakan paralel.
 Autentikasi berbasis session; manajemen user oleh Admin; master data (category, warehouse,
 supplier, customer); katalog product beserta upload image; stock per warehouse dengan ledger
 append-only; Purchase Order sampai goods receipt bertahap; Sales Order dengan approval dan
-goods issue; pencarian, filter, sort, dan pagination; dashboard per role; export CSV; satu
-JSON API; dan satu routine di luar request cycle.
+goods issue; pencarian, filter, sort, dan pagination; dashboard per role; export CSV; JSON API
+minimal (dua endpoint availability stock dan satu low-stock); dan satu routine di luar
+request cycle.
 
 ### Tidak termasuk
 
@@ -56,12 +57,15 @@ Dinyatakan eksplisit agar tidak menjadi harapan yang tidak pernah disepakati:
 
 Schema **mirror** dari resource model sumber. Tidak ada resource yang di-merge, di-rename, atau
 disederhanakan — daftar lengkap beserta kolomnya ada di
-[`data-model.md`](../../specs/001-inventory-order-management/data-model.md).
+[`data-model.md`](../../specs/001-inventory-order-management/data-model.md), dan ERD yang
+diturunkan dari DDL ada di [`erd.md`](./erd.md).
+
+Tafsiran atas bagian brief yang ambigu dicatat di [`decisions.md`](./decisions.md).
 
 ```mermaid
 erDiagram
     user ||--o{ sales_order : "created_by"
-    user ||--o{ sales_order : "approved_by"
+    user |o--o{ sales_order : "approved_by"
     user ||--o{ purchase_order : "created_by"
     user ||--o{ stock_ledger : "performed_by"
 
@@ -72,6 +76,7 @@ erDiagram
     warehouse ||--o{ stock_ledger : "tempat pergerakan"
 
     supplier ||--o{ purchase_order : "memasok"
+    warehouse ||--o{ purchase_order : "gudang tujuan"
     purchase_order ||--|{ purchase_order_item : "berisi"
     product ||--o{ purchase_order_item : "dipesan"
 
@@ -96,13 +101,15 @@ untuk setiap pasangan (product, warehouse).
 
 Berurutan menurut manfaat, bukan menurut kemudahan. Diambil dari
 [`docs/quality/critique.md`](../quality/critique.md) dan
-[`tech-debt.md`](../quality/tech-debt.md).
+[`tech-debt.md`](../quality/tech-debt.md). Status per 2026-10-03:
 
-| # | Item | Alasan |
+| # | Item | Status |
 | --- | --- | --- |
-| 1 | Menjalankan kedua suite di CI | Satu-satunya perbaikan yang mencegah terulangnya kesalahan terbesar project ini — suite yang ada tetapi tidak pernah dijalankan |
-| 2 | Pemeriksaan visual 360px dan desktop di browser sungguhan | Satu-satunya bagian NFR-006 yang belum benar-benar dilihat |
-| 3 | Transaction bersarang memakai SAVEPOINT, atau gagal keras | Kebenaran rollback saat ini bergantung pada penulis test yang ingat meng-override `wrapsInTransaction()` |
-| 4 | Integration test untuk jalur filesystem upload | Upload adalah permukaan serangan; bagian yang menyentuh disk belum teruji |
-| 5 | Menarik state query string ke satu helper | Tiga controller sudah menyalinnya; salinan keempat melewati ambang |
-| 6 | Index untuk kolom sort | Belum terasa pada volume brief — ukur dulu, jangan menebak |
+| 1 | Menjalankan kedua suite secara otomatis | **Sebagian.** `composer check` menjalankan seluruh gate dalam satu perintah; CI di luar scope brief (§4.3) — langkah berikutnya bila project dilanjutkan (TD-2) |
+| 2 | Pemeriksaan visual 360px dan desktop di browser sungguhan | **Selesai** — screenshot, audit kontras WCAG AA, dan keyboard-only (TD-7) |
+| 3 | Transaction bersarang memakai SAVEPOINT | **Selesai** (TD-1) |
+| 4 | Integration test untuk jalur filesystem upload | **Sebagian** — jalur sukses `store()` tidak dapat diuji dari CLI (TD-3) |
+| 5 | Menarik state query string ke satu helper | **Selesai** — ternyata sudah enam salinan (`refactor-log.md` R-6) |
+| 6 | Index untuk kolom sort dan rentang tanggal | **Selesai**, setelah diukur dengan `EXPLAIN` (TD-6) |
+| 7 | Mencegah `UPDATE`/`DELETE` pada `stock_ledger` di level database | **Terbuka** — saat ini dijaga konvensi service saja (TD-9) |
+| 8 | Test otomatis untuk `validation.js` dan modul JavaScript lain | **Terbuka** — baru `stock-lookup.js` yang teruji (TD-4) |

@@ -184,8 +184,9 @@ final class ProductService
     }
 
     /**
-     * Product pada atau di bawah reorder point. Dipakai dashboard (DASH-01)
-     * dan script check-low-stock (JOB-01).
+     * Product pada atau di bawah reorder point. Dipakai endpoint
+     * /api/dashboard/low-stock dan script check-low-stock (JOB-01); halaman
+     * dashboard memanggil query repository yang sama lewat DashboardService.
      *
      * @return list<array{product: Product, totalQuantity: int}>
      */

@@ -76,9 +76,7 @@ $rowCount = max(count($submittedItems), 3);
         <div class="card-body">
             <div class="form-grid">
                 <div class="field">
-                    <label class="field-label" for="customer_id">
-                        Customer <span class="field-required" aria-hidden="true">*</span>
-                    </label>
+                    <label class="field-label field-required" for="customer_id">Customer</label>
                     <select class="select" id="customer_id" name="customer_id" required>
                         <option value="">Select a customer</option>
                         <?php foreach ($customers as $customer) : ?>
@@ -94,9 +92,7 @@ $rowCount = max(count($submittedItems), 3);
                 </div>
 
                 <div class="field">
-                    <label class="field-label" for="warehouse_id">
-                        Source warehouse <span class="field-required" aria-hidden="true">*</span>
-                    </label>
+                    <label class="field-label field-required" for="warehouse_id">Source warehouse</label>
                     <select class="select" id="warehouse_id" name="warehouse_id" required>
                         <option value="">Select a warehouse</option>
                         <?php foreach ($warehouses as $warehouse) : ?>

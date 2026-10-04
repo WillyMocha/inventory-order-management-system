@@ -1,15 +1,21 @@
 # Hasil test suite
 
-Bukti untuk T145 dan SC-006. Dijalankan **2026-09-14** di dalam Docker terhadap PHP 8.4.25
-dan MySQL 8.0.46.
+Bukti untuk T145 dan SC-006. Dijalankan ulang **2026-10-03** (setelah 003-stock-adjustment) di dalam Docker terhadap
+PHP 8.4.26 dan MySQL 8.0.46.
 
 ## Ringkasan
 
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
-| Unit | `composer test:unit` | **OK — 363 test, 917 assertion** |
-| Integration | `composer test:integration` | **OK — 82 test, 318 assertion** |
-| Gabungan | `composer test` | **OK — 445 test, 1235 assertion** |
+| Unit | `composer test:unit` | **OK — 409 test, 1116 assertion** |
+| Integration | `composer test:integration` | **OK — 169 test, 625 assertion** |
+| Gabungan | `composer test` | **OK — 578 test, 1741 assertion** |
+| JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 11 test** |
+| Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning; lulus di Docker, dari `cmd.exe` Windows, dan dari salinan repo bersih |
+
+**Coverage repository MySQL oleh integration suite: 116 dari 116 method** (diukur dengan pcov di
+container sekali pakai; lihat `docs/quality/tech-debt.md` TD-2b). Ini bukti bahwa setiap query
+SQL di repository pernah benar-benar dieksekusi MySQL, bukan hanya fake in-memory-nya.
 
 **Nol test yang di-skip, incomplete, atau risky.** `phpunit.xml` menyetel `failOnWarning`,
 `failOnRisky`, dan `failOnNotice` ke `true`, sehingga test yang diam-diam tidak menguji apa
@@ -23,9 +29,9 @@ case ada di [`use-case-coverage.md`](./use-case-coverage.md).
 | | Unit | Integration |
 | --- | --- | --- |
 | Database | tidak ada — seluruhnya `InMemory*Repository` | MySQL 8 sungguhan |
-| Session, network, filesystem | tidak ada | session di-set langsung untuk menguji guard |
+| Session, network, filesystem | tidak ada | session di-set langsung untuk menguji guard; filesystem di direktori sementara (`ProductImageStorageTest`) |
 | Waktu | `FixedClock` — deterministik | `SystemClock` |
-| Kecepatan | ± 10 detik | ± 42 detik |
+| Kecepatan | ± 10 detik | ± 60 detik |
 
 Pemisahan ini yang membuat aturan bisnis dapat diuji tanpa infrastruktur: acting user
 di-**pass sebagai argument** ke Service, tidak pernah dibaca dari session, sehingga aturan
@@ -36,6 +42,7 @@ seperti segregation of duties dapat diuji tanpa session sama sekali.
 | Jaminan | Test |
 | --- | --- |
 | Oversell tidak dapat direproduksi (ARCH-02, SC-003) | `ConcurrentGoodsIssueTest` — dua connection MySQL yang benar-benar terpisah; connection kedua terbukti MENUNGGU lewat lock wait timeout, bukan lewat `sleep` |
+| Satu Sales Order tidak dapat di-issue dua kali; cancel tidak menimpa order yang sudah Fulfilled; receipt kedua tidak merencanakan dari outstanding basi | `ConcurrentGoodsIssueTest` — connection kedua memegang snapshot REPEATABLE READ yang basi, keputusan harus diambil dari pembacaan di bawah lock |
 | `SUM(stock_ledger.quantity) = product_stock.quantity` (NFR-002, SC-004) | `LedgerReconciliationTest` |
 | Ledger bersifat append-only | `LedgerReconciliationTest::noLedgerRowIsEverUpdatedOrDeleted` |
 | `adjust()` menerapkan delta negatif, dan menolak hasil negatif | `StockAdjustmentTest` |
@@ -44,6 +51,13 @@ seperti segregation of duties dapat diuji tanpa session sama sekali.
 | Resource di luar scope menghasilkan 404, bukan 403 | `ApprovalAuthorizationTest` |
 | Dashboard dan CSV export sepakat (FR-027) | `DashboardReportConsistencyTest` |
 | Kontrak JSON: 200 / **401 JSON, bukan halaman login** / 404 (FR-028) | `StockApiTest` |
+| Rollback nested transaction lewat SAVEPOINT, termasuk di bawah pembungkus transaction harness | `NestedTransactionTest`, `GoodsReceiptTest` |
+| Seluruh method repository MySQL benar-benar dieksekusi (116/116) | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
+| Jalur filesystem upload: baca, hapus, dan penolakan file palsu | `ProductImageStorageTest` |
+| Akun yang dinonaktifkan atau diganti role-nya kehilangan session pada request berikutnya (002 FR-012, SC-007) | `SessionRevalidationTest` |
+| Profil sendiri: `id` yang diselipkan ke request diabaikan; password lama berhenti berlaku; penolakan tidak mengubah hash; tebakan di profil dan di login berbagi satu counter (002 SC-002, SC-004, SC-005, FR-008) | `ProfileFlowTest` |
+| Koreksi stock: MySQL menolak Adjustment tanpa alasan dan alasan pada Receipt; stock = SUM(ledger) setelah setiap koreksi; setiap penolakan tidak mengubah apa pun (003 SC-002, SC-004) | `StockAdjustmentFlowTest` |
+| Koreksi stock dengan dua connection: B menunggu lock; quantity yang berubah karena goods issue ditolak; pasangan yang belum pernah distok tidak deadlock (003 SC-005) | `ConcurrentStockAdjustmentTest` |
 
 ## Catatan penting — suite ini pernah tidak pernah dijalankan
 
@@ -55,7 +69,8 @@ Yang terungkap bukan sekadar masalah harness, melainkan **satu bug production ya
 `MysqlProductStockRepository::adjust()` memakai `INSERT ... ON DUPLICATE KEY UPDATE` dengan
 delta sebagai nilai kandidat insert. MySQL memeriksa CHECK `quantity >= 0` terhadap baris
 kandidat itu lebih dulu, sehingga **setiap goods issue gagal** — di test maupun di aplikasi
-sungguhan. Rinciannya ada di `implementation-log.md` dan `docs/quality/refactor-log.md`.
+sungguhan. Rinciannya ada di `specs/001-inventory-order-management/implementation-log.md` dan
+`docs/quality/refactor-log.md` R-1.
 
 Pelajarannya dicatat di `docs/quality/tech-debt.md`: test yang tidak dijalankan tidak
 memberikan jaminan apa pun.
@@ -64,9 +79,10 @@ memberikan jaminan apa pun.
 
 ```bash
 docker compose up -d
-docker compose exec app composer db:test        # sekali, membangun schema database test
-docker compose exec app composer test
+docker compose exec app composer check          # membangun schema test, lalu seluruh gate
 ```
+
+Atau per langkah: `composer db:test` (sekali), lalu `composer test`.
 
 Integration test dijalankan dua kali berturut-turut untuk memastikan sifat repeatable-nya —
 tidak ada sisa fixture yang membuat run kedua berbeda.
