@@ -1,7 +1,9 @@
 # ERD — As-built (diturunkan dari DDL)
 
-**Sumber**: [`../../database/001_schema.sql`](../../database/001_schema.sql) dan
-[`../../database/003_date_indexes.sql`](../../database/003_date_indexes.sql) ·
+**Sumber**: [`../../database/001_schema.sql`](../../database/001_schema.sql),
+[`../../database/003_date_indexes.sql`](../../database/003_date_indexes.sql),
+[`../../database/004_ledger_note.sql`](../../database/004_ledger_note.sql), dan
+[`../../database/005_ledger_append_only.sql`](../../database/005_ledger_append_only.sql) ·
 **Pasangannya**: [`../../specs/001-inventory-order-management/data-model.md`](../../specs/001-inventory-order-management/data-model.md)
 
 Diagram ini menggambarkan schema yang **benar-benar dibuat** MySQL, bukan rancangannya. ERD
@@ -227,6 +229,10 @@ CONSTRAINT ck_ledger_reference_id CHECK (
     OR (reference_type <> 'Manual' AND reference_id IS NOT NULL)
 )
 ```
+
+`004_ledger_note.sql` menambah dua CHECK lagi untuk koreksi stock (spec 003):
+`ck_ledger_note_adjustment` — `note` wajib ada **tepat** untuk `Adjustment` — dan
+`ck_ledger_adjustment_manual` — `Adjustment` tepat bila reference-nya `Manual` (berlaku dua arah).
 
 ---
 

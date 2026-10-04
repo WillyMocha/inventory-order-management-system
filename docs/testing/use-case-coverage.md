@@ -15,7 +15,7 @@ Dibuat pada T144 dengan menyilangkan seluruh method `public` di `app/Service/` t
 | `MasterDataService` | 10/10 | — |
 | `PartyService` | 16/16 | — |
 | `ProductImageService` | 3/6 | `store` `read` `delete` |
-| `ProductService` | 11/15 | `totalInventoryValue` `totalStockFor` `updateImagePath` `requireProduct` |
+| `ProductService` | 12/16 | `totalInventoryValue` `totalStockFor` `updateImagePath` `requireProduct` |
 | `PurchaseOrderService` | 10/10 | — |
 | `ReportService` | 11/11 | — |
 | `SalesOrderService` | 11/11 | — |
@@ -29,7 +29,7 @@ Audit ini menemukan kekurangan yang nyata, bukan sekadar mencatat keadaan:
 
 | Temuan | Tindakan |
 | --- | --- |
-| **`MasterDataService` tidak punya file test sama sekali** — 11 method, termasuk aturan validasi dan keunikan nama Category | `tests/Unit/Service/MasterDataServiceTest.php` — 21 test |
+| **`MasterDataService` tidak punya file test sama sekali** — 10 method, termasuk aturan validasi dan keunikan nama Category | `tests/Unit/Service/MasterDataServiceTest.php` — 21 test |
 | `AuthService::verifyPasswordFor` tidak teruji padahal ia adalah step-up re-auth sebelum aksi sensitif (security standard §7) | 4 test pada `AuthServiceTest` |
 | `PartyService` sisi Customer tertinggal dari sisi Supplier — `updateCustomer`, `countCustomers`, `activeCustomers`, `countSuppliers` | 3 test pada `PartyServiceTest` |
 | `ProductService::stockBreakdownBySku` dan `availableQuantity` hanya teruji tidak langsung lewat controller API | 5 test pada `ProductServiceTest` |
@@ -135,7 +135,7 @@ integration test terhadap MySQL sungguhan:
 | Kontrak JSON, termasuk 401 JSON bukan halaman HTML (FR-028) | `StockApiTest` |
 | Satu order tidak keluar dua kali; cancel tidak menimpa order `Fulfilled` | `ConcurrentGoodsIssueTest` — tiga test snapshot basi |
 | Rollback nested transaction lewat SAVEPOINT | `NestedTransactionTest`, `GoodsReceiptTest` |
-| Seluruh 116 method repository MySQL benar-benar dieksekusi | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
+| Seluruh 126 method repository MySQL benar-benar dieksekusi | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
 | Jalur filesystem upload | `ProductImageStorageTest` |
 | Akun yang dinonaktifkan atau diganti role-nya langsung kehilangan session (002 FR-012) | `SessionRevalidationTest` |
 | Profil hanya milik user di session; `id` pada request diabaikan; batas percobaan dihitung bersama login (002 FR-003, FR-008) | `ProfileFlowTest` |

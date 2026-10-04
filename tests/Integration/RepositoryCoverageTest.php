@@ -110,6 +110,10 @@ final class RepositoryCoverageTest extends IntegrationTestCase
         self::assertTrue((new MysqlCustomerRepository($this->database))->exists($this->customerId));
         self::assertTrue((new MysqlSupplierRepository($this->database))->exists($this->supplierId));
 
+        $warehouses = new MysqlWarehouseRepository($this->database);
+        self::assertTrue($warehouses->exists($this->warehouseId));
+        self::assertFalse($warehouses->exists(PHP_INT_MAX));
+
         $users = new MysqlUserRepository($this->database);
         self::assertTrue($users->emailExists('fixture-sales@test'));
         self::assertFalse($users->emailExists('fixture-sales@test', (int) $this->salesCreator->id));

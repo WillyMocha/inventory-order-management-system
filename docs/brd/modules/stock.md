@@ -1,6 +1,6 @@
 # Module: Stock & Ledger (`stock`)
 
-**Back to**: [00-overview.md](../00-overview.md) · **Last Updated**: 2026-10-03
+**Back to**: [00-overview.md](../00-overview.md) · **Last Updated**: 2026-10-04
 
 ## Summary
 

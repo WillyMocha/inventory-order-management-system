@@ -10,6 +10,5 @@ Tidak ada satu pun finding yang ditekan: tidak ada baseline, tidak ada
 Hasil: nol error, nol warning.
 
 ----------------------------------------------------------------------
-Note: Using configuration file /var/www/html/phpstan.neon.
 
- [OK] No errors
+ [OK] No errors                                                                 

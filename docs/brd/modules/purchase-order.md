@@ -71,6 +71,8 @@ Pembelian ke supplier: membuat PO, mengajukannya, membatalkannya, dan memicu goo
 - `PurchaseOrderService` — unit (`PurchaseOrderServiceTest`, `PurchaseOrderServiceEditTest`, `OrderSearchTest`)
 - Edit Draft: CAS status, penggantian line, rollback, route roles — integration (`EditDraftOrderTest`)
 - Goods receipt end-to-end, partial, rollback — integration (`GoodsReceiptTest`, `ConcurrentGoodsIssueTest::aSecondReceiptNeverPlansFromAStaleOutstanding`)
+- Lapisan HTTP (status code, redirect + flash, form 422) — integration (`PurchaseOrderControllerTest`,
+  `GoodsReceiptControllerTest`)
 - `public/assets/js/order-lines.js` — tidak ada test otomatis
 
 ## Known Gaps / Risks

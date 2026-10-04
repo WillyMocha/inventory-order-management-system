@@ -134,7 +134,7 @@ perlu melihat pesannya di samping input yang salah (FR-029).
 | --- | --- |
 | Setiap controller memvalidasi lewat Service, bukan sendiri | ✓ |
 | Tidak ada `echo` variabel mentah di controller | ✓ — seluruh output lewat `View::render()` |
-| `ValidationException` ditangkap dan dirender ulang bersama input sebelumnya | ✓ pada seluruh form (`ProductController`, `SalesOrderController`, `PurchaseOrderController`, `UserController`, `CategoryController`, `WarehouseController`, `SupplierController`, `CustomerController`) |
+| `ValidationException` ditangkap dan dirender ulang bersama input sebelumnya | ✓ pada seluruh form (`ProductController`, `SalesOrderController`, `PurchaseOrderController`, `UserController`, `CategoryController`, `WarehouseController`, `SupplierController`, `CustomerController`, `ProfileController`, `StockAdjustmentController`); `ReportController` mengembalikan rentang tanggal yang tidak sah ke form beserta pesannya |
 | Status HTTP pada kegagalan validasi | ✓ 422, bukan 200 |
 | CSRF pada setiap method non-GET | ✓ ditegakkan front controller, bukan per controller |
 | Tidak ada detail exception yang sampai ke user | ✓ |

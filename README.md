@@ -19,7 +19,7 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 | **Authentication** | Login dengan session, rate limit percobaan gagal, regenerasi session id, step-up re-auth sebelum aksi sensitif; akun divalidasi ulang pada setiap request, sehingga user yang dinonaktifkan atau diganti role-nya langsung kehilangan akses |
 | **Profil sendiri** | Setiap role melihat profilnya (nama, email, role, status) dan mengganti password sendiri dengan password saat ini; batas percobaannya berbagi counter dengan login |
 | **User management** | Admin membuat dan menonaktifkan user; tidak ada registrasi publik |
-| **Master data** | Category, Warehouse, Supplier, Customer — dinonaktifkan, tidak pernah dihapus |
+| **Master data** | Category, Warehouse, Supplier, Customer — tidak pernah dihapus; Warehouse, Supplier, dan Customer dapat dinonaktifkan (Category tidak punya status aktif, mengikuti resource sumber) |
 | **Product** | Katalog dengan SKU unik, harga beli/jual, reorder point, dan upload image |
 | **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock`; koreksi dari hasil hitung fisik (Adjustment) dengan alasan wajib, aman dari race condition |
 | **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap; PO Draft dapat diedit |

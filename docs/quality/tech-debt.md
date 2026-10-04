@@ -13,7 +13,7 @@ perbaikannya.
 | --- | --- | --- |
 | TD-1 | Nested transaction passthrough | **Selesai.** SAVEPOINT; workaround di `GoodsReceiptTest` dicabut |
 | TD-2 | Integration suite tidak pernah dijalankan | **Selesai sebagian.** `composer check` menjalankan semua gate; CI di luar scope brief |
-| TD-2b | Fake menyembunyikan SQL yang rusak | **Selesai.** 116/116 method repository MySQL dieksekusi integration suite |
+| TD-2b | Fake menyembunyikan SQL yang rusak | **Selesai.** 126/126 method repository MySQL dieksekusi integration suite (diukur ulang 2026-10-04) |
 | TD-3 | Jalur filesystem upload tanpa test | **Selesai sebagian.** `read`/`delete`/penolakan `store` teruji; jalur sukses `store` tidak dapat diuji dari CLI |
 | TD-4 | Tidak ada test JavaScript | **Selesai.** `node --test` tanpa dependency, dijalankan lewat Docker |
 | TD-5 | `.env.example` berisi kredensial development | **Diterima, tidak diubah.** Bukan secret aktif; alasannya di bawah |
@@ -22,7 +22,7 @@ perbaikannya.
 | TD-8 | `config/database.php` tidak dipakai | **Selesai.** Dihapus beserta `config/env.php` |
 | TD-9 | Append-only `stock_ledger` hanya dijaga konvensi | **Selesai.** Trigger MySQL `005_ledger_append_only.sql` |
 | TD-10 | Validasi order memeriksa "ada", bukan "aktif" | **Selesai.** `Validator::activeById()` untuk create dan edit |
-| TD-11 | Class order melewati batas ukuran Sonar | **Selesai sebagian.** Semua ≤ 20 method; empat file masih > 300 baris |
+| TD-11 | Class order melewati batas ukuran Sonar | **Selesai sebagian.** Semua ≤ 20 method; sembilan file `app/` masih > 300 baris |
 
 ---
 
@@ -40,8 +40,8 @@ perbaikannya.
 > `NestedTransactionTest` menguji perilakunya langsung, termasuk dua tingkat bersarang.
 >
 > Pembungkus kini hanya perlu dimatikan oleh test yang memakai **dua connection**
-> (`ConcurrentGoodsIssueTest`), karena connection kedua tidak dapat melihat data yang belum
-> di-commit.
+> (`ConcurrentGoodsIssueTest` dan `ConcurrentStockAdjustmentTest`), karena connection kedua tidak
+> dapat melihat data yang belum di-commit.
 
 **Keadaan awal.** Bila sudah ada transaction yang berjalan, `transaction()` hanya memanggil
 callback-nya tanpa membuka transaction sendiri. Di produksi ini benar — hanya transaction
@@ -300,7 +300,8 @@ pernah ada di repository. Rujukan itu kini menunjuk ke sini.
 
 > **Selesai 2026-10-04.** `Validator::activeById()` (callback mengembalikan status aktif, atau
 > null bila record tidak ada) menggantikan `existsById()` untuk customer/supplier dan warehouse di
-> `validate()` kedua service order; line dengan product nonaktif ditolak dengan pesan per baris.
+> `validate()` kedua service order (`existsById()` tetap ada dan masih dipakai `ProductService` untuk
+> category, yang memang tidak punya status aktif); line dengan product nonaktif ditolak dengan pesan per baris.
 > Karena create dan edit memakai `validate()` yang sama (spec 004 R-005), keduanya ikut
 > diperketat — tanpa dua aturan yang berbeda.
 >
@@ -349,8 +350,11 @@ dengan unit test untuk setiap jenis referensi nonaktif.
 > Seluruh class kini memenuhi Sonar S1448 (≤ 20 method). URL, role, pesan, dan perilaku tidak
 > berubah (diverifikasi test dan HTTP).
 >
-> **Yang tersisa.** Empat class lama masih melewati batas file 300 baris dari standar SonarQube
-> project. Sebagian besar isinya adalah docblock yang menjelaskan alasan aturan (constitution VI);
+> **Yang tersisa.** Sembilan file di `app/` masih melewati batas 300 baris dari standar SonarQube
+> project (diukur 2026-10-04): `StockService` 647, `SalesOrderController` 452,
+> `PurchaseOrderController` 419, `SalesOrderService` 417, `ReportService` 414,
+> `PurchaseOrderService` 382, `MysqlSalesOrderRepository` 348, `MysqlPurchaseOrderRepository` 320,
+> dan `MysqlProductRepository` 301. Sebagian besar isinya adalah docblock yang menjelaskan alasan aturan (constitution VI);
 > memangkasnya demi angka akan menghapus penjelasan yang justru diminta. Memecahnya lebih jauh
 > (mis. form mapper per order) adalah layer tambahan tanpa masalah nyata saat ini (C-003).
 

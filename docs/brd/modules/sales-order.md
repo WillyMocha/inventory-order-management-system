@@ -78,6 +78,8 @@ approve atau reject, Warehouse Staff mengeluarkan barang (dikerjakan oleh [stock
 - Edit Draft: CAS status, penggantian line, rollback, route roles — integration (`EditDraftOrderTest`)
 - Segregation of duties, 404 scoping — integration (`ApprovalAuthorizationTest`)
 - Race condition status (issue ganda, cancel vs fulfilled) — integration (`ConcurrentGoodsIssueTest`)
+- Lapisan HTTP (status code, redirect + flash, form 422, 403/404) — integration (`SalesOrderControllerTest`,
+  `SalesOrderActionControllerTest` untuk approval dan goods issue)
 - `public/assets/js/order-lines.js`, `validation.js` — tidak ada test otomatis
 
 ## Known Gaps / Risks

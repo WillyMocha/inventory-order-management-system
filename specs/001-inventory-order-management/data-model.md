@@ -9,7 +9,8 @@ spot-check.
 **Mirroring statement**: this schema **mirrors the source resource model**. One table per
 resource, one table per sub-resource, one column per source attribute, enumerations carried
 per resource with exactly the source's values. Nothing is merged, renamed, invented, or
-simplified. **No deviations are recorded, because none were requested or applied.**
+simplified. **One owner-approved deviation is recorded: D-1, `stock_ledger.note`** (spec
+003-stock-adjustment, migration `004_ledger_note.sql`) — see the `stock_ledger` table below.
 
 Naming: source attribute names are Indonesian in the brief; they map to English `snake_case`
 columns per constitution v1.1.0 (identifiers are English). The mapping is stated explicitly
@@ -123,7 +124,8 @@ Lifecycle: active ↔ inactive. A product referenced by any order line may only 
 | `updated_at` | `DATETIME` | no | updated_at | |
 
 Indexes: **`UNIQUE (product_id, warehouse_id)`** — this is the row locked by
-`SELECT ... FOR UPDATE` in R-002; the unique index is what makes it a single-row lock.
+`SELECT ... FOR UPDATE` in R-002; the unique index is what makes it a single-row lock;
+`INDEX (warehouse_id)` for per-warehouse queries. `quantity` defaults to `0`.
 
 No `version` column: the chosen concurrency mechanism is pessimistic locking, so none is
 needed and none is invented (R-002).
@@ -139,6 +141,8 @@ needed and none is invented (R-002).
 | `is_active` | `TINYINT(1)` | no | status aktif |
 | `created_at` / `updated_at` | `DATETIME` | no | — |
 
+Indexes: `INDEX (is_active, name)`.
+
 ### `customer`
 
 Identical column set to `supplier`, same source row, kept as a separate table.
@@ -151,6 +155,8 @@ Identical column set to `supplier`, same source row, kept as a separate table.
 | `address` | `TEXT` | no | alamat |
 | `is_active` | `TINYINT(1)` | no | status aktif |
 | `created_at` / `updated_at` | `DATETIME` | no | — |
+
+Indexes: `INDEX (is_active, name)`.
 
 ### `purchase_order`
 
@@ -165,7 +171,8 @@ Identical column set to `supplier`, same source row, kept as a separate table.
 | `created_by` | `BIGINT UNSIGNED` | no | — | FK → `user.id`; audit, not a source attribute |
 | `created_at` / `updated_at` | `DATETIME` | no | — | |
 
-Indexes: `UNIQUE (order_number)`, `INDEX (status, order_date)`, `INDEX (supplier_id)`.
+Indexes: `UNIQUE (order_number)`, `INDEX (status, order_date)`, `INDEX (supplier_id)`,
+`INDEX (warehouse_id)`, `INDEX (order_date, id)` (`003_date_indexes.sql`). `status` defaults to `'Draft'`.
 
 **State lifecycle** — `Draft → Ordered → PartiallyReceived → Received`, with `Cancelled`
 reachable from `Draft`, `Ordered` and `PartiallyReceived` (spec A-004, confirmed).
@@ -212,7 +219,8 @@ Recorded here as a derived-requirement column, not an invention.
 | `created_at` / `updated_at` | `DATETIME` | no | — | |
 
 Indexes: `UNIQUE (order_number)`, `INDEX (status, order_date)`, `INDEX (created_by)`,
-`INDEX (customer_id)`.
+`INDEX (customer_id)`, `INDEX (warehouse_id)`, `INDEX (order_date, id)` (`003_date_indexes.sql`). `status`
+defaults to `'Draft'`.
 
 **State lifecycle** — exactly the source's flow: `Draft → PendingApproval → Approved →
 Fulfilled`, or `Cancelled` from any stage before `Fulfilled`.
@@ -250,7 +258,9 @@ it would be inventing scope.
 
 ### `stock_ledger`
 
-Append-only. Never updated, never deleted.
+Append-only. Never updated, never deleted — enforced in the database by the triggers
+`trg_stock_ledger_no_update` and `trg_stock_ledger_no_delete` (`005_ledger_append_only.sql`); only test fixture
+cleanup may delete, after an explicit `SET @ioms_allow_ledger_cleanup = 1`.
 
 | Column | Type | Null | Src | Notes |
 | --- | --- | --- | --- | --- |
@@ -260,14 +270,16 @@ Append-only. Never updated, never deleted.
 | `movement_type` | `ENUM('Receipt','Issue','Adjustment')` | no | tipe pergerakan | Exactly the source's three values |
 | `quantity` | `INT` | no | quantity | Signed by convention: positive for `Receipt`, negative for `Issue`. `CHECK (quantity <> 0)` |
 | `reference_type` | `ENUM('PurchaseOrder','SalesOrder','Manual')` | no | referensi (PO/SO id) | Discriminates which order the reference points at |
-| `reference_id` | `BIGINT UNSIGNED` | **yes** | referensi (PO/SO id) | Null only when `reference_type = 'Manual'` |
+| `reference_id` | `BIGINT UNSIGNED` | **yes** | referensi (PO/SO id) | `ck_ledger_reference_id`: NULL exactly when `reference_type = 'Manual'` (Manual requires NULL; PO/SO require a value) |
 | `note` | `VARCHAR(255)` | **yes** | — | **Added by 003 (deviation D-1, owner-approved)**: the reason of a stock adjustment. `CHECK ((movement_type = 'Adjustment') = (note IS NOT NULL))`. Migration `004_ledger_note.sql` |
 | `performed_by` | `BIGINT UNSIGNED` | no | dilakukan oleh | FK → `user.id` |
 | `created_at` | `DATETIME` | no | timestamp | |
 
 Indexes: `INDEX (product_id, warehouse_id, created_at)` — serves the ledger view, the stock
 reconciliation check, and the CSV movement report; `INDEX (reference_type, reference_id)` for
-an order's own movement history.
+an order's own movement history; `INDEX (performed_by)`; `INDEX (created_at, id)` for date ranges — the stock
+movement report and the dashboard chart (`003_date_indexes.sql`). `004_ledger_note.sql` also adds
+`ck_ledger_adjustment_manual`: `movement_type = 'Adjustment'` exactly when `reference_type = 'Manual'`.
 
 `reference_type` is a derived-requirement column: the source says the reference is a "PO/SO
 id" without saying how the two are told apart. A single nullable FK to two different tables is
@@ -328,11 +340,12 @@ Verified against `inputs/project-brief-resource-model.md` before finalizing.
 | Stock changes only via service writing ledger + stock in one transaction | Service layer + R-002 | ✓ |
 | Sales cannot approve own order | `created_by` vs `approved_by` + role check | ✓ |
 
-Nothing in the source is missing, renamed, invented, or simplified. Four columns beyond the
+Nothing in the source is missing, renamed, invented, or simplified. Five columns beyond the
 source attributes exist and are each justified above: `purchase_order_item.received_quantity`
 (PO-01's outstanding quantity), `stock_ledger.reference_type` (makes the stated PO/SO
-reference representable), `sales_order.order_date` (FIND-01's date sort), and `order_number`
-on both orders (FIND-01's number search). Plus conventional `id` / audit timestamps and the
+reference representable), `sales_order.order_date` (FIND-01's date sort), `order_number`
+on both orders (FIND-01's number search), and `stock_ledger.note` (deviation D-1, the reason of a
+stock adjustment). Plus conventional `id` / audit timestamps and the
 two operational tables.
 
 ---
@@ -461,6 +474,7 @@ erDiagram
         enum reference_type "PurchaseOrder|SalesOrder|Manual"
         bigint reference_id "nullable"
         bigint performed_by FK
+        varchar note "nullable, required for Adjustment (D-1)"
         datetime created_at
     }
 ```

@@ -1,6 +1,6 @@
 # Module: Product Catalog (`product`)
 
-**Back to**: [00-overview.md](../00-overview.md) · **Last Updated**: 2026-10-03
+**Back to**: [00-overview.md](../00-overview.md) · **Last Updated**: 2026-10-04
 
 ## Summary
 
@@ -9,7 +9,9 @@ status low-stock, endpoint JSON availability, dan script low-stock di luar reque
 
 ## Capabilities
 
-- **PROD-CAP-001** — Membuat dan mengubah product (Admin), dengan SKU unik dan angka ≥ 0
+- **PROD-CAP-001** — Membuat dan mengubah product (Admin), dengan angka ≥ 0. SKU dibuat otomatis oleh server
+  dari urutan terakhir (`ProductService::nextSku()`), read-only di form, dan tidak berubah saat edit; nilai `sku`
+  dari request diabaikan
 - **PROD-CAP-002** — Menonaktifkan product (tidak pernah dihapus bila sudah dipakai order)
 - **PROD-CAP-003** — Mengunggah image product (tipe dari isi file, nama acak, disimpan di luar document root)
 - **PROD-CAP-004** — Mencari, memfilter (category, low stock), mengurutkan, dan mem-paginate katalog (semua role)
@@ -65,7 +67,7 @@ status low-stock, endpoint JSON availability, dan script low-stock di luar reque
 
 ## Test Coverage
 
-- `ProductService` — unit (`ProductServiceTest`, `ProductSearchTest`, 11/15 method; sisanya lookup/passthrough)
+- `ProductService` — unit (`ProductServiceTest`, `ProductSearchTest`, 12/16 method; sisanya lookup/passthrough)
 - `ProductImageService` — unit untuk validasi/nama/path; integration untuk read/delete/penolakan store (`ProductImageStorageTest`)
 - JSON API — unit (`StockApiControllerTest`) dan integration (`StockApiTest`)
 - JOB-01 — prosedur manual `docs/testing/low-stock-job.md`; aturannya lewat `ProductServiceTest`
@@ -78,4 +80,6 @@ status low-stock, endpoint JSON availability, dan script low-stock di luar reque
 
 ## Change Log
 
+- **2026-10-04**: SKU product dibuat otomatis dan read-only (PROD-CAP-001; `nextSku()`,
+  `ProductRepositoryInterface::highestSkuSequence()`).
 - **2026-10-03**: Initial version generated from codebase survey.

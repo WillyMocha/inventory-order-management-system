@@ -317,7 +317,9 @@ paths:
         - name: limit
           in: query
           required: false
-          description: Jumlah maksimum baris yang dikembalikan.
+          description: >-
+            Jumlah maksimum baris yang dikembalikan. Nilai di luar rentang tidak ditolak:
+            kurang dari 1 kembali ke default 20, lebih dari 100 dibatasi menjadi 100.
           schema:
             type: integer
             minimum: 1

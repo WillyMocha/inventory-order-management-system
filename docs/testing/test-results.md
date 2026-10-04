@@ -8,22 +8,23 @@ PHP 8.4.26 dan MySQL 8.0.46.
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
 | Unit | `composer test:unit` | **OK — 491 test, 1398 assertion** |
-| Integration | `composer test:integration` | **OK — 266 test, 983 assertion** |
-| Gabungan | `composer test` | **OK — 757 test, 2381 assertion** |
+| Integration | `composer test:integration` | **OK — 266 test, 985 assertion** |
+| Gabungan | `composer test` | **OK — 757 test, 2383 assertion** |
 | Coverage (SonarQube) | `composer test:coverage` | **OK — 757 test**; menulis `coverage/clover.xml` untuk SonarQube |
 | JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 18 test** |
 | Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning; lulus di Docker, dari `cmd.exe` Windows, dan dari salinan repo bersih |
 
-**Coverage repository MySQL oleh integration suite: 116 dari 116 method** (diukur dengan pcov di
-container sekali pakai; lihat `docs/quality/tech-debt.md` TD-2b). Ini bukti bahwa setiap query
+**Coverage repository MySQL oleh integration suite: 126 dari 126 method** (diukur ulang 2026-10-04
+dengan pcov, hanya integration suite, dari `coverage/integration.xml`; pertama kali 116/116 pada
+2026-10-03, lihat `docs/quality/tech-debt.md` TD-2b). Pengukuran ulang menemukan satu method yang
+belum pernah dijalankan terhadap MySQL — `MysqlWarehouseRepository::exists()`, yang tidak lagi dipakai
+aplikasi sejak TD-10 — dan `RepositoryCoverageTest` kini memeriksanya. Ini bukti bahwa setiap query
 SQL di repository pernah benar-benar dieksekusi MySQL, bukan hanya fake in-memory-nya.
 **Grafik stock movement (005, bonus).** `DashboardStockMovementTest` (10), `BarChartScaleTest` (22 kasus) dan
 `DashboardChartRenderTest` (7) ditambah empat plus satu test di `DashboardReportConsistencyTest`, yang membuktikan
 terhadap MySQL bahwa angka grafik per hari sama dengan export CSV stock movement. Coverage: `DashboardService`
 72/72, `MysqlStockLedgerRepository` 79/79, `BarChartScale` 24/24 statement.
 
-Empat method yang ditambahkan 004 (`updateDraft` dan `replaceItems` pada kedua repository order)
-dieksekusi `EditDraftOrderTest`; angka pcov di atas belum diukur ulang sejak itu.
 
 **Coverage untuk SonarQube.** `composer test:coverage` menjalankan unit + integration dengan pcov
 (terpasang di image, dimatikan secara default) dan menulis `coverage/clover.xml` dengan path relatif
@@ -70,7 +71,7 @@ seperti segregation of duties dapat diuji tanpa session sama sekali.
 | Dashboard dan CSV export sepakat (FR-027) | `DashboardReportConsistencyTest` |
 | Kontrak JSON: 200 / **401 JSON, bukan halaman login** / 404 (FR-028) | `StockApiTest` |
 | Rollback nested transaction lewat SAVEPOINT, termasuk di bawah pembungkus transaction harness | `NestedTransactionTest`, `GoodsReceiptTest` |
-| Seluruh method repository MySQL benar-benar dieksekusi (116/116) | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
+| Seluruh method repository MySQL benar-benar dieksekusi (126/126) | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
 | Jalur filesystem upload: baca, hapus, dan penolakan file palsu | `ProductImageStorageTest` |
 | Akun yang dinonaktifkan atau diganti role-nya kehilangan session pada request berikutnya (002 FR-012, SC-007) | `SessionRevalidationTest` |
 | Profil sendiri: `id` yang diselipkan ke request diabaikan; password lama berhenti berlaku; penolakan tidak mengubah hash; tebakan di profil dan di login berbagi satu counter (002 SC-002, SC-004, SC-005, FR-008) | `ProfileFlowTest` |

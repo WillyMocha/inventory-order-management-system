@@ -8,7 +8,10 @@ dependency di bawah sesuai dengan parameter constructor class-nya, yang dirangka
 di bagian akhir.
 
 **Cakupan.** Yang digambar adalah alur kritikal: Sales Order, Purchase Order, stock, dashboard,
-report, dan JSON API, beserta seluruh dependency class-class tersebut. Service master data
+report, dan JSON API (`StockApiController`; `DashboardApiController` hanya bergantung pada
+`ProductService` dan tidak digambar), beserta seluruh dependency Service-nya. Untuk controller,
+hanya panah ke Service yang relevan dengan alur itu yang digambar — `View`, `Session`, `Csrf`, dan
+Service master data pada constructor-nya (misalnya `ProductController`) tidak ditampilkan. Service master data
 (`ProductService`, `MasterDataService`, `PartyService`, `UserService`, `AuthService`) hanya
 muncul sebagai dependency controller. Pola mereka sama: Service final yang bergantung pada
 interface repository.
@@ -174,8 +177,10 @@ classDiagram
     ReportService ..> ClockInterface
 ```
 
-Tidak ada satu pun Service yang bergantung pada class konkret. Seluruh panah keluar dari
-Service adalah `..>`.
+Satu-satunya Service yang bergantung pada class konkret adalah `SalesOrderApprovalService --> SalesOrderService`
+(tech-debt TD-11): ia memakai `requireVisibleOrder()` agar aturan scoping 404 untuk Sales tidak disalin. Keduanya
+Service di lapisan yang sama, dan unit test merakit `SalesOrderService` asli di atas fake repository. Panah lain
+yang keluar dari Service seluruhnya `..>` ke interface.
 
 ## 2. Implementasi di balik interface
 
@@ -390,12 +395,12 @@ classDiagram
     ProfileController --> AuthService
     AuthService ..> UserRepositoryInterface
     AuthService ..> LoginAttemptRepositoryInterface
-    AuthService ..> User
 ```
 
 `changeOwnPassword()` memakai counter `login_attempt` yang sama dengan `attempt()`, jadi tebakan
 password di halaman login dan di halaman profil dihitung bersama. Panjang minimum password
-kini satu konstanta di `User`, dipakai `AuthService` dan `UserService` (refactor-log R-7).
+kini satu konstanta `User::MIN_PASSWORD_LENGTH`, dipakai `AuthService` dan `UserService` (refactor-log R-7);
+itu pemakaian konstanta, bukan dependency constructor, jadi tidak digambar sebagai panah.
 
 ### Koreksi stock (003-stock-adjustment)
 
@@ -450,7 +455,8 @@ Rinciannya:
 
 **1. Service memerlukan lebih banyak collaborator daripada yang digambar.**
 `SalesOrderService` dirancang dengan tiga dependency (`orders`, `stocks`, `clock`). Nyatanya
-lima: `orders`, `customers`, `warehouses`, `products`, `clock`. `stocks` tidak lagi
+enam: `orders`, `customers`, `warehouses`, `products`, `clock`, dan — sejak edit order Draft (004) —
+`TransactionRunner`. `stocks` tidak lagi
 dibutuhkan, karena Sales Order tidak pernah menyentuh stock; hanya `StockService` yang boleh.
 Penyebab tambahannya adalah validasi: membuat order menuntut pembuktian bahwa customer,
 warehouse, dan setiap product benar-benar ada dan aktif. `PurchaseOrderService` mengikuti

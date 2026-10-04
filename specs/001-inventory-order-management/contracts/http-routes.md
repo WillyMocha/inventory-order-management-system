@@ -50,7 +50,7 @@ Tidak ada route registrasi publik dan tidak ada password reset (spec A-012, USR-
 
 | Method | Path | Auth | Role | Authorization / catatan |
 | --- | --- | --- | --- | --- |
-| GET | `/` | wajib | A S W | Dialihkan ke dashboard sesuai role |
+| GET | `/` | wajib | A S W | Dilayani `DashboardController::index` yang sama dengan `/dashboard` (tanpa redirect) |
 | GET | `/dashboard` | wajib | A S W | Isi berbeda per role. Sales hanya melihat ringkasan order miliknya — di-scope lewat `created_by` di dalam query (§1.2) |
 
 ## Profil sendiri (002-user-profile-page)
@@ -93,12 +93,16 @@ terbatas sesuai §1.2.
 | GET | `/products/{id}/adjust-stock` | wajib | **A W** | S → 403. Form koreksi stock dari hasil hitung fisik; `?warehouse_id=` memilih warehouse aktif (spec 003) |
 | POST | `/products/{id}/adjust-stock` | wajib | **A W** | S → 403 di guard **dan** di `StockService`. CSRF. Ledger `Adjustment`/`Manual` + alasan wajib, satu transaction dengan lock `product_stock`. Selisih nol, input tidak sah, atau quantity berubah selama penghitungan → 422. Berhasil → 302 `/products/{id}` dengan flash. Rincian: [`specs/003-stock-adjustment/contracts/http-routes.md`](../../003-stock-adjustment/contracts/http-routes.md) |
 | GET | `/categories` | wajib | **A** | |
-| POST | `/categories`, `/categories/{id}`, `/categories/{id}/toggle-active` | wajib | **A** | CSRF |
+| GET | `/categories/create`, `/categories/{id}/edit` | wajib | **A** | Form |
+| POST | `/categories`, `/categories/{id}` | wajib | **A** | CSRF. Category tidak memiliki status aktif (resource sumber hanya punya nama dan deskripsi), jadi tidak ada toggle-active |
 | GET | `/warehouses` | wajib | A W | W hanya baca |
+| GET | `/warehouses/create`, `/warehouses/{id}/edit` | wajib | **A** | Form |
 | POST | `/warehouses`, `/warehouses/{id}`, `/warehouses/{id}/toggle-active` | wajib | **A** | CSRF |
 | GET | `/suppliers` | wajib | **A** | |
+| GET | `/suppliers/create`, `/suppliers/{id}/edit` | wajib | **A** | Form |
 | POST | `/suppliers`, `/suppliers/{id}`, `/suppliers/{id}/toggle-active` | wajib | **A** | CSRF |
 | GET | `/customers` | wajib | A S | S hanya baca — dibutuhkan saat membuat Sales Order |
+| GET | `/customers/create`, `/customers/{id}/edit` | wajib | **A** | Form |
 | POST | `/customers`, `/customers/{id}`, `/customers/{id}/toggle-active` | wajib | **A** | CSRF |
 
 ## Purchase Order & goods receipt (PO-01)
@@ -154,6 +158,12 @@ Didefinisikan lengkap pada [`openapi.yaml`](./openapi.yaml). Ringkasan:
 | GET | `/api/products/{sku}/availability` | wajib | A S W | 401 sebagai JSON, bukan redirect |
 | GET | `/api/products/{productId}/warehouses/{warehouseId}/available` | wajib | A S W | Indikatif; binding check tetap di goods issue |
 | GET | `/api/dashboard/low-stock` | wajib | **A W** | S → 403 |
+
+## Health check
+
+| Method | Path | Auth | Role | Authorization / catatan |
+| --- | --- | --- | --- | --- |
+| GET | `/_health` | publik | — | `HealthController::index`; dipakai healthcheck container. Tidak memuat data aplikasi |
 
 ## Error route
 
