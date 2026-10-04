@@ -41,7 +41,8 @@ dibaca dari session.
 
 Unit suite berjalan tanpa database sama sekali, dalam ± 10 detik (jumlah test terkini di
 `docs/testing/test-results.md`). Aturan approval
-diuji dengan meneruskan dua object `User` berbeda ke `SalesOrderService::approve()` — tidak
+diuji dengan meneruskan dua object `User` berbeda ke `SalesOrderApprovalService::approve()`
+(sebelum tech-debt TD-11: `SalesOrderService::approve()`) — tidak
 ada session, tidak ada HTTP, tidak ada MySQL.
 
 Object graph terbaca sekaligus dalam satu file. Saat menelusuri class diagram ke kode, seluruh

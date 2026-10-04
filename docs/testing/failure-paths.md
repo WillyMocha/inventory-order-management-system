@@ -37,7 +37,7 @@ tetap terjadi karena transaction bersarang memakai SAVEPOINT (`tech-debt.md` TD-
 ### 3. Sales memanggil endpoint approval langsung untuk ordernya sendiri
 
 **Penanganan**: dua lapis. Route table membatasi `/sales-orders/{id}/approve` pada Admin, dan
-`SalesOrderService::approve()` memeriksa role Admin **dan** `approved_by <> created_by` di
+`SalesOrderApprovalService::approve()` memeriksa role Admin **dan** `approved_by <> created_by` di
 server.
 **Ke user**: `ForbiddenException` → halaman 403 yang aman.
 **Bukti**: `ApprovalAuthorizationTest` memanggil Service dan guard LANGSUNG, meniru penyerang

@@ -7,9 +7,9 @@ PHP 8.4.26 dan MySQL 8.0.46.
 
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
-| Unit | `composer test:unit` | **OK — 448 test, 1291 assertion** |
-| Integration | `composer test:integration` | **OK — 188 test, 726 assertion** |
-| Gabungan | `composer test` | **OK — 636 test, 2017 assertion** |
+| Unit | `composer test:unit` | **OK — 459 test, 1307 assertion** |
+| Integration | `composer test:integration` | **OK — 194 test, 740 assertion** |
+| Gabungan | `composer test` | **OK — 653 test, 2047 assertion** |
 | JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 18 test** |
 | Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning; lulus di Docker, dari `cmd.exe` Windows, dan dari salinan repo bersih |
 

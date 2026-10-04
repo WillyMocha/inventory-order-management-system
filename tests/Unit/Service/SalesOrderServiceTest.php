@@ -10,11 +10,13 @@ use App\Entity\Enum\SalesOrderStatus;
 use App\Entity\Product;
 use App\Entity\User;
 use App\Entity\Warehouse;
+use App\Service\SalesOrderApprovalService;
 use App\Service\SalesOrderService;
 use App\Support\Exception\DomainException;
 use App\Support\Exception\ForbiddenException;
 use App\Support\Exception\NotFoundException;
 use App\Support\Exception\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Fake\FixedClock;
@@ -35,6 +37,7 @@ final class SalesOrderServiceTest extends TestCase
 {
     private InMemorySalesOrderRepository $orders;
     private SalesOrderService $service;
+    private SalesOrderApprovalService $approvals;
 
     private User $admin;
     private User $secondAdmin;
@@ -53,18 +56,30 @@ final class SalesOrderServiceTest extends TestCase
         $this->warehouse = new User(5, 'Warehouse One', 'wh1@ioms.test', 'hash', Role::WarehouseStaff, true);
 
         $this->orders = new InMemorySalesOrderRepository();
+        $clock = new FixedClock('2026-09-11 10:00:00');
 
         $this->service = new SalesOrderService(
             $this->orders,
-            new InMemoryCustomerRepository([new Customer(10, 'Customer A', '0800', 'Jakarta', true)]),
-            new InMemoryWarehouseRepository([new Warehouse(20, 'Main Warehouse', 'Jakarta', true)]),
+            new InMemoryCustomerRepository([
+                new Customer(10, 'Customer A', '0800', 'Jakarta', true),
+                new Customer(11, 'Closed Customer', '0800', 'Jakarta', false),
+            ]),
+            new InMemoryWarehouseRepository([
+                new Warehouse(20, 'Main Warehouse', 'Jakarta', true),
+                new Warehouse(21, 'Closed Warehouse', 'Bogor', false),
+            ]),
             new InMemoryProductRepository([
                 new Product(30, 'SKU-A', 'Product A', 1, 'pcs', '1000.00', '1500.00', 5, null, true),
                 new Product(31, 'SKU-B', 'Product B', 1, 'pcs', '2000.00', '2500.00', 5, null, true),
+                new Product(32, 'SKU-C', 'Retired Product', 1, 'pcs', '500.00', '700.00', 5, null, false),
             ]),
-            new FixedClock('2026-09-11 10:00:00'),
+            $clock,
             new ImmediateTransactionRunner(),
         );
+
+        // Approve/reject ada di service tersendiri sejak tech-debt TD-11; test
+        // approval tetap di file ini karena memakai fixture order yang sama.
+        $this->approvals = new SalesOrderApprovalService($this->service, $this->orders, $clock);
     }
 
     // ------------------------------------------------------------ create
@@ -217,6 +232,56 @@ final class SalesOrderServiceTest extends TestCase
         self::assertStringStartsWith('SO-20260911-', $first->orderNumber);
     }
 
+    // --------------------------------------- referensi nonaktif (TD-10)
+
+    /** @return array<string, array{string, string, string}> */
+    public static function inactiveReferences(): array
+    {
+        $inactive = ' is inactive. Choose an active one.';
+
+        return [
+            'inactive customer'  => ['customer_id', '11', 'The selected customer' . $inactive],
+            'inactive warehouse' => ['warehouse_id', '21', 'The selected source warehouse' . $inactive],
+            'unknown customer'   => ['customer_id', '99', 'The selected customer does not exist.'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('inactiveReferences')]
+    public function anInactiveCustomerOrWarehouseIsRefusedWhenCreating(string $field, string $id, string $message): void
+    {
+        // Dropdown form hanya berisi record aktif, tetapi request yang dirakit
+        // sendiri tidak boleh lolos dari aturan itu (tech-debt TD-10).
+        $payload = $this->validPayload();
+        $payload[$field] = $id;
+
+        try {
+            $this->service->create($payload, $this->sales);
+            self::fail('Referensi nonaktif seharusnya ditolak');
+        } catch (ValidationException $e) {
+            self::assertSame($message, $e->errors()[$field] ?? null);
+        }
+
+        self::assertSame(0, $this->orders->countBy([]), 'Tidak ada order yang tersimpan');
+    }
+
+    #[Test]
+    public function anInactiveProductLineIsRefusedWhenCreating(): void
+    {
+        $payload = $this->validPayload();
+        $payload['items'][1]['product_id'] = '32';
+
+        try {
+            $this->service->create($payload, $this->sales);
+            self::fail('Product nonaktif seharusnya ditolak');
+        } catch (ValidationException $e) {
+            self::assertSame(
+                'Retired Product is inactive. Choose an active product.',
+                $e->errors()['items.1.product_id'] ?? null,
+            );
+        }
+    }
+
     // ------------------------------------------------------- transitions
 
     #[Test]
@@ -342,7 +407,7 @@ final class SalesOrderServiceTest extends TestCase
 
         $this->expectException(ForbiddenException::class);
 
-        $this->service->approve($id, $this->sales);
+        $this->approvals->approve($id, $this->sales);
     }
 
     #[Test]
@@ -356,7 +421,7 @@ final class SalesOrderServiceTest extends TestCase
         // keberadaan record adalah yang lebih kuat dari keduanya.
         $this->expectException(NotFoundException::class);
 
-        $this->service->approve($id, $this->otherSales);
+        $this->approvals->approve($id, $this->otherSales);
     }
 
     #[Test]
@@ -370,7 +435,7 @@ final class SalesOrderServiceTest extends TestCase
 
         foreach ([$own, $foreign] as $id) {
             try {
-                $this->service->approve($id, $this->sales);
+                $this->approvals->approve($id, $this->sales);
                 self::fail('Sales tidak boleh pernah berhasil approve, order id ' . $id);
             } catch (ForbiddenException | NotFoundException) {
                 self::assertSame(
@@ -389,7 +454,7 @@ final class SalesOrderServiceTest extends TestCase
 
         $this->expectException(ForbiddenException::class);
 
-        $this->service->approve($id, $this->warehouse);
+        $this->approvals->approve($id, $this->warehouse);
     }
 
     #[Test]
@@ -397,7 +462,7 @@ final class SalesOrderServiceTest extends TestCase
     {
         $id = $this->pendingOrderCreatedBy($this->sales);
 
-        $this->service->approve($id, $this->admin);
+        $this->approvals->approve($id, $this->admin);
 
         $order = $this->orders->findById($id);
 
@@ -416,7 +481,7 @@ final class SalesOrderServiceTest extends TestCase
 
         $this->expectException(ForbiddenException::class);
 
-        $this->service->approve($id, $this->admin);
+        $this->approvals->approve($id, $this->admin);
     }
 
     #[Test]
@@ -424,7 +489,7 @@ final class SalesOrderServiceTest extends TestCase
     {
         $id = $this->pendingOrderCreatedBy($this->admin);
 
-        $this->service->approve($id, $this->secondAdmin);
+        $this->approvals->approve($id, $this->secondAdmin);
 
         self::assertSame(SalesOrderStatus::Approved, $this->statusOf($id));
     }
@@ -436,7 +501,7 @@ final class SalesOrderServiceTest extends TestCase
             $id = $this->pendingOrderCreatedBy($creator);
 
             try {
-                $this->service->approve($id, $this->admin);
+                $this->approvals->approve($id, $this->admin);
             } catch (ForbiddenException) {
                 // Admin membuat order itu sendiri; penolakannya justru benar.
                 continue;
@@ -457,18 +522,18 @@ final class SalesOrderServiceTest extends TestCase
         // Masih Draft — belum diajukan, jadi belum ada yang boleh disetujui.
         $this->expectException(DomainException::class);
 
-        $this->service->approve($id, $this->admin);
+        $this->approvals->approve($id, $this->admin);
     }
 
     #[Test]
     public function anApprovedOrderCannotBeApprovedTwice(): void
     {
         $id = $this->pendingOrderCreatedBy($this->sales);
-        $this->service->approve($id, $this->admin);
+        $this->approvals->approve($id, $this->admin);
 
         $this->expectException(DomainException::class);
 
-        $this->service->approve($id, $this->secondAdmin);
+        $this->approvals->approve($id, $this->secondAdmin);
     }
 
     // ------------------------------------------------------------ reject
@@ -478,7 +543,7 @@ final class SalesOrderServiceTest extends TestCase
     {
         $id = $this->pendingOrderCreatedBy($this->sales);
 
-        $this->service->reject($id, $this->admin);
+        $this->approvals->reject($id, $this->admin);
 
         self::assertSame(SalesOrderStatus::Cancelled, $this->statusOf($id));
     }
@@ -490,7 +555,7 @@ final class SalesOrderServiceTest extends TestCase
 
         $this->expectException(ForbiddenException::class);
 
-        $this->service->reject($id, $this->sales);
+        $this->approvals->reject($id, $this->sales);
     }
 
     #[Test]
@@ -501,7 +566,7 @@ final class SalesOrderServiceTest extends TestCase
 
         $this->expectException(NotFoundException::class);
 
-        $this->service->reject($id, $this->otherSales);
+        $this->approvals->reject($id, $this->otherSales);
     }
 
     #[Test]
@@ -511,7 +576,7 @@ final class SalesOrderServiceTest extends TestCase
 
         $this->expectException(ForbiddenException::class);
 
-        $this->service->reject($id, $this->admin);
+        $this->approvals->reject($id, $this->admin);
     }
 
     #[Test]
@@ -521,7 +586,7 @@ final class SalesOrderServiceTest extends TestCase
 
         $this->expectException(DomainException::class);
 
-        $this->service->reject($id, $this->admin);
+        $this->approvals->reject($id, $this->admin);
     }
 
     // --------------------------------------------------------- ownership
@@ -603,7 +668,7 @@ final class SalesOrderServiceTest extends TestCase
     private function approvedOrder(): int
     {
         $id = $this->pendingOrderCreatedBy($this->sales);
-        $this->service->approve($id, $this->admin);
+        $this->approvals->approve($id, $this->admin);
 
         return $id;
     }

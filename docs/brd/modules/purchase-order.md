@@ -40,7 +40,7 @@ Pembelian ke supplier: membuat PO, mengajukannya, membatalkannya, dan memicu goo
 | HTTP | `POST /purchase-orders/{id}/submit` | Admin, WS | idem |
 | HTTP | `GET /purchase-orders/{id}/edit`, `POST /purchase-orders/{id}` | Admin, WS — service: WS hanya PO buatannya | idem |
 | HTTP | `POST /purchase-orders/{id}/cancel` | **Admin** | idem |
-| HTTP | `GET`/`POST /purchase-orders/{id}/receive` | Admin, WS | idem → `StockService::receiveGoods` |
+| HTTP | `GET`/`POST /purchase-orders/{id}/receive` | Admin, WS | [`app/Controller/GoodsReceiptController.php`](../../../app/Controller/GoodsReceiptController.php) → `StockService::receiveGoods` |
 | PHP | `PurchaseOrderService::create/update/canEdit/assertMayEdit/submit/cancel/requireOrder/search/count/countByStatus` | — | [`app/Service/PurchaseOrderService.php`](../../../app/Service/PurchaseOrderService.php) |
 
 **Consumes**
@@ -79,5 +79,6 @@ Pembelian ke supplier: membuat PO, mengajukannya, membatalkannya, dan memicu goo
 
 ## Change Log
 
+- **2026-10-04**: Goods receipt dipindah ke `GoodsReceiptController` (TD-11; URL tidak berubah). Supplier, warehouse, dan product nonaktif kini ditolak saat create dan edit (TD-10).
 - **2026-10-04**: PO-CAP-006 edit PO Draft (spec 004-edit-draft-orders, D-04). Gap "format nomor order seed tidak konsisten" dihapus — seed sudah memakai format aplikasi sejak commit `e8682d2`.
 - **2026-10-03**: Initial version generated from codebase survey.

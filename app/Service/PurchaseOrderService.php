@@ -300,14 +300,16 @@ final class PurchaseOrderService
      */
     private function validate(array $data): array
     {
+        // Supplier, warehouse, dan product harus ada DAN aktif — untuk create
+        // maupun edit (tech-debt TD-10).
         $validator = Validator::make($data)
             ->required('supplier_id', 'Supplier')
-            ->existsById('supplier_id', 'Supplier', fn (int $id): bool => $this->suppliers->exists($id))
+            ->activeById('supplier_id', 'Supplier', fn (int $id): ?bool => $this->suppliers->findById($id)?->isActive)
             ->required('warehouse_id', 'Destination warehouse')
-            ->existsById(
+            ->activeById(
                 'warehouse_id',
                 'Destination warehouse',
-                fn (int $id): bool => $this->warehouses->exists($id),
+                fn (int $id): ?bool => $this->warehouses->findById($id)?->isActive,
             );
 
         if (($data['order_date'] ?? '') !== '') {
@@ -349,8 +351,14 @@ final class PurchaseOrderService
 
         $product = $productId > 0 ? $this->products->findById($productId) : null;
 
-        if ($product === null) {
-            $validator->rule($field . '.product_id', false, 'Select a product for every line.');
+        if ($product === null || !$product->isActive) {
+            $validator->rule(
+                $field . '.product_id',
+                false,
+                $product === null
+                    ? 'Select a product for every line.'
+                    : $product->name . ' is inactive. Choose an active product.',
+            );
 
             return null;
         }

@@ -19,6 +19,7 @@ use App\Support\Exception\DomainException;
 use App\Support\Exception\NotFoundException;
 use App\Support\Exception\UnauthenticatedException;
 use App\Support\Exception\ValidationException;
+use App\Support\Money;
 use App\Support\Paginator;
 use App\Support\Request;
 use App\Support\Response;
@@ -26,7 +27,7 @@ use App\Support\Session;
 use App\Support\View;
 
 /**
- * Sales Order — draft, approval, dan goods issue (SO-01).
+ * Sales Order — draft, edit, submit, dan cancel (SO-01).
  *
  * Peran controller ini HANYA HTTP: membaca request, memanggil Service, memilih
  * view. Tidak ada aturan bisnis di sini. Secara khusus, aturan segregation of
@@ -38,8 +39,11 @@ use App\Support\View;
  * Authorization guard sebelum request sampai ke sini:
  *   index/show            Admin, Sales, Warehouse Staff
  *   create/store/submit   Admin, Sales
- *   approve/reject        Admin saja
- *   issueForm/issue       Admin, Warehouse Staff
+ *   edit/update           Admin, Sales (service: pembuat order saja)
+ *
+ * Approve/reject ada di SalesOrderApprovalController dan goods issue di
+ * GoodsIssueController — dipisahkan agar masing-masing kecil dan satu tujuan
+ * (tech-debt TD-11).
  */
 final class SalesOrderController
 {
@@ -202,71 +206,6 @@ final class SalesOrderController
     }
 
     /**
-     * Approve — Admin saja per route table, dan SalesOrderService menolak
-     * approver yang sama dengan pembuat order (FR-018).
-     */
-    public function approve(Request $request): Response
-    {
-        return $this->transition(
-            $request,
-            function (int $id, User $user): void {
-                $this->salesOrders->approve($id, $user);
-            },
-            'Sales order approved.',
-        );
-    }
-
-    public function reject(Request $request): Response
-    {
-        return $this->transition(
-            $request,
-            function (int $id, User $user): void {
-                $this->salesOrders->reject($id, $user);
-            },
-            'Sales order rejected and cancelled.',
-        );
-    }
-
-    /** Form goods issue, menampilkan stock tersedia di samping setiap line. */
-    public function issueForm(Request $request): Response
-    {
-        $actingUser = $this->actingUser();
-        $order = $this->salesOrders->requireVisibleOrder($this->requireId($request), $actingUser);
-
-        if (!$order->canIssueGoods()) {
-            $this->session->flash('error', 'Only an approved order can be issued.');
-
-            return Response::redirect(self::DETAIL_PATH . (int) $order->id);
-        }
-
-        return Response::html($this->renderIssueForm($order));
-    }
-
-    /**
-     * Goods issue. Seluruh pemeriksaan kecukupan stock berada di StockService
-     * di dalam transaction, di bawah lock — controller hanya menyampaikan
-     * hasilnya (FR-019 s/d FR-022).
-     */
-    public function issue(Request $request): Response
-    {
-        $actingUser = $this->actingUser();
-        $order = $this->salesOrders->requireVisibleOrder($this->requireId($request), $actingUser);
-
-        try {
-            $this->stockService->issueGoods((int) $order->id, $actingUser);
-        } catch (DomainException $e) {
-            // Penolakan dijelaskan beserta angkanya, dan halamannya dirender
-            // ulang dengan stock terkini — bukan redirect yang membuang
-            // konteks (FR-019).
-            return Response::html($this->renderIssueForm($order, $e->getMessage()), 422);
-        }
-
-        $this->session->flash('success', 'Goods issued. Stock and ledger updated.');
-
-        return Response::redirect(self::DETAIL_PATH . (int) $order->id);
-    }
-
-    /**
      * Pola yang sama untuk seluruh perubahan status: jalankan, terjemahkan
      * penolakan aturan bisnis menjadi flash, lalu kembali ke detail order.
      *
@@ -305,7 +244,7 @@ final class SalesOrderController
                 'product'   => $product,
                 'quantity'  => $item->quantity,
                 'unitPrice' => $item->sellingPrice,
-                'lineTotal' => $this->lineTotal($item->quantity, $item->sellingPrice),
+                'lineTotal' => Money::lineTotal($item->quantity, $item->sellingPrice),
             ];
         }
 
@@ -336,30 +275,6 @@ final class SalesOrderController
                 && ($actingUser->isAdmin() || $actingUser->isSales()),
             'csrf'         => $this->csrf,
         ];
-    }
-
-    private function renderIssueForm(SalesOrder $order, ?string $error = null): string
-    {
-        $lines = [];
-
-        foreach ($order->items as $item) {
-            $lines[] = [
-                'product'   => $this->productService->requireProduct($item->productId),
-                'quantity'  => $item->quantity,
-                'available' => $this->stockService->availableFor($item->productId, $order->warehouseId),
-            ];
-        }
-
-        return $this->view->render('sales-orders/issue', [
-            'title'     => 'Issue goods — ' . $order->orderNumber,
-            'activeNav' => 'sales-orders',
-            'order'     => $order,
-            'lines'     => $lines,
-            'warehouse' => $this->masterData->requireWarehouse($order->warehouseId),
-            'customer'  => $this->parties->requireCustomer($order->customerId),
-            'error'     => $error,
-            'csrf'      => $this->csrf,
-        ]);
     }
 
     /**
@@ -490,30 +405,10 @@ final class SalesOrderController
         $total = 0;
 
         foreach ($order->items as $item) {
-            $total += $this->rupiah($item->sellingPrice) * $item->quantity;
+            $total += (int) Money::lineTotal($item->quantity, $item->sellingPrice);
         }
 
         return (string) $total;
-    }
-
-    /**
-     * Total satu line, dalam rupiah satuan penuh.
-     *
-     * Dihitung sebagai INTEGER, bukan float dan bukan bcmath: bcmath tidak
-     * dipasang di image (Dockerfile hanya memasang pdo_mysql), sehingga
-     * memakainya akan fatal di container meskipun jalan di host. Rupiah tidak
-     * memakai sen dalam praktik, jadi satuan penuh sudah tepat — konvensi yang
-     * sama dipakai Support\Money (spec A-011).
-     */
-    private function lineTotal(int $quantity, string $unitPrice): string
-    {
-        return (string) ($this->rupiah($unitPrice) * $quantity);
-    }
-
-    /** DECIMAL(15,2) menjadi rupiah satuan penuh. */
-    private function rupiah(string $amount): int
-    {
-        return (int) round((float) $amount);
     }
 
     /** @return array{search?: string, status?: string, sort?: string, direction?: string} */

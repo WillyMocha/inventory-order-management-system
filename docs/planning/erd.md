@@ -214,7 +214,7 @@ mana yang ada.
 
 **Dua FK dari `sales_order` ke `user`** adalah dasar segregation of duties. Database hanya
 menjamin keduanya menunjuk user yang sah; aturan **`approved_by <> created_by` DAN role
-approver harus Admin** ditegakkan `SalesOrderService::approve()`, bukan schema. Itu disengaja —
+approver harus Admin** ditegakkan `SalesOrderApprovalService::approve()`, bukan schema. Itu disengaja —
 aturan tersebut membutuhkan role lookup yang tidak dapat diekspresikan sebagai constraint.
 
 `stock_ledger.reference_id` adalah **polymorphic reference** dan karena itu tidak punya FK:
@@ -296,10 +296,12 @@ Ditegakkan `StockService`, yang menulis baris ledger dan mengubah stock di dalam
 transaction yang sama**. Diverifikasi `tests/Integration/LedgerReconciliationTest.php`.
 
 **INV-2 — Ledger append-only.** Baris `stock_ledger` tidak pernah di-`UPDATE` atau `DELETE`.
-Saat ini dijaga konvensi service saja — **tidak** oleh trigger maupun privilege database,
-sehingga satu `UPDATE` manual lewat SQL client tetap dapat merusaknya. Kelemahan ini tercatat
-di [`../quality/tech-debt.md`](../quality/tech-debt.md) TD-9. Yang mendeteksinya bila terjadi
-adalah `LedgerReconciliationTest::noLedgerRowIsEverUpdatedOrDeleted` dan pemeriksaan INV-1.
+Dijaga di **dua lapis**: konvensi service (hanya `StockService` yang menulis ledger, tanpa method
+update/delete di repository) dan, sejak `database/005_ledger_append_only.sql`, trigger MySQL
+`trg_stock_ledger_no_update` (UPDATE selalu ditolak) dan `trg_stock_ledger_no_delete` (DELETE
+ditolak kecuali sesi menyetel `@ioms_allow_ledger_cleanup = 1`, hanya untuk pembersihan fixture
+test). Diuji `LedgerAppendOnlyTest`; riwayatnya di [`../quality/tech-debt.md`](../quality/tech-debt.md)
+TD-9. `migrate.php --fresh` memakai `DROP TABLE`, yang tidak memicu trigger.
 
 ---
 

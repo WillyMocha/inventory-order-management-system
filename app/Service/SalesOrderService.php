@@ -21,16 +21,17 @@ use App\Support\TransactionRunner;
 use App\Support\Validator;
 
 /**
- * Alur penjualan ke customer (SO-01, FR-016 s/d FR-018).
+ * Alur penjualan ke customer (SO-01, FR-016, FR-017): membuat, mengedit Draft,
+ * mengajukan, membatalkan, dan scoping kepemilikan order.
  *
- * Service ini memegang aturan paling dijaga dalam sistem: segregation of
- * duties pada approve(). Aturannya ditegakkan DI SINI, bukan dengan
- * menyembunyikan tombol — menyembunyikan tombol bukan kontrol akses
- * (§1.2, security standard §2).
+ * Approve dan reject — segregation of duties, aturan paling dijaga dalam
+ * sistem — ada di SalesOrderApprovalService (tech-debt TD-11). Aturan edit di
+ * sini ditegakkan di server, bukan dengan menyembunyikan tombol (§1.2,
+ * security standard §2).
  *
  * Acting user selalu di-pass sebagai argument dan tidak pernah dibaca dari
- * session. Itulah yang membuat aturan approval dapat di-unit-test tanpa
- * session maupun database (constitution Principle III).
+ * session, sehingga seluruh aturan dapat di-unit-test tanpa session maupun
+ * database (constitution Principle III).
  *
  * Service ini tidak pernah menyentuh quantity stock. Pergerakan stock hanya
  * lewat StockService yang sekaligus menulis stock_ledger dalam transaction
@@ -40,6 +41,10 @@ final class SalesOrderService
 {
     /** Batas percobaan saat menyusun order number yang belum terpakai. */
     private const int ORDER_NUMBER_ATTEMPTS = 100;
+
+    private const string ONLY_DRAFT = 'Only a draft order can be edited.';
+
+    private const string CHANGED_MEANWHILE = 'This order was changed by someone else. Reload the page and try again.';
 
     public function __construct(
         private readonly SalesOrderRepositoryInterface $orders,
@@ -102,7 +107,7 @@ final class SalesOrderService
         $this->assertMayEdit($order, $actingUser);
 
         if ($order->status !== SalesOrderStatus::Draft) {
-            throw self::onlyDraftEditable();
+            throw new DomainException(self::ONLY_DRAFT);
         }
 
         $items = $this->validate($data);
@@ -122,7 +127,7 @@ final class SalesOrderService
         // tidak pernah tercampur (research R-004).
         $this->transactions->transaction(function () use ($edited, $items, $id): void {
             if (!$this->orders->updateDraft($edited)) {
-                throw self::onlyDraftEditable();
+                throw new DomainException(self::ONLY_DRAFT);
             }
 
             $this->orders->replaceItems($id, $items);
@@ -179,62 +184,6 @@ final class SalesOrderService
     public function cancel(int $id, User $actingUser): void
     {
         $order = $this->requireVisibleOrder($id, $actingUser);
-
-        $this->transition($order, SalesOrderStatus::Cancelled);
-    }
-
-    /**
-     * Menyetujui order — inti segregation of duties (FR-018, §1.2).
-     *
-     * DUA syarat harus terpenuhi bersamaan:
-     *   1. role acting user adalah Admin; dan
-     *   2. approved_by tidak sama dengan created_by.
-     *
-     * Syarat kedua berlaku untuk siapa pun termasuk Admin, sehingga seorang
-     * Admin pun tidak dapat menyetujui order yang dibuatnya sendiri.
-     *
-     * @throws NotFoundException
-     * @throws ForbiddenException
-     * @throws DomainException
-     */
-    public function approve(int $id, User $actingUser): void
-    {
-        $order = $this->requireApprovableOrder($id, $actingUser);
-
-        $this->assertCanTransition($order, SalesOrderStatus::Approved);
-
-        $approved = $this->orders->markApproved(
-            $id,
-            (int) $actingUser->id,
-            $this->clock->now()->format('Y-m-d H:i:s'),
-        );
-
-        if (!$approved) {
-            throw self::changedMeanwhile();
-        }
-    }
-
-    /**
-     * Menolak order. Sumber menyebut reject sebagai aksi Admin tanpa
-     * menyediakan state Rejected tersendiri, sehingga order berakhir di
-     * Cancelled (data-model.md).
-     *
-     * Syarat approver-nya sama dengan approve(): hanya Admin, dan tidak boleh
-     * order miliknya sendiri.
-     *
-     * @throws NotFoundException
-     * @throws ForbiddenException
-     * @throws DomainException
-     */
-    public function reject(int $id, User $actingUser): void
-    {
-        $order = $this->requireApprovableOrder($id, $actingUser);
-
-        if ($order->status !== SalesOrderStatus::PendingApproval) {
-            throw new DomainException(
-                'Only an order awaiting approval can be rejected.',
-            );
-        }
 
         $this->transition($order, SalesOrderStatus::Cancelled);
     }
@@ -302,32 +251,6 @@ final class SalesOrderService
     }
 
     /**
-     * Order yang memenuhi syarat approver, sebelum transisinya diperiksa.
-     *
-     * @throws NotFoundException
-     * @throws ForbiddenException
-     */
-    private function requireApprovableOrder(int $id, User $actingUser): SalesOrder
-    {
-        $order = $this->requireVisibleOrder($id, $actingUser);
-
-        // Syarat 1 — hanya Admin yang boleh menyetujui. Sales tidak pernah
-        // boleh, apa pun order-nya.
-        if (!$actingUser->isAdmin()) {
-            throw new ForbiddenException('Only an Admin can approve or reject a sales order.');
-        }
-
-        // Syarat 2 — approver tidak boleh pembuat order itu sendiri.
-        if ($order->isCreatedBy((int) $actingUser->id)) {
-            throw new ForbiddenException(
-                'You cannot approve or reject an order you created yourself.',
-            );
-        }
-
-        return $order;
-    }
-
-    /**
      * Memvalidasi transisi lalu menyimpannya secara compare-and-set: status
      * baru hanya ditulis bila status tersimpan masih sama dengan yang dibaca.
      *
@@ -342,7 +265,7 @@ final class SalesOrderService
         $this->assertCanTransition($order, $target);
 
         if (!$this->orders->updateStatus((int) $order->id, $order->status, $target)) {
-            throw self::changedMeanwhile();
+            throw new DomainException(self::CHANGED_MEANWHILE);
         }
     }
 
@@ -350,18 +273,6 @@ final class SalesOrderService
     private function mayEdit(SalesOrder $order, User $actingUser): bool
     {
         return !$actingUser->isWarehouseStaff() && $order->isCreatedBy((int) $actingUser->id);
-    }
-
-    private static function onlyDraftEditable(): DomainException
-    {
-        return new DomainException('Only a draft order can be edited.');
-    }
-
-    private static function changedMeanwhile(): DomainException
-    {
-        return new DomainException(
-            'This order was changed by someone else. Reload the page and try again.',
-        );
     }
 
     /** @throws DomainException */
@@ -421,14 +332,17 @@ final class SalesOrderService
      */
     private function validate(array $data): array
     {
+        // Customer, warehouse, dan product harus ada DAN aktif: record nonaktif
+        // tidak boleh dipakai order baru maupun hasil edit, walaupun request-nya
+        // dirakit di luar form (tech-debt TD-10).
         $validator = Validator::make($data)
             ->required('customer_id', 'Customer')
-            ->existsById('customer_id', 'Customer', fn (int $id): bool => $this->customers->exists($id))
+            ->activeById('customer_id', 'Customer', fn (int $id): ?bool => $this->customers->findById($id)?->isActive)
             ->required('warehouse_id', 'Source warehouse')
-            ->existsById(
+            ->activeById(
                 'warehouse_id',
                 'Source warehouse',
-                fn (int $id): bool => $this->warehouses->exists($id),
+                fn (int $id): ?bool => $this->warehouses->findById($id)?->isActive,
             );
 
         if (($data['order_date'] ?? '') !== '') {
@@ -473,8 +387,14 @@ final class SalesOrderService
 
         $product = $productId > 0 ? $this->products->findById($productId) : null;
 
-        if ($product === null) {
-            $validator->rule($field . '.product_id', false, 'Select a product for every line.');
+        if ($product === null || !$product->isActive) {
+            $validator->rule(
+                $field . '.product_id',
+                false,
+                $product === null
+                    ? 'Select a product for every line.'
+                    : $product->name . ' is inactive. Choose an active product.',
+            );
 
             return null;
         }

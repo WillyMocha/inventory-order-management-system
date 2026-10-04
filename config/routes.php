@@ -141,8 +141,9 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     $router->add('GET', '/purchase-orders/{id}/edit', 'PurchaseOrderController', 'edit', $adminWarehouse);
     $router->add('POST', '/purchase-orders/{id}', 'PurchaseOrderController', 'update', $adminWarehouse);
     $router->add('POST', '/purchase-orders/{id}/cancel', 'PurchaseOrderController', 'cancel', $adminOnly);
-    $router->add('GET', '/purchase-orders/{id}/receive', 'PurchaseOrderController', 'receiveForm', $adminWarehouse);
-    $router->add('POST', '/purchase-orders/{id}/receive', 'PurchaseOrderController', 'receive', $adminWarehouse);
+    // Goods receipt di controller sendiri (tech-debt TD-11); URL dan role tidak berubah.
+    $router->add('GET', '/purchase-orders/{id}/receive', 'GoodsReceiptController', 'receiveForm', $adminWarehouse);
+    $router->add('POST', '/purchase-orders/{id}/receive', 'GoodsReceiptController', 'receive', $adminWarehouse);
 
     // ---------------------------------------------------------------------
     // Sales Order, approval & goods issue (SO-01)
@@ -159,12 +160,13 @@ return static function (Router $router) use ($all, $adminOnly, $adminWarehouse, 
     // pembuat order itu saja, dan hanya selama Draft.
     $router->add('GET', '/sales-orders/{id}/edit', 'SalesOrderController', 'edit', $adminSales);
     $router->add('POST', '/sales-orders/{id}', 'SalesOrderController', 'update', $adminSales);
-    // Sales tidak pernah boleh approve, termasuk order miliknya (FR-018).
-    $router->add('POST', '/sales-orders/{id}/approve', 'SalesOrderController', 'approve', $adminOnly);
-    $router->add('POST', '/sales-orders/{id}/reject', 'SalesOrderController', 'reject', $adminOnly);
+    // Sales tidak pernah boleh approve, termasuk order miliknya (FR-018). Approve
+    // dan reject di controller sendiri (tech-debt TD-11); URL dan role tidak berubah.
+    $router->add('POST', '/sales-orders/{id}/approve', 'SalesOrderApprovalController', 'approve', $adminOnly);
+    $router->add('POST', '/sales-orders/{id}/reject', 'SalesOrderApprovalController', 'reject', $adminOnly);
     $router->add('POST', '/sales-orders/{id}/cancel', 'SalesOrderController', 'cancel', $adminSales);
-    $router->add('GET', '/sales-orders/{id}/issue', 'SalesOrderController', 'issueForm', $adminWarehouse);
-    $router->add('POST', '/sales-orders/{id}/issue', 'SalesOrderController', 'issue', $adminWarehouse);
+    $router->add('GET', '/sales-orders/{id}/issue', 'GoodsIssueController', 'issueForm', $adminWarehouse);
+    $router->add('POST', '/sales-orders/{id}/issue', 'GoodsIssueController', 'issue', $adminWarehouse);
 
     // ---------------------------------------------------------------------
     // Report (REPORT-01)

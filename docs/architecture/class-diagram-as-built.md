@@ -45,9 +45,12 @@ classDiagram
         +canEdit(SalesOrder, User) bool
         +assertMayEdit(SalesOrder, User) void
         +submit(int, User) void
+        +cancel(int, User) void
+        +requireVisibleOrder(int, User) SalesOrder
+    }
+    class SalesOrderApprovalService {
         +approve(int, User) void
         +reject(int, User) void
-        +cancel(int, User) void
     }
     class PurchaseOrderService {
         +create(array, User) int
@@ -138,6 +141,10 @@ classDiagram
     SalesOrderService ..> ProductRepositoryInterface
     SalesOrderService ..> ClockInterface
     SalesOrderService ..> TransactionRunner
+
+    SalesOrderApprovalService --> SalesOrderService : requireVisibleOrder
+    SalesOrderApprovalService ..> SalesOrderRepositoryInterface
+    SalesOrderApprovalService ..> ClockInterface
 
     PurchaseOrderService ..> PurchaseOrderRepositoryInterface
     PurchaseOrderService ..> SupplierRepositoryInterface
@@ -246,7 +253,10 @@ classDiagram
     direction LR
 
     class SalesOrderController
+    class SalesOrderApprovalController
+    class GoodsIssueController
     class PurchaseOrderController
+    class GoodsReceiptController
     class DashboardController
     class ReportController
     class StockApiController
@@ -255,6 +265,7 @@ classDiagram
     class ProductController
 
     class SalesOrderService
+    class SalesOrderApprovalService
     class PurchaseOrderService
     class StockService
     class DashboardService
@@ -277,6 +288,22 @@ classDiagram
     SalesOrderController --> View
     SalesOrderController --> Session
     SalesOrderController --> Csrf
+
+    SalesOrderApprovalController --> SalesOrderApprovalService
+    SalesOrderApprovalController --> UserService
+    SalesOrderApprovalController --> Session
+
+    GoodsIssueController --> SalesOrderService
+    GoodsIssueController --> StockService
+    GoodsIssueController --> ProductService
+    GoodsIssueController --> PartyService
+    GoodsIssueController --> MasterDataService
+
+    GoodsReceiptController --> PurchaseOrderService
+    GoodsReceiptController --> StockService
+    GoodsReceiptController --> ProductService
+    GoodsReceiptController --> PartyService
+    GoodsReceiptController --> MasterDataService
 
     PurchaseOrderController --> PurchaseOrderService
     PurchaseOrderController --> StockService
@@ -386,6 +413,17 @@ Kedua repository interface mendapat `updateDraft()` (UPDATE bersyarat `status = 
 `replaceItems()`. Controller-nya mendapat action `edit()` dan `update()`; panah controller → service
 di diagram 3 tidak berubah. `assertMayEdit()` dipakai controller **dan** service supaya layar edit
 dan penyimpanan memeriksa dengan urutan yang sama (D-04).
+
+### Pemecahan class order (tech-debt TD-11)
+
+Approve/reject keluar dari `SalesOrderService` menjadi `SalesOrderApprovalService` (dengan
+`SalesOrderApprovalController`), sehingga aturan segregation of duties berada di satu class kecil;
+service itu memakai `SalesOrderService::requireVisibleOrder()` agar scoping 404 untuk Sales tidak
+disalin. Goods issue dan goods receipt keluar dari controller order menjadi `GoodsIssueController`
+dan `GoodsReceiptController` — pergerakan stock, seperti `StockAdjustmentController`. URL tidak
+berubah. Helper total line pindah ke `Support\Money::lineTotal()`. Rinciannya di refactor-log
+R-9 … R-11. Untuk keterbacaan, dependency `View`/`UserService`/`Session`/`Csrf` milik
+`GoodsIssueController` dan `GoodsReceiptController` tidak digambar.
 
 ## Yang berubah dari diagram awal, dan mengapa
 

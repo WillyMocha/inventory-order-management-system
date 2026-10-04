@@ -41,7 +41,7 @@ Ketiga role memiliki menu **My profile** untuk melihat data akunnya dan menggant
 sendiri. Nama, email, dan role tetap hanya dapat diubah Admin.
 
 Pemisahan tanggung jawab ditegakkan **di server**, bukan dengan menyembunyikan tombol di UI.
-`SalesOrderService::approve()` memeriksa role Admin **dan** `approved_by <> created_by`.
+`SalesOrderApprovalService::approve()` memeriksa role Admin **dan** `approved_by <> created_by`.
 
 ## Kebutuhan
 

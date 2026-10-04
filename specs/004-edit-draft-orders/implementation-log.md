@@ -101,3 +101,23 @@ header row lock before line replacement) are implemented as written.
 **UNRESOLVED**: none. **Known side effect**: test purchase order `PO-20261004-0003` (id 18) remains in the local
 demo database as Cancelled (created for the two-tab race check; an Ordered PO cannot be deleted through the app).
 `composer db:reset` removes it.
+
+---
+
+## Session 2026-10-04 — redesign: tech-debt TD-9, TD-10, TD-11
+
+- **Checkpoint HEAD**: `9fa8dae` (working tree clean except the local SOP PDF)
+- **Scope (owner decision)**: fix all three in code. TD-11 split by responsibility; the 300-line file limit is
+  recorded as remaining.
+
+| Item | Files | Note |
+| --- | --- | --- |
+| TD-9 | `database/005_ledger_append_only.sql` (new), `compose.yaml`, `tests/Integration/{IntegrationTestCase,SalesOrderFixtures}.php`, `tests/Integration/LedgerAppendOnlyTest.php` (new) | Triggers refuse every UPDATE and any DELETE without `@ioms_allow_ledger_cleanup = 1`. `compose.yaml`: `--log-bin-trust-function-creators=1` (binary log ON + non-SUPER user → error 1419 otherwise); `db` container recreated once, data kept. Mutation check: with the triggers dropped in the test DB, 4 of 6 tests fail. Applied to the dev DB with `migrate.php` |
+| TD-10 | `app/Support/Validator.php` (`activeById()`), `app/Service/{SalesOrderService,PurchaseOrderService}.php`, their unit tests | Inactive customer/supplier, warehouse, product refused on create and edit; 8 new unit tests; spec 004 FR-009/R-005 updated |
+| TD-11 | NEW `app/Controller/{GoodsIssueController,GoodsReceiptController,SalesOrderApprovalController}.php`, NEW `app/Service/SalesOrderApprovalService.php`; `SalesOrderService`, both order controllers, `app/Support/Money.php` (`lineTotal()`), `config/{routes,container}.php`, `tests/Unit/Support/MoneyTest.php` (new), approval tests re-pointed | All classes ≤ 20 methods (SalesOrderService 24→19, SalesOrderController 27→20, PurchaseOrderController 26→20). Same URLs, roles, messages. HTTP smoke: issue/receive forms 200, wrong-status redirects with the same messages, approve/reject on a Fulfilled order refused with the same messages, Sales 403; demo data unchanged (ledger count, stock sum, SO statuses compared before/after) |
+| Docs | `CLAUDE.md`, `README.md`, `docs/quality/{tech-debt,refactor-log}.md`, `docs/planning/{decisions,erd}.md`, `docs/architecture/{class-diagram-as-built,adr-001-repository-abstraction}.md`, `docs/testing/failure-paths.md`, `docs/brd/modules/{sales-order,purchase-order,stock}.md` | References to moved code and to TD-9 updated; refactor-log R-9…R-11; history documents (`specs/001/tasks.md`, older log entries) intentionally untouched |
+
+**Gate**: `composer check` — unit 459 OK, integration 194 OK, PHPStan 0, PHPCS 0 (no suppression added).
+
+**UNRESOLVED**: none. **Remaining by design**: four order classes still exceed the 300-line file guideline (TD-11
+"partly done").

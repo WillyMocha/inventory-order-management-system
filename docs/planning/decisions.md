@@ -33,12 +33,13 @@ tidak akan pernah dapat disetujui siapa pun. Karena itu seed menyediakan **dua a
 (`admin@ioms.test`, `admin2@ioms.test`). §7.1 meminta "satu akun Admin" sebagai **minimum**,
 jadi dua akun tetap memenuhinya.
 
-**Ditegakkan di.** `SalesOrderService::requireApprovableOrder()`. Diuji oleh
+**Ditegakkan di.** `SalesOrderApprovalService::requireApprovableOrder()` (dipindah dari
+`SalesOrderService` pada tech-debt TD-11; aturannya tidak berubah). Diuji oleh
 `ApprovalAuthorizationTest::anAdminStillCannotApproveAnOrderTheyCreatedThemselves` dan
 `ApprovalAuthorizationTest::anOrderCreatedByAnAdminIsApprovedByAnotherAdmin`.
 
 **Bila tafsiran ditolak** (Admin boleh approve order miliknya): hapus syarat kedua di
-`requireApprovableOrder()` untuk role Admin saja, lalu sesuaikan dua test di atas. Admin
+`SalesOrderApprovalService::requireApprovableOrder()` untuk role Admin saja, lalu sesuaikan dua test di atas. Admin
 kedua di seed boleh tetap ada.
 
 ---

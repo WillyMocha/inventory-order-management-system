@@ -24,7 +24,10 @@ use App\Controller\HealthController;
 use App\Controller\ProductController;
 use App\Controller\ProfileController;
 use App\Controller\ReportController;
+use App\Controller\GoodsIssueController;
+use App\Controller\GoodsReceiptController;
 use App\Controller\PurchaseOrderController;
+use App\Controller\SalesOrderApprovalController;
 use App\Controller\SalesOrderController;
 use App\Controller\StockAdjustmentController;
 use App\Controller\SupplierController;
@@ -49,6 +52,7 @@ use App\Service\ProductImageService;
 use App\Service\ProductService;
 use App\Service\PurchaseOrderService;
 use App\Service\ReportService;
+use App\Service\SalesOrderApprovalService;
 use App\Service\SalesOrderService;
 use App\Service\StockService;
 use App\Service\UserService;
@@ -132,6 +136,14 @@ return static function (array $config): array {
         $productRepository,
         $clock,
         $database,
+    );
+
+    // Approve/reject — segregation of duties — dipisahkan dari SalesOrderService
+    // (tech-debt TD-11), tetapi memakai visibilitas order yang sama.
+    $salesOrderApprovalService = new SalesOrderApprovalService(
+        $salesOrderService,
+        $salesOrderRepository,
+        $clock,
     );
 
     // StockService menerima Database sebagai TransactionRunner — satu-satunya
@@ -274,6 +286,30 @@ return static function (array $config): array {
             $session,
             $csrf,
         ),
+        'SalesOrderApprovalController' => static fn (): SalesOrderApprovalController =>
+            new SalesOrderApprovalController($salesOrderApprovalService, $userService, $session),
+        'GoodsIssueController' => static fn (): GoodsIssueController => new GoodsIssueController(
+            $view,
+            $salesOrderService,
+            $stockService,
+            $productService,
+            $partyService,
+            $masterDataService,
+            $userService,
+            $session,
+            $csrf,
+        ),
+        'GoodsReceiptController' => static fn (): GoodsReceiptController => new GoodsReceiptController(
+            $view,
+            $purchaseOrderService,
+            $stockService,
+            $productService,
+            $partyService,
+            $masterDataService,
+            $userService,
+            $session,
+            $csrf,
+        ),
         'CategoryController' => static fn (): CategoryController => new CategoryController(
             $view,
             $masterDataService,
@@ -311,6 +347,7 @@ return static function (array $config): array {
         'partyService'            => $partyService,
         'purchaseOrderService'    => $purchaseOrderService,
         'salesOrderService'       => $salesOrderService,
+        'salesOrderApprovalService' => $salesOrderApprovalService,
         'stockService'            => $stockService,
         'dashboardService'        => $dashboardService,
         'reportService'           => $reportService,

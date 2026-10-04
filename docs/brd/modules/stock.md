@@ -26,7 +26,7 @@ condition (ARCH-02).
   reference_id, note (alasan; wajib tepat untuk Adjustment — deviasi D-1 spec 003), performed_by,
   created_at (`stock_ledger`, `app/Entity/StockLedger.php`)
 - Invariant: `SUM(stock_ledger.quantity) = product_stock.quantity` per (product, warehouse)
-- Rule: ledger append-only, tidak pernah di-UPDATE/DELETE (dijaga konvensi, bukan DB — TD-9)
+- Rule: ledger append-only, tidak pernah di-UPDATE/DELETE — dijaga konvensi service **dan** trigger MySQL `database/005_ledger_append_only.sql` (TD-9)
 - Rule: urutan lock baris order → `product_stock` urut (product_id, warehouse_id); verifikasi seluruh line sebelum menulis apa pun (dua fase)
 - Rule: koreksi = quantity hasil hitung − quantity sistem; selisih nol ditolak; ditolak bila quantity berubah setelah user melihatnya; baris `product_stock` dipastikan ada sebelum dikunci (`ensureRow`, ADR-002 addendum)
 - Rule (DB): `ck_ledger_note_adjustment`, `ck_ledger_adjustment_manual` (migration `004_ledger_note.sql`)
@@ -85,10 +85,10 @@ sequenceDiagram
 ## Known Gaps / Risks
 
 - **Area paling kritikal**: melepas transaction, `FOR UPDATE`, atau compare-and-set membuat oversell atau pemrosesan ganda dapat direproduksi (critical failure brief §8.2).
-- Append-only belum dijaga di level database (TD-9).
 
 ## Change Log
 
+- **2026-10-04**: Append-only kini dijaga trigger MySQL (TD-9). Goods issue dan goods receipt dilayani `GoodsIssueController` dan `GoodsReceiptController` (TD-11); URL tidak berubah.
 - **2026-10-03**: 003-stock-adjustment diimplementasikan — STOCK-CAP-005 terpenuhi, STOCK-CAP-006
   ditambahkan; kolom `note` + dua CHECK; celah Adjustment dihapus dari Known Gaps.
 - **2026-10-03**: Initial version generated from codebase survey.

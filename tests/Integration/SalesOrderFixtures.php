@@ -140,8 +140,16 @@ trait SalesOrderFixtures
             "DELETE FROM `user` WHERE email LIKE 'fixture-%@test'",
         ];
 
-        foreach ($statements as $statement) {
-            $this->pdo->exec($statement);
+        // Baris ledger fixture hanya dapat dihapus dengan izin eksplisit untuk sesi
+        // ini — trigger append-only menolak DELETE lain (tech-debt TD-9).
+        $this->pdo->exec('SET @ioms_allow_ledger_cleanup = 1');
+
+        try {
+            foreach ($statements as $statement) {
+                $this->pdo->exec($statement);
+            }
+        } finally {
+            $this->pdo->exec('SET @ioms_allow_ledger_cleanup = NULL');
         }
     }
 

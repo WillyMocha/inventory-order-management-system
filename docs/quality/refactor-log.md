@@ -334,6 +334,91 @@ dieksekusi MySQL di `RepositoryCoverageTest`.
 
 ---
 
+## R-9 — Aksi pergerakan stock menumpang di controller order
+
+**Smell**: Large Class dan tanggung jawab bercampur. `SalesOrderController` (27 method, 557
+baris) menampung goods issue di samping pengelolaan order, dan `PurchaseOrderController`
+(26 method, 544 baris) menampung goods receipt. Goods issue dan receipt adalah **pergerakan
+stock**, bukan pengelolaan order — project sudah punya preseden controller tersendiri untuk itu
+(`StockAdjustmentController`, spec 003). Sonar S1448 (> 20 method) menandai keduanya (TD-11).
+
+**Teknik**: Extract Class → `GoodsIssueController` (`issueForm`, `issue`) dan
+`GoodsReceiptController` (`receiveForm`, `receive`, `receivedQuantitiesFrom`). Hanya nama
+controller di `config/routes.php` yang berubah; URL dan role tidak.
+
+**Sebelum**
+
+```php
+$router->add('GET', '/sales-orders/{id}/issue', 'SalesOrderController', 'issueForm', $adminWarehouse);
+$router->add('GET', '/purchase-orders/{id}/receive', 'PurchaseOrderController', 'receiveForm', $adminWarehouse);
+```
+
+**Sesudah**
+
+```php
+$router->add('GET', '/sales-orders/{id}/issue', 'GoodsIssueController', 'issueForm', $adminWarehouse);
+$router->add('GET', '/purchase-orders/{id}/receive', 'GoodsReceiptController', 'receiveForm', $adminWarehouse);
+```
+
+**Mengapa aman**: method dipindah apa adanya — pesan, status HTTP, dan redirect sama.
+Diverifikasi lewat HTTP: form issue/receive 200, order yang salah status ditolak dengan pesan
+yang sama, Sales tetap 403; `GoodsIssueTest`, `GoodsReceiptTest`, dan `ConcurrentGoodsIssueTest`
+hijau tanpa diubah.
+
+---
+
+## R-10 — Segregation of duties tercampur dengan alur draft
+
+**Smell**: Large Class. `SalesOrderService` (24 method) memuat create, edit, submit, cancel,
+scoping kepemilikan, **dan** approve/reject — padahal approve/reject adalah aturan yang CLAUDE.md
+tandai sebagai area paling kritikal. Aturan yang harus diaudit tersebar di class yang besar.
+
+**Teknik**: Extract Class → `SalesOrderApprovalService` (`approve`, `reject`,
+`requireApprovableOrder`) dan `SalesOrderApprovalController`. Visibilitas order tetap memakai
+`SalesOrderService::requireVisibleOrder()` (bukan disalin), sehingga Sales pada order orang lain
+tetap mendapat 404. Dua static factory pesan error di `SalesOrderService` diganti konstanta.
+
+**Sebelum**
+
+```php
+$this->salesOrders->approve($id, $user);   // SalesOrderService, 24 method
+```
+
+**Sesudah**
+
+```php
+$this->approvals->approve($id, $user);     // SalesOrderApprovalService, 4 method
+```
+
+**Mengapa aman**: kedua syarat (Admin, approver ≠ creator) dan urutan pemeriksaannya disalin
+utuh; seluruh test approval (`SalesOrderServiceTest`, `ApprovalAuthorizationTest`) hanya berganti
+objek yang dipanggil dan tetap hijau. HTTP: approve/reject pada order Fulfilled ditolak dengan
+pesan yang sama persis.
+
+---
+
+## R-11 — Pembulatan total line diduplikasi di dua controller
+
+**Smell**: Duplicated Code. `rupiah()` dan `lineTotal()` identik di `SalesOrderController` dan
+`PurchaseOrderController`, lengkap dengan komentar yang sama tentang bcmath.
+
+**Teknik**: Move Method → `Money::lineTotal(int $quantity, string $unitPrice)`, di samping
+`Money::format()` yang sudah memakai aturan pembulatan yang sama. Diuji `MoneyTest`.
+
+**Sebelum**
+
+```php
+'lineTotal' => $this->lineTotal($item->quantity, $item->sellingPrice),   // salinan di 2 controller
+```
+
+**Sesudah**
+
+```php
+'lineTotal' => Money::lineTotal($item->quantity, $item->sellingPrice),
+```
+
+---
+
 ## Catatan audit SRP
 
 **`StockService` — satu class, dua alur, dan itu benar.**

@@ -18,7 +18,8 @@ Dibuat pada T144 dengan menyilangkan seluruh method `public` di `app/Service/` t
 | `ProductService` | 11/15 | `totalInventoryValue` `totalStockFor` `updateImagePath` `requireProduct` |
 | `PurchaseOrderService` | 10/10 | — |
 | `ReportService` | 11/11 | — |
-| `SalesOrderService` | 13/13 | — |
+| `SalesOrderService` | 11/11 | — |
+| `SalesOrderApprovalService` | 2/2 | — |
 | `StockService` | 5/8 | `availableFor` `movementsForSalesOrder` `movementsForPurchaseOrder` |
 | `UserService` | 6/7 | `requireUser` |
 
@@ -32,6 +33,15 @@ Audit ini menemukan kekurangan yang nyata, bukan sekadar mencatat keadaan:
 | `AuthService::verifyPasswordFor` tidak teruji padahal ia adalah step-up re-auth sebelum aksi sensitif (security standard §7) | 4 test pada `AuthServiceTest` |
 | `PartyService` sisi Customer tertinggal dari sisi Supplier — `updateCustomer`, `countCustomers`, `activeCustomers`, `countSuppliers` | 3 test pada `PartyServiceTest` |
 | `ProductService::stockBreakdownBySku` dan `availableQuantity` hanya teruji tidak langsung lewat controller API | 5 test pada `ProductServiceTest` |
+
+## Yang ditambahkan pada tech-debt TD-9 … TD-11 (2026-10-04)
+
+| Perubahan | Test |
+| --- | --- |
+| `approve`/`reject` pindah ke `SalesOrderApprovalService` | Test approval yang sama di `SalesOrderServiceTest` dan `ApprovalAuthorizationTest`, kini memanggil service baru |
+| Referensi nonaktif ditolak (`Validator::activeById`) | 8 test pada `SalesOrderServiceTest` dan `PurchaseOrderServiceTest` |
+| `Money::lineTotal` | 3 test pada `MoneyTest` (baru) |
+| Trigger append-only `stock_ledger` | 6 test integration pada `LedgerAppendOnlyTest` (baru) |
 
 ## Yang ditambahkan pada 004-edit-draft-orders
 

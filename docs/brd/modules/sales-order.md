@@ -26,7 +26,7 @@ approve atau reject, Warehouse Staff mengeluarkan barang (dikerjakan oleh [stock
   dibuat) (`sales_order_item`)
 - **SO-ENT-003 SalesOrderStatus** — `Draft → PendingApproval → Approved → Fulfilled`; `Cancelled`
   sebelum Fulfilled (`app/Entity/Enum/SalesOrderStatus.php`)
-- Rule: `approved_by <> created_by` (`SalesOrderService::requireApprovableOrder`), ditegakkan di
+- Rule: `approved_by <> created_by` (`SalesOrderApprovalService::requireApprovableOrder`), ditegakkan di
   server; route approve/reject `$adminOnly`
 - Rule: order di luar scope Sales menghasilkan **404**, bukan 403 (scoping di WHERE clause)
 - Rule: transisi compare-and-set; cancel tidak dapat menimpa order yang sudah Fulfilled
@@ -43,9 +43,10 @@ approve atau reject, Warehouse Staff mengeluarkan barang (dikerjakan oleh [stock
 | HTTP | `GET /sales-orders`, `GET /sales-orders/{id}` | semua role (Sales: miliknya) | [`app/Controller/SalesOrderController.php`](../../../app/Controller/SalesOrderController.php) |
 | HTTP | `/sales-orders/create`, `POST /sales-orders`, `POST /{id}/submit`, `POST /{id}/cancel` | Admin, Sales | idem |
 | HTTP | `GET /sales-orders/{id}/edit`, `POST /sales-orders/{id}` | Admin, Sales — service: pembuat order saja | idem |
-| HTTP | `POST /sales-orders/{id}/approve`, `POST /{id}/reject` | **Admin** | idem |
-| HTTP | `GET`/`POST /sales-orders/{id}/issue` | Admin, WS | idem → `StockService::issueGoods` |
-| PHP | `SalesOrderService::create/update/canEdit/assertMayEdit/submit/approve/reject/cancel/requireVisibleOrder/scopeFor/search/count/countByStatus` | — | [`app/Service/SalesOrderService.php`](../../../app/Service/SalesOrderService.php) |
+| HTTP | `POST /sales-orders/{id}/approve`, `POST /{id}/reject` | **Admin** | [`app/Controller/SalesOrderApprovalController.php`](../../../app/Controller/SalesOrderApprovalController.php) |
+| HTTP | `GET`/`POST /sales-orders/{id}/issue` | Admin, WS | [`app/Controller/GoodsIssueController.php`](../../../app/Controller/GoodsIssueController.php) → `StockService::issueGoods` |
+| PHP | `SalesOrderService::create/update/canEdit/assertMayEdit/submit/cancel/requireVisibleOrder/scopeFor/search/count/countByStatus` | — | [`app/Service/SalesOrderService.php`](../../../app/Service/SalesOrderService.php) |
+| PHP | `SalesOrderApprovalService::approve/reject` | — | [`app/Service/SalesOrderApprovalService.php`](../../../app/Service/SalesOrderApprovalService.php) |
 
 **Consumes**
 
@@ -73,7 +74,7 @@ approve atau reject, Warehouse Staff mengeluarkan barang (dikerjakan oleh [stock
 
 ## Test Coverage
 
-- `SalesOrderService` — unit (`SalesOrderServiceTest`, `SalesOrderServiceEditTest`, `OrderSearchTest`)
+- `SalesOrderService`, `SalesOrderApprovalService` — unit (`SalesOrderServiceTest`, `SalesOrderServiceEditTest`, `OrderSearchTest`)
 - Edit Draft: CAS status, penggantian line, rollback, route roles — integration (`EditDraftOrderTest`)
 - Segregation of duties, 404 scoping — integration (`ApprovalAuthorizationTest`)
 - Race condition status (issue ganda, cancel vs fulfilled) — integration (`ConcurrentGoodsIssueTest`)
@@ -86,5 +87,6 @@ approve atau reject, Warehouse Staff mengeluarkan barang (dikerjakan oleh [stock
 
 ## Change Log
 
+- **2026-10-04**: Approve/reject dipindah ke `SalesOrderApprovalService` + `SalesOrderApprovalController`, goods issue ke `GoodsIssueController` (TD-11; URL dan aturan tidak berubah). Customer, warehouse, dan product nonaktif kini ditolak saat create dan edit (TD-10).
 - **2026-10-04**: SO-CAP-008 edit SO Draft oleh pembuatnya (spec 004-edit-draft-orders, D-04).
 - **2026-10-03**: Initial version generated from codebase survey.

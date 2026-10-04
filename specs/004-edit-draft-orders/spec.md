@@ -167,10 +167,11 @@ permitted users; the submit confirmation states that the order can no longer be 
 - **FR-008**: An edit MUST NOT change the order number, status, creator, or creation time; it MUST NOT set an
   approver.
 - **FR-009**: An edit MUST apply the same validation as creating an order: at least one line; quantities are whole
-  numbers above zero; customer or supplier, warehouse, and products must exist. As on the create screen, the edit
-  screen offers only active customers, suppliers, warehouses, and products. On failure nothing is saved, problems
-  are shown next to the fields, and the entered values are kept. *(Wording aligned with the existing create rule
-  during planning — research R-005.)*
+  numbers above zero; customer or supplier, warehouse, and products must exist **and be active** (enforced by the
+  server since tech-debt TD-10, 2026-10-04, for create and edit alike). As on the create screen, the edit screen
+  offers only active records. On failure nothing is saved, problems are shown next to the fields, and the entered
+  values are kept. *(Planning first aligned this with the then-existing create rule, which only checked existence —
+  research R-005; TD-10 then closed that gap for both.)*
 - **FR-010**: On save, line prices MUST be set the same way as when an order is created (A-004).
 - **FR-011**: Header and lines MUST be saved together in a single all-or-nothing step.
 - **FR-012**: Editing MUST NOT create, change, or remove any stock movement or stock quantity.

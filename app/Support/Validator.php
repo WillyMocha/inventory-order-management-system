@@ -187,6 +187,34 @@ final class Validator
         return $this;
     }
 
+    /**
+     * Foreign key yang harus ada DAN aktif — record nonaktif tidak boleh
+     * dipilih di transaksi baru (tech-debt TD-10). Callback mengembalikan status
+     * aktif record, atau null bila record tidak ada; Validator tetap tidak
+     * mengenal database.
+     *
+     * @param callable(int): ?bool $isActive
+     */
+    public function activeById(string $field, string $label, callable $isActive): self
+    {
+        $value = $this->raw($field);
+
+        if ($value === null || $value === '' || !is_numeric($value)) {
+            return $this;
+        }
+
+        $active = $isActive((int) $value);
+        $selected = 'The selected ' . strtolower($label);
+
+        if ($active === null) {
+            $this->fail($field, $selected . ' does not exist.');
+        } elseif (!$active) {
+            $this->fail($field, $selected . ' is inactive. Choose an active one.');
+        }
+
+        return $this;
+    }
+
     /** Aturan bebas untuk kondisi yang tidak tertutup helper di atas. */
     public function rule(string $field, bool $passes, string $message): self
     {

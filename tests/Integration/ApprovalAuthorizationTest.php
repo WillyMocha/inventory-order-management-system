@@ -17,6 +17,7 @@ use App\Repository\Mysql\MysqlProductRepository;
 use App\Repository\Mysql\MysqlSalesOrderRepository;
 use App\Repository\Mysql\MysqlUserRepository;
 use App\Repository\Mysql\MysqlWarehouseRepository;
+use App\Service\SalesOrderApprovalService;
 use App\Service\SalesOrderService;
 use App\Support\Authorization;
 use App\Support\Exception\ForbiddenException;
@@ -37,6 +38,7 @@ use PHPUnit\Framework\Attributes\Test;
 final class ApprovalAuthorizationTest extends IntegrationTestCase
 {
     private SalesOrderService $service;
+    private SalesOrderApprovalService $approvals;
     private MysqlSalesOrderRepository $orders;
 
     private Router $router;
@@ -67,6 +69,10 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
             $this->database,
         );
 
+        // Approve/reject ada di SalesOrderApprovalService sejak tech-debt TD-11;
+        // visibilitas order tetap dari SalesOrderService yang sama.
+        $this->approvals = new SalesOrderApprovalService($this->service, $this->orders, new SystemClock());
+
         $this->router = new Router();
         /** @var callable(Router): void $register */
         $register = require dirname(__DIR__, 2) . '/config/routes.php';
@@ -96,7 +102,7 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
         foreach (['approve', 'reject'] as $action) {
             $matched = $this->router->match('POST', '/sales-orders/7/' . $action);
 
-            self::assertSame('SalesOrderController', $matched['controller']);
+            self::assertSame('SalesOrderApprovalController', $matched['controller']);
             self::assertNotNull($matched['roles'], $action . ' tidak boleh menjadi route publik');
             self::assertSame(
                 [Role::Admin],
@@ -138,7 +144,7 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
         $refused = false;
 
         try {
-            $this->service->approve($orderId, $this->salesOwner);
+            $this->approvals->approve($orderId, $this->salesOwner);
         } catch (ForbiddenException | NotFoundException) {
             $refused = true;
         }
@@ -160,7 +166,7 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
             $refused = false;
 
             try {
-                $this->service->approve($orderId, $this->salesOwner);
+                $this->approvals->approve($orderId, $this->salesOwner);
             } catch (ForbiddenException | NotFoundException) {
                 $refused = true;
             }
@@ -177,7 +183,7 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
 
         $this->expectException(ForbiddenException::class);
 
-        $this->service->approve($orderId, $this->warehouseStaff);
+        $this->approvals->approve($orderId, $this->warehouseStaff);
     }
 
     #[Test]
@@ -185,7 +191,7 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
     {
         $orderId = $this->pendingOrderCreatedBy($this->salesOwner);
 
-        $this->service->approve($orderId, $this->admin);
+        $this->approvals->approve($orderId, $this->admin);
 
         $order = $this->orders->findById($orderId);
 
@@ -207,7 +213,7 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
 
         $this->expectException(ForbiddenException::class);
 
-        $this->service->approve($orderId, $this->admin);
+        $this->approvals->approve($orderId, $this->admin);
     }
 
     #[Test]
@@ -224,7 +230,7 @@ final class ApprovalAuthorizationTest extends IntegrationTestCase
         );
         $orderId = $this->pendingOrderCreatedBy($this->admin);
 
-        $this->service->approve($orderId, $secondAdmin);
+        $this->approvals->approve($orderId, $secondAdmin);
 
         $order = $this->orders->findById($orderId);
 

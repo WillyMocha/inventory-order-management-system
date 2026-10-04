@@ -97,6 +97,10 @@ only active records — the same as Create today. Spec FR-009 and the "deactivat
 created" edge case are worded to match this (updated 2026-10-04). Making the server reject inactive
 records would change Create too, so it is out of scope here and is noted as a follow-up candidate.
 
+**Update 2026-10-04 (tech-debt TD-10)**: the follow-up was done. `validate()` now rejects inactive
+customers/suppliers, warehouses, and products through `Validator::activeById()`; because create and edit
+still share `validate()`, both became stricter together — the "one rule set" decision above holds.
+
 **Alternatives rejected**: A second, stricter validator for edit only — two rule sets for the same order
 would diverge, and a draft could then be created in a state it can no longer be saved in.
 
