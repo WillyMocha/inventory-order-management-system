@@ -201,6 +201,7 @@ scope. Prosedur verifikasi lengkap ada di
 
 | Dokumen | Isi |
 | --- | --- |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release note per versi, mulai v1.0.0 |
 | [`specs/001-inventory-order-management/spec.md`](specs/001-inventory-order-management/spec.md) | Requirement — user story, FR, NFR, constraint |
 | [`specs/001-inventory-order-management/plan.md`](specs/001-inventory-order-management/plan.md) | Rencana implementasi dan struktur folder |
 | [`specs/001-inventory-order-management/research.md`](specs/001-inventory-order-management/research.md) | Keputusan desain beserta alternatif yang ditolak |
@@ -220,11 +221,9 @@ Dicatat apa adanya. Rinciannya di [`docs/quality/tech-debt.md`](docs/quality/tec
   scope brief (§4.3). Selama enam phase integration suite tidak pernah dijalankan dan
   menyembunyikan bug yang membuat setiap goods issue gagal; `composer check` kini membangun
   schema test lebih dulu agar hal itu tidak terulang.
-- **Hanya `stock-lookup.js` yang memiliki test JavaScript otomatis.** Modul lain
+- **Hanya `stock-lookup.js` dan `confirm.js` yang memiliki test JavaScript otomatis.** Modul lain
   (`validation.js`, `order-lines.js`, dll.) belum; seluruhnya progressive enhancement, sehingga
   aplikasi tetap berfungsi penuh tanpa JavaScript.
-- **Append-only `stock_ledger` dijaga aplikasi, bukan database.** Tidak ada trigger yang menolak
-  `UPDATE` manual lewat SQL client (`tech-debt.md` TD-9).
 - Bug yang diketahui beserta workaround-nya: [`docs/testing/known-bugs.md`](docs/testing/known-bugs.md).
 - **Jalur sukses upload image tidak teruji otomatis.** `move_uploaded_file()` hanya menerima
   upload HTTP sungguhan, sehingga tidak dapat dijalankan dari CLI. Penolakan file palsu,
