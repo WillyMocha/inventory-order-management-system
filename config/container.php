@@ -165,6 +165,8 @@ return static function (array $config): array {
         $productRepository,
         $salesOrderRepository,
         $purchaseOrderRepository,
+        $stockLedgerRepository,
+        $clock,
     );
 
     $reportService = new ReportService(

@@ -24,10 +24,23 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 | **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock`; koreksi dari hasil hitung fisik (Adjustment) dengan alasan wajib, aman dari race condition |
 | **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap; PO Draft dapat diedit |
 | **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue; SO Draft dapat diedit pembuatnya |
-| **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation |
+| **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation; Admin dan Warehouse Staff juga melihat grafik stock movement 30 hari langsung dari `stock_ledger` |
 | **Report** | Export CSV stock movement, status Sales Order, dan status Purchase Order untuk rentang tanggal pilihan |
 | **JSON API** | Ketersediaan stock per warehouse, dengan session auth yang sama dengan halaman |
 | **Job** | Routine low-stock yang berjalan di luar request cycle |
+
+### Bonus
+
+Brief menyebut beberapa contoh pekerjaan bonus. Yang dikerjakan, setelah seluruh requirement wajib
+stabil:
+
+- **Dashboard grafik SVG buatan sendiri** — unit masuk/keluar per hari selama 30 hari terakhir,
+  dihitung langsung dari `stock_ledger` setiap kali dashboard dibuka, tanpa library dan tanpa
+  JavaScript; angka per hari sama dengan export CSV stock movement
+  ([spec 005](specs/005-stock-movement-chart/spec.md)).
+- **Integration test tambahan** — jauh melebihi minimum 3 di TEST-02 (lihat
+  [`docs/testing/test-results.md`](docs/testing/test-results.md)): race condition dua connection,
+  rekonsiliasi ledger, trigger append-only, akses report per role, dan lapisan HTTP controller.
 
 ## Role
 

@@ -10,6 +10,8 @@ use App\Entity\Enum\SalesOrderStatus;
 use App\Repository\ProductRepositoryInterface;
 use App\Repository\PurchaseOrderRepositoryInterface;
 use App\Repository\SalesOrderRepositoryInterface;
+use App\Repository\StockLedgerRepositoryInterface;
+use App\Support\ClockInterface;
 
 /**
  * Angka dashboard per role (DASH-01, FR-026).
@@ -26,6 +28,19 @@ use App\Repository\SalesOrderRepositoryInterface;
  *
  * Service ini hanya membaca. Tidak ada satu pun jalur tulis di sini, dan
  * stock tidak pernah disentuh selain lewat StockService (ARCH-02).
+ *
+ * Grafik stock movement (spec 005) membaca stock_ledger langsung, hanya untuk
+ * Admin dan Warehouse Staff. Untuk Sales ledger tidak pernah di-query — bukan
+ * sekadar tidak ditampilkan (FR-011).
+ *
+ * @phpstan-type StockMovement array{
+ *     start: string,
+ *     end: string,
+ *     days: list<array{date: string, in: int, out: int}>,
+ *     totalIn: int,
+ *     totalOut: int,
+ *     net: int
+ * }
  */
 final class DashboardService
 {
@@ -36,10 +51,17 @@ final class DashboardService
      */
     public const int QUEUE_LIMIT = 5;
 
+    /** Panjang jendela grafik stock movement, berakhir hari ini (spec 005 Q1). */
+    public const int MOVEMENT_DAYS = 30;
+
+    private const string DATE_FORMAT = 'Y-m-d';
+
     public function __construct(
         private readonly ProductRepositoryInterface $products,
         private readonly SalesOrderRepositoryInterface $salesOrders,
         private readonly PurchaseOrderRepositoryInterface $purchaseOrders,
+        private readonly StockLedgerRepositoryInterface $ledger,
+        private readonly ClockInterface $clock,
     ) {
     }
 
@@ -69,7 +91,8 @@ final class DashboardService
      *     salesOrdersByStatus: array<string, int>,
      *     purchaseOrdersByStatus: array<string, int>,
      *     pendingApproval: int,
-     *     lowStock: list<array{product: \App\Entity\Product, totalQuantity: int}>
+     *     lowStock: list<array{product: \App\Entity\Product, totalQuantity: int}>,
+     *     stockMovement: StockMovement
      * }
      */
     public function adminFigures(): array
@@ -84,6 +107,7 @@ final class DashboardService
             'purchaseOrdersByStatus' => $this->purchaseOrderTally(),
             'pendingApproval'        => $salesByStatus[SalesOrderStatus::PendingApproval->value],
             'lowStock'               => $this->products->lowStock(self::QUEUE_LIMIT),
+            'stockMovement'          => $this->stockMovement(),
         ];
     }
 
@@ -129,7 +153,8 @@ final class DashboardService
      *     lowStockCount: int,
      *     awaitingReceipt: list<\App\Entity\PurchaseOrder>,
      *     awaitingIssue: list<\App\Entity\SalesOrder>,
-     *     lowStock: list<array{product: \App\Entity\Product, totalQuantity: int}>
+     *     lowStock: list<array{product: \App\Entity\Product, totalQuantity: int}>,
+     *     stockMovement: StockMovement
      * }
      */
     public function warehouseFigures(): array
@@ -147,6 +172,51 @@ final class DashboardService
             'awaitingReceipt'   => $this->purchaseOrders->awaitingReceipt(self::QUEUE_LIMIT),
             'awaitingIssue'     => $this->salesOrders->awaitingIssue(self::QUEUE_LIMIT),
             'lowStock'          => $this->products->lowStock(self::QUEUE_LIMIT),
+            'stockMovement'     => $this->stockMovement(),
+        ];
+    }
+
+    /**
+     * Unit masuk dan keluar per hari selama MOVEMENT_DAYS hari terakhir,
+     * dihitung dari stock_ledger setiap kali dashboard dibuka (FR-003).
+     *
+     * Satu query untuk seluruh jendela (NFR-001); hari tanpa pergerakan tetap
+     * muncul bernilai nol agar sumbu waktu grafik tidak bolong (FR-006).
+     * Jendelanya dihitung sama seperti ReportService::defaultRange(), sehingga
+     * link ke report membuka rentang yang sama.
+     *
+     * @return StockMovement
+     */
+    private function stockMovement(): array
+    {
+        $today = $this->clock->now();
+        $start = $today->modify('-' . (self::MOVEMENT_DAYS - 1) . ' days');
+        $totals = $this->ledger->dailyMovementTotals(
+            $start->format(self::DATE_FORMAT),
+            $today->format(self::DATE_FORMAT),
+        );
+
+        $days = [];
+        $totalIn = 0;
+        $totalOut = 0;
+
+        for ($offset = 0; $offset < self::MOVEMENT_DAYS; $offset++) {
+            $date = $start->modify('+' . $offset . ' days')->format(self::DATE_FORMAT);
+            $in = $totals[$date]['in'] ?? 0;
+            $out = $totals[$date]['out'] ?? 0;
+
+            $days[] = ['date' => $date, 'in' => $in, 'out' => $out];
+            $totalIn += $in;
+            $totalOut += $out;
+        }
+
+        return [
+            'start'    => $start->format(self::DATE_FORMAT),
+            'end'      => $today->format(self::DATE_FORMAT),
+            'days'     => $days,
+            'totalIn'  => $totalIn,
+            'totalOut' => $totalOut,
+            'net'      => $totalIn - $totalOut,
         ];
     }
 

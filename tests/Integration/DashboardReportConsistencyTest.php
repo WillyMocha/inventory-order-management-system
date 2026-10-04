@@ -37,6 +37,11 @@ final class DashboardReportConsistencyTest extends IntegrationTestCase
     private const string RANGE_START = '2026-09-01';
     private const string RANGE_END = '2026-09-30';
 
+    /** Tanggal lampau tetap untuk grafik stock movement (spec 005). */
+    private const string CHART_DAY_ONE = '2025-01-10';
+    private const string CHART_DAY_TWO = '2025-01-11';
+    private const string CHART_DAY_GAP = '2025-01-12';
+
     private DashboardService $dashboard;
     private ReportService $report;
     private MysqlSalesOrderRepository $salesOrders;
@@ -51,13 +56,11 @@ final class DashboardReportConsistencyTest extends IntegrationTestCase
         $this->salesOrders = new MysqlSalesOrderRepository($this->database);
         $purchaseOrders = new MysqlPurchaseOrderRepository($this->database);
 
-        $this->dashboard = new DashboardService($products, $this->salesOrders, $purchaseOrders);
-        $this->report = new ReportService(
-            new MysqlStockLedgerRepository($this->database),
-            $this->salesOrders,
-            $purchaseOrders,
-            new SystemClock(),
-        );
+        $ledger = new MysqlStockLedgerRepository($this->database);
+        $clock = new SystemClock();
+
+        $this->dashboard = new DashboardService($products, $this->salesOrders, $purchaseOrders, $ledger, $clock);
+        $this->report = new ReportService($ledger, $this->salesOrders, $purchaseOrders, $clock);
     }
 
     // -------------------------------------- Dashboard vs export (FR-027)
@@ -240,7 +243,152 @@ final class DashboardReportConsistencyTest extends IntegrationTestCase
         self::assertSame(7000.0, $value);
     }
 
+    // ---------------------------- Stock movement chart (spec 005, FR-013)
+
+    #[Test]
+    public function dailyMovementTotalsSplitEveryMovementTypeBySign(): void
+    {
+        $this->seedTwoChartDays();
+
+        $totals = (new MysqlStockLedgerRepository($this->database))
+            ->dailyMovementTotals(self::CHART_DAY_ONE, self::CHART_DAY_TWO);
+
+        // Receipt 10 + Adjustment +4 masuk; Issue 3 + Adjustment -2 keluar.
+        self::assertSame(
+            [
+                self::CHART_DAY_ONE => ['in' => 14, 'out' => 5],
+                self::CHART_DAY_TWO => ['in' => 6, 'out' => 1],
+            ],
+            $totals,
+        );
+    }
+
+    #[Test]
+    public function aDayWithoutMovementIsAbsentFromTheDailyTotals(): void
+    {
+        $this->seedTwoChartDays();
+
+        $totals = (new MysqlStockLedgerRepository($this->database))
+            ->dailyMovementTotals(self::CHART_DAY_ONE, self::CHART_DAY_GAP);
+
+        self::assertArrayNotHasKey(self::CHART_DAY_GAP, $totals);
+    }
+
+    #[Test]
+    public function dailyMovementTotalsEqualTheExportedRowsOfTheSameDay(): void
+    {
+        $this->seedTwoChartDays();
+        $ledger = new MysqlStockLedgerRepository($this->database);
+
+        foreach ([self::CHART_DAY_ONE, self::CHART_DAY_TWO] as $day) {
+            $expected = ['in' => 0, 'out' => 0];
+
+            foreach ($ledger->movementsBetween($day, $day) as $row) {
+                $quantity = (int) $row['quantity'];
+                $expected[$quantity > 0 ? 'in' : 'out'] += abs($quantity);
+            }
+
+            self::assertSame($expected, $ledger->dailyMovementTotals($day, $day)[$day] ?? null, 'Hari ' . $day);
+        }
+    }
+
+    #[Test]
+    public function movementsOfADeactivatedProductStillCount(): void
+    {
+        $this->seedTwoChartDays();
+        (new MysqlProductRepository($this->database))->setActive($this->secondProductId, false);
+
+        $totals = (new MysqlStockLedgerRepository($this->database))
+            ->dailyMovementTotals(self::CHART_DAY_TWO, self::CHART_DAY_TWO);
+
+        // Hari kedua hanya berisi pergerakan product kedua.
+        self::assertSame(['in' => 6, 'out' => 1], $totals[self::CHART_DAY_TWO] ?? null);
+    }
+
+    #[Test]
+    public function theDashboardChartMatchesTheStockMovementExportForItsWindow(): void
+    {
+        // Baris hari ini (NOW()): data dua tanggal lampau di atas berada di
+        // luar jendela 30 hari dashboard.
+        $ledger = new MysqlStockLedgerRepository($this->database);
+        $staff = (int) $this->warehouseStaff->id;
+        $this->appendLedgerRow();
+        $ledger->append(StockLedger::issue($this->productId, $this->warehouseId, 2, 1, $staff));
+        $ledger->append(StockLedger::adjustment($this->productId, $this->warehouseId, 3, 'Found in count', $staff));
+        $ledger->append(StockLedger::adjustment($this->productId, $this->warehouseId, -1, 'Damaged', $staff));
+
+        $movement = $this->dashboard->adminFigures()['stockMovement'];
+
+        $expected = [];
+        $net = 0;
+        foreach ($this->report->stockMovements($movement['start'], $movement['end']) as $row) {
+            $day = substr((string) $row['created_at'], 0, 10);
+            $quantity = (int) $row['quantity'];
+            $expected[$day] ??= ['in' => 0, 'out' => 0];
+            $expected[$day][$quantity > 0 ? 'in' : 'out'] += abs($quantity);
+            $net += $quantity;
+        }
+
+        foreach ($movement['days'] as $day) {
+            self::assertSame(
+                $expected[$day['date']] ?? ['in' => 0, 'out' => 0],
+                ['in' => $day['in'], 'out' => $day['out']],
+                'Hari ' . $day['date'],
+            );
+        }
+        self::assertSame($net, $movement['net'], 'Net grafik = jumlah quantity di export');
+    }
+
     // ------------------------------------------------------- Helpers
+
+    /**
+     * Pergerakan pada dua tanggal lampau yang tidak disentuh test lain:
+     * keempat tipe, termasuk Adjustment positif dan negatif (spec 005 Q2).
+     */
+    private function seedTwoChartDays(): void
+    {
+        $dayOne = self::CHART_DAY_ONE . ' 09:00:00';
+        $dayTwo = self::CHART_DAY_TWO . ' 23:59:59';
+
+        $this->insertLedgerAt($this->productId, 'Receipt', 10, 'PurchaseOrder', $dayOne);
+        $this->insertLedgerAt($this->productId, 'Issue', -3, 'SalesOrder', $dayOne);
+        $this->insertLedgerAt($this->productId, 'Adjustment', 4, 'Manual', $dayOne);
+        $this->insertLedgerAt($this->productId, 'Adjustment', -2, 'Manual', $dayOne);
+        $this->insertLedgerAt($this->secondProductId, 'Receipt', 6, 'PurchaseOrder', $dayTwo);
+        $this->insertLedgerAt($this->secondProductId, 'Issue', -1, 'SalesOrder', $dayTwo);
+    }
+
+    /**
+     * Baris ledger dengan created_at eksplisit. appendLedgerRow() selalu
+     * memakai NOW(); di sini tanggalnya harus tetap. INSERT tetap diizinkan
+     * trigger append-only, dan transaction test membatalkannya.
+     */
+    private function insertLedgerAt(
+        int $productId,
+        string $movementType,
+        int $quantity,
+        string $referenceType,
+        string $createdAt,
+    ): void {
+        $this->pdo->prepare(
+            'INSERT INTO stock_ledger (product_id, warehouse_id, movement_type, quantity, reference_type,
+                                       reference_id, performed_by, note, created_at)
+                  VALUES (:product_id, :warehouse_id, :movement_type, :quantity, :reference_type,
+                          :reference_id, :performed_by, :note, :created_at)',
+        )->execute([
+            'product_id'     => $productId,
+            'warehouse_id'   => $this->warehouseId,
+            'movement_type'  => $movementType,
+            'quantity'       => $quantity,
+            'reference_type' => $referenceType,
+            // Reference polimorfik tanpa foreign key; ck_ledger_reference_id
+            // hanya menuntut id terisi untuk PO/SO dan kosong untuk Manual.
+            'reference_id'   => $referenceType === 'Manual' ? null : 1,
+            'performed_by'   => (int) $this->warehouseStaff->id,
+            'note'           => $movementType === 'Adjustment' ? 'Fixture count' : null,
+            'created_at'     => $createdAt,
+        ]);
+    }
 
     private function foreignOrder(): SalesOrder
     {

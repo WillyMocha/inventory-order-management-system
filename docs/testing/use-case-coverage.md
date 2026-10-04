@@ -130,6 +130,7 @@ integration test terhadap MySQL sungguhan:
 | `adjust()` menerapkan delta negatif dan menolak hasil negatif | `StockAdjustmentTest` |
 | Segregation of duties ditegakkan di server (FR-018) | `ApprovalAuthorizationTest` |
 | Dashboard dan CSV export sepakat (FR-027) | `DashboardReportConsistencyTest` |
+| Grafik stock movement 30 hari: masuk/keluar per hari dari ledger, hanya Admin dan WS, sama dengan CSV (spec 005, bonus) | `DashboardStockMovementTest`, `BarChartScaleTest`, `DashboardChartRenderTest`, `DashboardReportConsistencyTest` |
 | Export CSV per role sesuai matriks §1.2 — Warehouse Staff hanya report stock (REPORT-01) | `ReportAccessTest` |
 | Kontrak JSON, termasuk 401 JSON bukan halaman HTML (FR-028) | `StockApiTest` |
 | Satu order tidak keluar dua kali; cancel tidak menimpa order `Fulfilled` | `ConcurrentGoodsIssueTest` — tiga test snapshot basi |

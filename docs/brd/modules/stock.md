@@ -73,6 +73,7 @@ sequenceDiagram
 ## Dependencies
 
 - **Other modules**: sales-order, purchase-order, product, platform
+- **Consumed by**: dashboard — `dailyMovementTotals()` untuk grafik stock movement (spec 005)
 
 ## Test Coverage
 

@@ -1,6 +1,6 @@
 # Class Diagram — As-built (setelah implementasi)
 
-**Diperbarui**: 2026-10-03 (+ 002-user-profile-page) · **Pasangannya**: [`../planning/class-diagram-initial.md`](../planning/class-diagram-initial.md)
+**Diperbarui**: 2026-10-04 (+ 005-stock-movement-chart) · **Pasangannya**: [`../planning/class-diagram-initial.md`](../planning/class-diagram-initial.md)
 
 Diagram ini menggambarkan kode yang **benar-benar ada**, bukan rancangan awalnya. Setiap panah
 dependency di bawah sesuai dengan parameter constructor class-nya, yang dirangkai di
@@ -112,6 +112,7 @@ classDiagram
         <<interface>>
         +append(StockLedger) int
         +movementsBetween(string, string) array
+        +dailyMovementTotals(string, string) array
         +recentAdjustmentsForProduct(int, int) array
     }
     class ProductRepositoryInterface {
@@ -164,6 +165,8 @@ classDiagram
     DashboardService ..> ProductRepositoryInterface
     DashboardService ..> SalesOrderRepositoryInterface
     DashboardService ..> PurchaseOrderRepositoryInterface
+    DashboardService ..> StockLedgerRepositoryInterface
+    DashboardService ..> ClockInterface
 
     ReportService ..> StockLedgerRepositoryInterface
     ReportService ..> SalesOrderRepositoryInterface
@@ -424,6 +427,16 @@ dan `GoodsReceiptController` — pergerakan stock, seperti `StockAdjustmentContr
 berubah. Helper total line pindah ke `Support\Money::lineTotal()`. Rinciannya di refactor-log
 R-9 … R-11. Untuk keterbacaan, dependency `View`/`UserService`/`Session`/`Csrf` milik
 `GoodsIssueController` dan `GoodsReceiptController` tidak digambar.
+
+### Grafik stock movement di dashboard (005-stock-movement-chart, bonus)
+
+`DashboardService` mendapat dependency keempat dan kelima, `StockLedgerRepositoryInterface` dan
+`ClockInterface`, untuk figure `stockMovement` (unit masuk/keluar per hari, 30 hari terakhir) yang
+hanya dihitung untuk Admin dan Warehouse Staff. Repository ledger mendapat `dailyMovementTotals()`:
+satu query `GROUP BY DATE(created_at)` dengan aturan rentang yang sama dengan `movementsBetween()`,
+sehingga grafik dan CSV stock movement tidak bisa berbeda. Geometri grafik dihitung class tampilan
+kecil `Support\BarChartScale` (tanpa dependency, dipanggil oleh view `dashboard/_movement-chart`);
+ia tidak digambar karena tidak memiliki collaborator.
 
 ## Yang berubah dari diagram awal, dan mengapa
 

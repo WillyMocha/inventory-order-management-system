@@ -31,6 +31,23 @@ interface StockLedgerRepositoryInterface
     public function movementsBetween(string $startDate, string $endDate): array;
 
     /**
+     * Unit masuk dan keluar per hari kalender, untuk grafik dashboard
+     * (spec 005-stock-movement-chart, FR-003, FR-004).
+     *
+     * Aturan rentangnya SAMA PERSIS dengan movementsBetween() — created_at
+     * mulai startDate sampai sebelum endDate + 1 hari — sehingga angka grafik
+     * per hari selalu sama dengan isi CSV stock movement untuk hari itu
+     * (FR-013). Masuk/keluar dipisah dari TANDA quantity, bukan dari tipenya:
+     * Adjustment positif terhitung masuk, Adjustment negatif terhitung keluar.
+     *
+     * Hanya hari yang memiliki pergerakan yang dikembalikan; mengisi hari
+     * kosong adalah urusan pemanggil.
+     *
+     * @return array<string, array{in: int, out: int}> dikunci tanggal Y-m-d, urut naik
+     */
+    public function dailyMovementTotals(string $startDate, string $endDate): array;
+
+    /**
      * Koreksi stock (Adjustment) terbaru untuk satu product, terbaru lebih dulu
      * (spec 003 FR-009, research R-006).
      *
