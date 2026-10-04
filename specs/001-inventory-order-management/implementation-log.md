@@ -1935,3 +1935,31 @@ seluruh tooling project berbahasa PHP dan dapat dijalankan di dalam container
   exit 1 tanpa menulis file (diuji dengan data yang sengaja dilanggar).
 - PHPStan level 6 dan PHPCS PSR-12 bersih; `database/` termasuk cakupan keduanya.
 - `generate-seed.py` dihapus; cara pakai didokumentasikan di README ("Mengubah data seed").
+
+---
+
+## 2026-10-04 — redesign: konfirmasi `window.confirm()` → modal `<dialog>`
+
+- **Checkpoint**: `a742e48` (working tree bersih)
+- **Target**: seluruh konfirmasi aksi (`form[data-confirm]`, 14 form di 10 view) yang sebelumnya
+  memakai dialog bawaan browser ("localhost:8080 says").
+- **Pendekatan**: elemen `<dialog>` native + CSS native dengan token yang sudah ada; tanpa
+  library. Atribut `data-confirm` di view tidak berubah, sehingga tidak ada view yang disentuh.
+
+| File | Perubahan |
+| --- | --- |
+| `public/assets/js/confirm.js` | `window.confirm()` diganti satu modal `<dialog class="modal">` bersama; judul = kalimat tanya pertama, isi = penjelasannya; tombol konfirmasi meniru label + varian (`btn--danger`) tombol submit; Cancel/Escape/klik backdrop membatalkan; konfirmasi mengirim ulang via `requestSubmit()` agar `validation.js` tetap berjalan; fallback `window.confirm()` bila `<dialog>` tidak didukung |
+| `public/assets/css/app.css` | Section "Modal konfirmasi" (`.modal`, `::backdrop`, `.modal-panel/title/body/actions`), animasi masuk dimatikan pada `prefers-reduced-motion` |
+| `tests/js/confirm.test.mjs` | Baru — 7 test `node --test` untuk `splitMessage()` dan `confirmButtonOf()` |
+
+**Verifikasi**
+
+- `node --test tests/js/*.test.mjs` → 18/18 pass (7 baru + 11 lama).
+- Headless Chrome (CDP) sebagai Admin di `/customers`: klik Deactivate membuka modal (tidak ada
+  `Page.javascriptDialogOpening`), fokus awal pada Cancel; Escape menutup dan fokus kembali ke
+  tombol Deactivate tanpa navigasi; klik backdrop menutup; klik di dalam panel tidak menutup;
+  tombol konfirmasi mengirim `POST /customers/13/toggle-active` (request dicegat, data demo tidak
+  berubah). Lebar 375px: panel muat dengan gutter 16px.
+- Tidak ada file PHP yang berubah — PHPUnit/PHPStan/PHPCS tidak terdampak.
+
+**UNRESOLVED**: tidak ada.
