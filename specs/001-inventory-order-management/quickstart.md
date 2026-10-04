@@ -178,10 +178,10 @@ HAVING ps.quantity <> ledger_sum;
    ```bash
    # 200 — dengan session
    curl -i -b "IOMS_SESSION=<session>" \
-     http://localhost:8080/api/products/SKU-000123/availability
+     http://localhost:8080/api/products/SKU-000001/availability
 
    # 401 sebagai JSON, bukan halaman HTML login
-   curl -i http://localhost:8080/api/products/SKU-000123/availability
+   curl -i http://localhost:8080/api/products/SKU-000001/availability
 
    # 404 untuk SKU yang tidak ada
    curl -i -b "IOMS_SESSION=<session>" \
