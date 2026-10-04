@@ -15,6 +15,11 @@ RUN apt-get update \
 # aktif - tanpa modul ini, security header ditulis tetapi tidak pernah terkirim.
 RUN a2enmod rewrite headers
 
+# pcov hanya dipakai untuk laporan coverage SonarQube (`composer test:coverage`).
+# Dimatikan secara default sehingga request web dan test biasa tidak menanggung
+# overhead-nya; script coverage menyalakannya per proses dengan -d pcov.enabled=1.
+RUN pecl install pcov-1.0.12     && docker-php-ext-enable pcov     && echo 'pcov.enabled=0' > "$PHP_INI_DIR/conf.d/zz-pcov.ini"
+
 # DocumentRoot diarahkan ke public/ sehingga hanya direktori itu yang
 # terekspos ke web. storage/uploads/ berada di luar DocumentRoot (research R-006).
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public

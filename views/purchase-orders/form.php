@@ -3,13 +3,14 @@
 declare(strict_types=1);
 
 /**
- * Form create Purchase Order (PO-01, FR-012, FR-029).
+ * Form create dan edit Purchase Order Draft (PO-01, FR-012, FR-029; edit: spec 004).
  *
  * Line dinamis memakai order-lines.js, modul yang sama dengan form Sales
  * Order — struktur tabelnya sengaja identik supaya satu modul melayani
  * keduanya. Tanpa JavaScript tetap ada tiga baris kosong dari server.
  *
  * @var Csrf $csrf
+ * @var PurchaseOrder|null $order terisi berarti mode edit order Draft (spec 004)
  * @var array<string, mixed> $old
  * @var array<string, string> $errors
  * @var list<Supplier> $suppliers
@@ -19,6 +20,7 @@ declare(strict_types=1);
  */
 
 use App\Entity\Product;
+use App\Entity\PurchaseOrder;
 use App\Entity\Supplier;
 use App\Entity\Warehouse;
 use App\Support\Csrf;
@@ -35,15 +37,27 @@ $err = static fn (string $field): ?string => $errors[$field] ?? null;
 
 $submittedItems = is_array($old['items'] ?? null) ? array_values($old['items']) : [];
 $rowCount = max(count($submittedItems), 3);
+
+// Mode edit (spec 004): form yang sama, tujuan dan teks yang berbeda.
+$isEdit = $order instanceof PurchaseOrder;
+$action = $isEdit ? '/purchase-orders/' . (int) $order->id : '/purchase-orders';
+$cancelHref = $isEdit ? $action : '/purchase-orders';
 ?>
 <div class="page-header">
     <div>
-        <h1 class="page-title">Create purchase order</h1>
-        <p class="page-subtitle">
-            The order starts as a draft. No stock moves until goods are received against it.
-        </p>
+        <?php if ($isEdit) : ?>
+            <h1 class="page-title">Edit purchase order <span class="tabular"><?= View::e($order->orderNumber) ?></span></h1>
+            <p class="page-subtitle">
+                Changes keep the order as a draft. Unit costs are re-read from the catalog when you save.
+            </p>
+        <?php else : ?>
+            <h1 class="page-title">Create purchase order</h1>
+            <p class="page-subtitle">
+                The order starts as a draft. No stock moves until goods are received against it.
+            </p>
+        <?php endif; ?>
     </div>
-    <a class="btn btn--ghost" href="/purchase-orders">Cancel</a>
+    <a class="btn btn--ghost" href="<?= View::e($cancelHref) ?>">Cancel</a>
 </div>
 
 <?php if ($errors !== []) : ?>
@@ -60,8 +74,8 @@ $rowCount = max(count($submittedItems), 3);
     </div>
 <?php endif; ?>
 
-<form method="post" action="/purchase-orders" id="purchase-order-form"
-      data-confirm="Create this purchase order as a draft?">
+<form method="post" action="<?= View::e($action) ?>" id="purchase-order-form"
+      data-confirm="<?= $isEdit ? 'Save changes to this draft order?' : 'Create this purchase order as a draft?' ?>">
     <?= $csrf->field() ?>
 
     <div class="card">
@@ -189,14 +203,19 @@ $rowCount = max(count($submittedItems), 3);
 
         <div class="card-body">
             <p class="field-hint">
-                Unit cost is taken from the catalog purchase price when the order is created, so a
-                later price change does not alter this order.
+                <?php if ($isEdit) : ?>
+                    Unit cost is taken from the catalog purchase price when you save. It stops following
+                    the catalog once the order is submitted to the supplier.
+                <?php else : ?>
+                    Unit cost is taken from the catalog purchase price when the order is created, so a
+                    later price change does not alter this order.
+                <?php endif; ?>
             </p>
         </div>
     </div>
 
     <div class="form-actions">
-        <button type="submit" class="btn btn--primary">Create draft order</button>
-        <a class="btn btn--ghost" href="/purchase-orders">Cancel</a>
+        <button type="submit" class="btn btn--primary"><?= $isEdit ? 'Save changes' : 'Create draft order' ?></button>
+        <a class="btn btn--ghost" href="<?= View::e($cancelHref) ?>">Cancel</a>
     </div>
 </form>

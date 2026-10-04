@@ -22,6 +22,7 @@ declare(strict_types=1);
  * @var User $creator
  * @var User|null $approver
  * @var list<StockLedger> $movements
+ * @var bool $canEdit hanya pembuat order, hanya selama Draft (spec 004)
  * @var bool $canSubmit
  * @var bool $canDecide
  * @var bool $ownOrderAwaitingApproval
@@ -68,6 +69,10 @@ foreach ($lines as $line) {
     </div>
     <div class="row">
         <a class="btn btn--ghost" href="/sales-orders">Back to sales orders</a>
+
+        <?php if ($canEdit) : ?>
+            <a class="btn" href="/sales-orders/<?= $orderId ?>/edit">Edit</a>
+        <?php endif; ?>
 
         <?php if ($canSubmit) : ?>
             <form method="post" action="/sales-orders/<?= $orderId ?>/submit"

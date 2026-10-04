@@ -68,6 +68,11 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # Binary log MySQL 8 aktif secara default, dan selama itu user non-SUPER
+      # (ioms_user) tidak boleh membuat trigger (error 1419). Trigger append-only
+      # stock_ledger (database/005_ledger_append_only.sql, tech-debt TD-9) dibuat
+      # oleh migration dengan user aplikasi, jadi izin ini diperlukan.
+      - --log-bin-trust-function-creators=1
     volumes:
       - db_data:/var/lib/mysql
       # Database test dibuat sekali saat volume pertama kali diinisialisasi.

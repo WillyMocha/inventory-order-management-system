@@ -159,8 +159,8 @@ dua belas tabel yang di-seed trait itu, urut menghormati foreign key.
 
 **Mengapa**: helper itu membersihkan persis apa yang di-seed trait, jadi tempatnya memang di
 trait. Setiap test yang mematikan pembungkus transaction memakai helper yang sama — bukan
-menyalinnya, dan bukan pula mewarisi versi yang tidak lengkap. Saat ini hanya
-`ConcurrentGoodsIssueTest` (dua connection). `GoodsReceiptTest` dulu juga memakainya, tetapi
+menyalinnya, dan bukan pula mewarisi versi yang tidak lengkap. Saat ini dipakai
+`ConcurrentGoodsIssueTest` dan `ConcurrentStockAdjustmentTest` (keduanya dua connection). `GoodsReceiptTest` dulu juga memakainya, tetapi
 tidak lagi memerlukannya sejak transaction bersarang memakai SAVEPOINT (`tech-debt.md` TD-1).
 
 ---
@@ -331,6 +331,128 @@ public function ensureRow(int $productId, int $warehouseId): void
 catatan bug lama). Perilaku `adjust()` tidak berubah: `StockAdjustmentTest`, seluruh test goods
 issue/receipt, dan `LedgerReconciliationTest` tetap hijau tanpa diubah; `ensureRow()` sendiri
 dieksekusi MySQL di `RepositoryCoverageTest`.
+
+---
+
+## R-9 — Aksi pergerakan stock menumpang di controller order
+
+**Smell**: Large Class dan tanggung jawab bercampur. `SalesOrderController` (27 method, 557
+baris) menampung goods issue di samping pengelolaan order, dan `PurchaseOrderController`
+(26 method, 544 baris) menampung goods receipt. Goods issue dan receipt adalah **pergerakan
+stock**, bukan pengelolaan order — project sudah punya preseden controller tersendiri untuk itu
+(`StockAdjustmentController`, spec 003). Sonar S1448 (> 20 method) menandai keduanya (TD-11).
+
+**Teknik**: Extract Class → `GoodsIssueController` (`issueForm`, `issue`) dan
+`GoodsReceiptController` (`receiveForm`, `receive`, `receivedQuantitiesFrom`). Hanya nama
+controller di `config/routes.php` yang berubah; URL dan role tidak.
+
+**Sebelum**
+
+```php
+$router->add('GET', '/sales-orders/{id}/issue', 'SalesOrderController', 'issueForm', $adminWarehouse);
+$router->add('GET', '/purchase-orders/{id}/receive', 'PurchaseOrderController', 'receiveForm', $adminWarehouse);
+```
+
+**Sesudah**
+
+```php
+$router->add('GET', '/sales-orders/{id}/issue', 'GoodsIssueController', 'issueForm', $adminWarehouse);
+$router->add('GET', '/purchase-orders/{id}/receive', 'GoodsReceiptController', 'receiveForm', $adminWarehouse);
+```
+
+**Mengapa aman**: method dipindah apa adanya — pesan, status HTTP, dan redirect sama.
+Diverifikasi lewat HTTP: form issue/receive 200, order yang salah status ditolak dengan pesan
+yang sama, Sales tetap 403; `GoodsIssueTest`, `GoodsReceiptTest`, dan `ConcurrentGoodsIssueTest`
+hijau tanpa diubah.
+
+---
+
+## R-10 — Segregation of duties tercampur dengan alur draft
+
+**Smell**: Large Class. `SalesOrderService` (24 method) memuat create, edit, submit, cancel,
+scoping kepemilikan, **dan** approve/reject — padahal approve/reject adalah aturan yang CLAUDE.md
+tandai sebagai area paling kritikal. Aturan yang harus diaudit tersebar di class yang besar.
+
+**Teknik**: Extract Class → `SalesOrderApprovalService` (`approve`, `reject`,
+`requireApprovableOrder`) dan `SalesOrderApprovalController`. Visibilitas order tetap memakai
+`SalesOrderService::requireVisibleOrder()` (bukan disalin), sehingga Sales pada order orang lain
+tetap mendapat 404. Dua static factory pesan error di `SalesOrderService` diganti konstanta.
+
+**Sebelum**
+
+```php
+$this->salesOrders->approve($id, $user);   // SalesOrderService, 24 method
+```
+
+**Sesudah**
+
+```php
+$this->approvals->approve($id, $user);     // SalesOrderApprovalService, 4 method
+```
+
+**Mengapa aman**: kedua syarat (Admin, approver ≠ creator) dan urutan pemeriksaannya disalin
+utuh; seluruh test approval (`SalesOrderServiceTest`, `ApprovalAuthorizationTest`) hanya berganti
+objek yang dipanggil dan tetap hijau. HTTP: approve/reject pada order Fulfilled ditolak dengan
+pesan yang sama persis.
+
+---
+
+## R-11 — Pembulatan total line diduplikasi di dua controller
+
+**Smell**: Duplicated Code. `rupiah()` dan `lineTotal()` identik di `SalesOrderController` dan
+`PurchaseOrderController`, lengkap dengan komentar yang sama tentang bcmath.
+
+**Teknik**: Move Method → `Money::lineTotal(int $quantity, string $unitPrice)`, di samping
+`Money::format()` yang sudah memakai aturan pembulatan yang sama. Diuji `MoneyTest`.
+
+**Sebelum**
+
+```php
+'lineTotal' => $this->lineTotal($item->quantity, $item->sellingPrice),   // salinan di 2 controller
+```
+
+**Sesudah**
+
+```php
+'lineTotal' => Money::lineTotal($item->quantity, $item->sellingPrice),
+```
+
+---
+
+## R-12 — Method guard yang tidak pernah dipanggil aplikasi
+
+**Smell**: Dead Code. Validasi dokumen terhadap kode (2026-10-04) menemukan bahwa dari tujuh method
+publik `Authorization`, hanya `authorizeRoute()` yang dipanggil aplikasi (dari `public/index.php`).
+`assertOwnershipForSales()` dan `denyAsNotFound()` hanya dipanggil `AuthFlowTest`; `requireRole()`,
+`currentRole()`, `currentUserId()`, dan `hasRole()` tidak dipanggil sama sekali, atau hanya sebagai
+alat assertion di test. Bahayanya bukan sekadar kerapian: CLAUDE.md dan dokumen lain menyebut guard
+sebagai tempat aturan "404, bukan 403", padahal scoping itu ditegakkan di Service.
+
+**Teknik**: Remove Dead Code. Enam method dihapus; docblock class kini menyebut di mana scoping 404
+benar-benar terjadi (`SalesOrderService::requireVisibleOrder()`). Dua test yang menguji method mati
+dihapus — perilakunya sudah diuji di lapisan yang benar oleh
+`SalesOrderServiceTest::anotherSalesUsersOrderIsNotFoundRatherThanForbidden` dan
+`ApprovalAuthorizationTest::aSalesUserRequestingAnotherSalesUsersOrderGetsNotFoundNotForbidden`. Dua
+test yang memakai `currentRole()` hanya untuk memastikan guard tidak melempar exception kini
+menyatakannya langsung dengan `expectNotToPerformAssertions()`.
+
+**Sebelum**
+
+```php
+public function assertOwnershipForSales(int $ownerId): void   // hanya dipanggil test
+public function denyAsNotFound(): never                       // hanya dipanggil method di atas
+public function requireRole(Role ...$roles): void             // tidak dipanggil
+// … currentRole(), currentUserId(), hasRole()
+```
+
+**Sesudah**
+
+```php
+final class Authorization
+{
+    public function authorizeRoute(?array $allowedRoles): void   // satu-satunya pintu guard
+}
+```
 
 ---
 

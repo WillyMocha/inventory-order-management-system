@@ -65,7 +65,8 @@ deactivated rather than erased, so history stays intact.
 and trading partners to reference.
 
 **Independent Test**: As Admin, create and edit a user, a category, a product, a warehouse,
-a supplier and a customer; confirm a duplicate email and a duplicate SKU are refused;
+a supplier and a customer; confirm a duplicate email is refused and a new product receives
+the next SKU automatically;
 confirm a product used on an order can only be deactivated; confirm a Sales user and a
 Warehouse Staff user are both refused access to user administration.
 
@@ -319,6 +320,10 @@ products currently below reorder point.
   customers.
 - **FR-008**: System MUST enforce unique product SKU and MUST reject negative values for
   purchase price, sale price, and reorder point.
+  *Amendment 2026-10-04*: the SKU is assigned by the system, not typed by the user — the
+  next `SKU-NNNNNN` after the highest existing sequence. The SKU field is read-only on create
+  and edit, any submitted `sku` is ignored, and the SKU never changes after creation.
+  Uniqueness is guaranteed by generation plus the `UNIQUE (sku)` index.
 - **FR-009**: System MUST allow products, suppliers and customers to be deactivated but
   MUST NOT permanently delete a record already referenced by a transaction.
 - **FR-010**: System MUST accept an optional product image, validating its file type and

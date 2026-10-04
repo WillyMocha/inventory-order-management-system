@@ -14,9 +14,11 @@ use App\Entity\SalesOrderItem;
 use App\Service\DashboardService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Tests\Unit\Fake\FixedClock;
 use Tests\Unit\Fake\InMemoryProductRepository;
 use Tests\Unit\Fake\InMemoryPurchaseOrderRepository;
 use Tests\Unit\Fake\InMemorySalesOrderRepository;
+use Tests\Unit\Fake\InMemoryStockLedgerRepository;
 
 /**
  * Unit test DashboardService (DASH-01, FR-026).
@@ -66,7 +68,13 @@ final class DashboardServiceTest extends TestCase
             $this->purchaseOrder(3, 'PO-2026-0003', PurchaseOrderStatus::Received),
         ]);
 
-        $this->service = new DashboardService($this->products, $this->salesOrders, $this->purchaseOrders);
+        $this->service = new DashboardService(
+            $this->products,
+            $this->salesOrders,
+            $this->purchaseOrders,
+            new InMemoryStockLedgerRepository(),
+            new FixedClock(),
+        );
     }
 
     // ----------------------------------------------------------- Admin

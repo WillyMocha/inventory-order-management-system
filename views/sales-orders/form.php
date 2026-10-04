@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Form create Sales Order (SO-01, FR-016, FR-029).
+ * Form create dan edit Sales Order Draft (SO-01, FR-016, FR-029; edit: spec 004).
  *
  * Line ditambah/dihapus dengan vanilla JS. Tanpa JavaScript form tetap dapat
  * dipakai: tiga baris kosong sudah tersedia sejak awal (progressive
@@ -13,6 +13,7 @@ declare(strict_types=1);
  * diambil dari acting user di server, bukan dari input (§1.2).
  *
  * @var Csrf $csrf
+ * @var SalesOrder|null $order terisi berarti mode edit order Draft (spec 004)
  * @var array<string, mixed> $old
  * @var array<string, string> $errors
  * @var list<Customer> $customers
@@ -23,6 +24,7 @@ declare(strict_types=1);
 
 use App\Entity\Customer;
 use App\Entity\Product;
+use App\Entity\SalesOrder;
 use App\Entity\Warehouse;
 use App\Support\Csrf;
 use App\Support\Money;
@@ -39,16 +41,28 @@ $err = static fn (string $field): ?string => $errors[$field] ?? null;
 /** Line yang sudah diisi sebelumnya dipertahankan saat validasi gagal. */
 $submittedItems = is_array($old['items'] ?? null) ? array_values($old['items']) : [];
 $rowCount = max(count($submittedItems), 3);
+
+// Mode edit (spec 004): form yang sama, tujuan dan teks yang berbeda.
+$isEdit = $order instanceof SalesOrder;
+$action = $isEdit ? '/sales-orders/' . (int) $order->id : '/sales-orders';
+$cancelHref = $isEdit ? $action : '/sales-orders';
 ?>
 <div class="page-header">
     <div>
-        <h1 class="page-title">Create sales order</h1>
-        <p class="page-subtitle">
-            The order starts as a draft. An Admin other than you must approve it before the
-            warehouse can issue any goods.
-        </p>
+        <?php if ($isEdit) : ?>
+            <h1 class="page-title">Edit sales order <span class="tabular"><?= View::e($order->orderNumber) ?></span></h1>
+            <p class="page-subtitle">
+                Changes keep the order as a draft. Prices are re-read from the catalog when you save.
+            </p>
+        <?php else : ?>
+            <h1 class="page-title">Create sales order</h1>
+            <p class="page-subtitle">
+                The order starts as a draft. An Admin other than you must approve it before the
+                warehouse can issue any goods.
+            </p>
+        <?php endif; ?>
     </div>
-    <a class="btn btn--ghost" href="/sales-orders">Cancel</a>
+    <a class="btn btn--ghost" href="<?= View::e($cancelHref) ?>">Cancel</a>
 </div>
 
 <?php if ($errors !== []) : ?>
@@ -65,8 +79,8 @@ $rowCount = max(count($submittedItems), 3);
     </div>
 <?php endif; ?>
 
-<form method="post" action="/sales-orders" id="sales-order-form"
-      data-confirm="Create this sales order as a draft?">
+<form method="post" action="<?= View::e($action) ?>" id="sales-order-form"
+      data-confirm="<?= $isEdit ? 'Save changes to this draft order?' : 'Create this sales order as a draft?' ?>">
     <?= $csrf->field() ?>
 
     <div class="card">
@@ -204,14 +218,19 @@ $rowCount = max(count($submittedItems), 3);
 
         <div class="card-body">
             <p class="field-hint">
-                Prices are taken from the catalog when the order is created, so a later price
-                change does not alter this order.
+                <?php if ($isEdit) : ?>
+                    Prices are taken from the catalog when you save. They stop following the catalog
+                    once the order is submitted for approval.
+                <?php else : ?>
+                    Prices are taken from the catalog when the order is created, so a later price
+                    change does not alter this order.
+                <?php endif; ?>
             </p>
         </div>
     </div>
 
     <div class="form-actions">
-        <button type="submit" class="btn btn--primary">Create draft order</button>
-        <a class="btn btn--ghost" href="/sales-orders">Cancel</a>
+        <button type="submit" class="btn btn--primary"><?= $isEdit ? 'Save changes' : 'Create draft order' ?></button>
+        <a class="btn btn--ghost" href="<?= View::e($cancelHref) ?>">Cancel</a>
     </div>
 </form>

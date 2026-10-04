@@ -19,6 +19,7 @@ use App\Support\Exception\DomainException;
 use App\Support\Exception\NotFoundException;
 use App\Support\Exception\UnauthenticatedException;
 use App\Support\Exception\ValidationException;
+use App\Support\Money;
 use App\Support\Paginator;
 use App\Support\Request;
 use App\Support\Response;
@@ -26,7 +27,7 @@ use App\Support\Session;
 use App\Support\View;
 
 /**
- * Sales Order — draft, approval, dan goods issue (SO-01).
+ * Sales Order — draft, edit, submit, dan cancel (SO-01).
  *
  * Peran controller ini HANYA HTTP: membaca request, memanggil Service, memilih
  * view. Tidak ada aturan bisnis di sini. Secara khusus, aturan segregation of
@@ -38,8 +39,11 @@ use App\Support\View;
  * Authorization guard sebelum request sampai ke sini:
  *   index/show            Admin, Sales, Warehouse Staff
  *   create/store/submit   Admin, Sales
- *   approve/reject        Admin saja
- *   issueForm/issue       Admin, Warehouse Staff
+ *   edit/update           Admin, Sales (service: pembuat order saja)
+ *
+ * Approve/reject ada di SalesOrderApprovalController dan goods issue di
+ * GoodsIssueController — dipisahkan agar masing-masing kecil dan satu tujuan
+ * (tech-debt TD-11).
  */
 final class SalesOrderController
 {
@@ -52,6 +56,9 @@ final class SalesOrderController
      * masuk ke SQL secara langsung (security standard §5).
      */
     private const array SORT_KEYS = ['date', 'number', 'status'];
+
+    /** Prefix halaman detail; setiap aksi kembali ke sini setelah selesai. */
+    private const string DETAIL_PATH = '/sales-orders/';
 
     public function __construct(
         private readonly View $view,
@@ -125,7 +132,55 @@ final class SalesOrderController
 
         $this->session->flash('success', 'Sales order created as a draft.');
 
-        return Response::redirect('/sales-orders/' . $id);
+        return Response::redirect(self::DETAIL_PATH . $id);
+    }
+
+    /**
+     * Form edit Sales Order Draft (spec 004).
+     *
+     * Urutan pemeriksaannya sama dengan SalesOrderService::update() — terlihat
+     * (404), boleh mengedit (403), baru status Draft — agar layar dan
+     * penyimpanan selalu memberi jawaban yang sama (contracts "Check order").
+     */
+    public function edit(Request $request): Response
+    {
+        $actingUser = $this->actingUser();
+        $order = $this->salesOrders->requireVisibleOrder($this->requireId($request), $actingUser);
+        $this->salesOrders->assertMayEdit($order, $actingUser);
+
+        if ($order->status !== SalesOrderStatus::Draft) {
+            $this->session->flash('error', 'Only a draft order can be edited.');
+
+            return Response::redirect(self::DETAIL_PATH . (int) $order->id);
+        }
+
+        return Response::html($this->renderForm($this->oldFromOrder($order), [], $order));
+    }
+
+    /**
+     * Menyimpan edit. Seluruh aturan — pembuat saja, Draft saja, validasi —
+     * ditegakkan SalesOrderService; CSRF sudah diperiksa front controller.
+     */
+    public function update(Request $request): Response
+    {
+        $actingUser = $this->actingUser();
+        $id = $this->requireId($request);
+
+        try {
+            $this->salesOrders->update($id, $this->payloadFrom($request), $actingUser);
+        } catch (ValidationException $e) {
+            $order = $this->salesOrders->requireVisibleOrder($id, $actingUser);
+
+            return Response::html($this->renderForm($this->payloadFrom($request), $e->errors(), $order), 422);
+        } catch (DomainException $e) {
+            $this->session->flash('error', $e->getMessage());
+
+            return Response::redirect(self::DETAIL_PATH . $id);
+        }
+
+        $this->session->flash('success', 'Sales order updated.');
+
+        return Response::redirect(self::DETAIL_PATH . $id);
     }
 
     public function submit(Request $request): Response
@@ -151,71 +206,6 @@ final class SalesOrderController
     }
 
     /**
-     * Approve — Admin saja per route table, dan SalesOrderService menolak
-     * approver yang sama dengan pembuat order (FR-018).
-     */
-    public function approve(Request $request): Response
-    {
-        return $this->transition(
-            $request,
-            function (int $id, User $user): void {
-                $this->salesOrders->approve($id, $user);
-            },
-            'Sales order approved.',
-        );
-    }
-
-    public function reject(Request $request): Response
-    {
-        return $this->transition(
-            $request,
-            function (int $id, User $user): void {
-                $this->salesOrders->reject($id, $user);
-            },
-            'Sales order rejected and cancelled.',
-        );
-    }
-
-    /** Form goods issue, menampilkan stock tersedia di samping setiap line. */
-    public function issueForm(Request $request): Response
-    {
-        $actingUser = $this->actingUser();
-        $order = $this->salesOrders->requireVisibleOrder($this->requireId($request), $actingUser);
-
-        if (!$order->canIssueGoods()) {
-            $this->session->flash('error', 'Only an approved order can be issued.');
-
-            return Response::redirect('/sales-orders/' . (int) $order->id);
-        }
-
-        return Response::html($this->renderIssueForm($order));
-    }
-
-    /**
-     * Goods issue. Seluruh pemeriksaan kecukupan stock berada di StockService
-     * di dalam transaction, di bawah lock — controller hanya menyampaikan
-     * hasilnya (FR-019 s/d FR-022).
-     */
-    public function issue(Request $request): Response
-    {
-        $actingUser = $this->actingUser();
-        $order = $this->salesOrders->requireVisibleOrder($this->requireId($request), $actingUser);
-
-        try {
-            $this->stockService->issueGoods((int) $order->id, $actingUser);
-        } catch (DomainException $e) {
-            // Penolakan dijelaskan beserta angkanya, dan halamannya dirender
-            // ulang dengan stock terkini — bukan redirect yang membuang
-            // konteks (FR-019).
-            return Response::html($this->renderIssueForm($order, $e->getMessage()), 422);
-        }
-
-        $this->session->flash('success', 'Goods issued. Stock and ledger updated.');
-
-        return Response::redirect('/sales-orders/' . (int) $order->id);
-    }
-
-    /**
      * Pola yang sama untuk seluruh perubahan status: jalankan, terjemahkan
      * penolakan aturan bisnis menjadi flash, lalu kembali ke detail order.
      *
@@ -231,12 +221,12 @@ final class SalesOrderController
         } catch (DomainException $e) {
             $this->session->flash('error', $e->getMessage());
 
-            return Response::redirect('/sales-orders/' . $id);
+            return Response::redirect(self::DETAIL_PATH . $id);
         }
 
         $this->session->flash('success', $successMessage);
 
-        return Response::redirect('/sales-orders/' . $id);
+        return Response::redirect(self::DETAIL_PATH . $id);
     }
 
     /**
@@ -254,7 +244,7 @@ final class SalesOrderController
                 'product'   => $product,
                 'quantity'  => $item->quantity,
                 'unitPrice' => $item->sellingPrice,
-                'lineTotal' => $this->lineTotal($item->quantity, $item->sellingPrice),
+                'lineTotal' => Money::lineTotal($item->quantity, $item->sellingPrice),
             ];
         }
 
@@ -271,6 +261,7 @@ final class SalesOrderController
             'movements'    => $this->stockService->movementsForSalesOrder($orderId),
             // Aksi yang DIRENDER. Yang MENOLAK tetap Service — ini hanya agar
             // user tidak ditawari aksi yang pasti gagal.
+            'canEdit'      => $this->salesOrders->canEdit($order, $actingUser),
             'canSubmit'    => $order->status === SalesOrderStatus::Draft
                 && ($actingUser->isAdmin() || $actingUser->isSales()),
             'canDecide'    => $order->status === SalesOrderStatus::PendingApproval
@@ -286,39 +277,18 @@ final class SalesOrderController
         ];
     }
 
-    private function renderIssueForm(SalesOrder $order, ?string $error = null): string
-    {
-        $lines = [];
-
-        foreach ($order->items as $item) {
-            $lines[] = [
-                'product'   => $this->productService->requireProduct($item->productId),
-                'quantity'  => $item->quantity,
-                'available' => $this->stockService->availableFor($item->productId, $order->warehouseId),
-            ];
-        }
-
-        return $this->view->render('sales-orders/issue', [
-            'title'     => 'Issue goods — ' . $order->orderNumber,
-            'activeNav' => 'sales-orders',
-            'order'     => $order,
-            'lines'     => $lines,
-            'warehouse' => $this->masterData->requireWarehouse($order->warehouseId),
-            'customer'  => $this->parties->requireCustomer($order->customerId),
-            'error'     => $error,
-            'csrf'      => $this->csrf,
-        ]);
-    }
-
     /**
+     * Form yang sama melayani create dan edit; $order terisi berarti mode edit.
+     *
      * @param array<string, mixed> $old
      * @param array<string, string> $errors
      */
-    private function renderForm(array $old = [], array $errors = []): string
+    private function renderForm(array $old = [], array $errors = [], ?SalesOrder $order = null): string
     {
         return $this->view->render('sales-orders/form', [
-            'title'      => 'Create sales order',
+            'title'      => $order === null ? 'Create sales order' : 'Edit sales order ' . $order->orderNumber,
             'activeNav'  => 'sales-orders',
+            'order'      => $order,
             'old'        => $old,
             'errors'     => $errors,
             'customers'  => $this->parties->activeCustomers(),
@@ -327,6 +297,29 @@ final class SalesOrderController
             'today'      => date('Y-m-d'),
             'csrf'       => $this->csrf,
         ]);
+    }
+
+    /**
+     * Isi form edit dari order tersimpan, dalam bentuk yang sama dengan
+     * payloadFrom() — sehingga form cukup memakai logika isi-ulang yang sudah
+     * ada untuk create.
+     *
+     * @return array<string, mixed>
+     */
+    private function oldFromOrder(SalesOrder $order): array
+    {
+        $items = [];
+
+        foreach ($order->items as $item) {
+            $items[] = ['product_id' => (string) $item->productId, 'quantity' => (string) $item->quantity];
+        }
+
+        return [
+            'customer_id'  => (string) $order->customerId,
+            'warehouse_id' => (string) $order->warehouseId,
+            'order_date'   => $order->orderDate,
+            'items'        => $items,
+        ];
     }
 
     /**
@@ -412,30 +405,10 @@ final class SalesOrderController
         $total = 0;
 
         foreach ($order->items as $item) {
-            $total += $this->rupiah($item->sellingPrice) * $item->quantity;
+            $total += (int) Money::lineTotal($item->quantity, $item->sellingPrice);
         }
 
         return (string) $total;
-    }
-
-    /**
-     * Total satu line, dalam rupiah satuan penuh.
-     *
-     * Dihitung sebagai INTEGER, bukan float dan bukan bcmath: bcmath tidak
-     * dipasang di image (Dockerfile hanya memasang pdo_mysql), sehingga
-     * memakainya akan fatal di container meskipun jalan di host. Rupiah tidak
-     * memakai sen dalam praktik, jadi satuan penuh sudah tepat — konvensi yang
-     * sama dipakai Support\Money (spec A-011).
-     */
-    private function lineTotal(int $quantity, string $unitPrice): string
-    {
-        return (string) ($this->rupiah($unitPrice) * $quantity);
-    }
-
-    /** DECIMAL(15,2) menjadi rupiah satuan penuh. */
-    private function rupiah(string $amount): int
-    {
-        return (int) round((float) $amount);
     }
 
     /** @return array{search?: string, status?: string, sort?: string, direction?: string} */

@@ -60,6 +60,23 @@ final class MysqlProductRepository extends MysqlRepository implements ProductRep
         ) > 0;
     }
 
+    public function highestSkuSequence(string $prefix): int
+    {
+        // Bagian setelah prefix wajib digit seluruhnya, supaya SKU seperti
+        // "SKU-ABC" tidak terbaca sebagai 0 dan tidak mengacaukan urutan.
+        return $this->fetchInt(
+            'SELECT COALESCE(MAX(CAST(SUBSTRING(sku, :prefix_length + 1) AS UNSIGNED)), 0)
+               FROM product
+              WHERE sku LIKE :prefix_like
+                AND SUBSTRING(sku, :prefix_start + 1) REGEXP \'^[0-9]+$\'',
+            [
+                'prefix_length' => mb_strlen($prefix),
+                'prefix_like'   => addcslashes($prefix, '%_\\') . '%',
+                'prefix_start'  => mb_strlen($prefix),
+            ],
+        );
+    }
+
     public function allActive(): array
     {
         return array_map(

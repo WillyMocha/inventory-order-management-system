@@ -14,9 +14,11 @@ use App\Service\PurchaseOrderService;
 use App\Support\Exception\DomainException;
 use App\Support\Exception\NotFoundException;
 use App\Support\Exception\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Fake\FixedClock;
+use Tests\Unit\Fake\ImmediateTransactionRunner;
 use Tests\Unit\Fake\InMemoryProductRepository;
 use Tests\Unit\Fake\InMemoryPurchaseOrderRepository;
 use Tests\Unit\Fake\InMemorySupplierRepository;
@@ -38,6 +40,9 @@ final class PurchaseOrderServiceTest extends TestCase
     private const int WAREHOUSE = 20;
     private const int PRODUCT_A = 30;
     private const int PRODUCT_B = 31;
+    private const int INACTIVE_SUPPLIER = 11;
+    private const int INACTIVE_WAREHOUSE = 21;
+    private const int INACTIVE_PRODUCT = 32;
 
     private InMemoryPurchaseOrderRepository $orders;
     private PurchaseOrderService $service;
@@ -56,13 +61,32 @@ final class PurchaseOrderServiceTest extends TestCase
 
         $this->service = new PurchaseOrderService(
             $this->orders,
-            new InMemorySupplierRepository([new Supplier(self::SUPPLIER, 'Supplier A', '0800', 'Jakarta', true)]),
-            new InMemoryWarehouseRepository([new Warehouse(self::WAREHOUSE, 'Main Warehouse', 'Jakarta', true)]),
+            new InMemorySupplierRepository([
+                new Supplier(self::SUPPLIER, 'Supplier A', '0800', 'Jakarta', true),
+                new Supplier(self::INACTIVE_SUPPLIER, 'Closed Supplier', '0800', 'Jakarta', false),
+            ]),
+            new InMemoryWarehouseRepository([
+                new Warehouse(self::WAREHOUSE, 'Main Warehouse', 'Jakarta', true),
+                new Warehouse(self::INACTIVE_WAREHOUSE, 'Closed Warehouse', 'Bogor', false),
+            ]),
             new InMemoryProductRepository([
                 new Product(self::PRODUCT_A, 'SKU-A', 'Product A', 1, 'pcs', '1000.00', '1500.00', 5, null, true),
                 new Product(self::PRODUCT_B, 'SKU-B', 'Product B', 1, 'pcs', '2000.00', '2500.00', 5, null, true),
+                new Product(
+                    self::INACTIVE_PRODUCT,
+                    'SKU-C',
+                    'Retired Product',
+                    1,
+                    'pcs',
+                    '500.00',
+                    '700.00',
+                    5,
+                    null,
+                    false,
+                ),
             ]),
             new FixedClock('2026-09-11 10:00:00'),
+            new ImmediateTransactionRunner(),
         );
     }
 
@@ -231,6 +255,69 @@ final class PurchaseOrderServiceTest extends TestCase
 
         // Prefix PO membedakannya dari Sales Order, yang memakai SO.
         self::assertStringStartsWith('PO-20260911-', $first->orderNumber);
+    }
+
+    // --------------------------------------- referensi nonaktif (TD-10)
+
+    /** @return array<string, array{string, int, string}> */
+    public static function inactiveReferences(): array
+    {
+        $inactive = ' is inactive. Choose an active one.';
+
+        return [
+            'inactive supplier'  => ['supplier_id', self::INACTIVE_SUPPLIER, 'The selected supplier' . $inactive],
+            'inactive warehouse' => [
+                'warehouse_id',
+                self::INACTIVE_WAREHOUSE,
+                'The selected destination warehouse' . $inactive,
+            ],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('inactiveReferences')]
+    public function anInactiveSupplierOrWarehouseIsRefused(string $field, int $id, string $message): void
+    {
+        $payload = $this->validPayload();
+        $payload[$field] = (string) $id;
+
+        try {
+            $this->service->create($payload, $this->warehouseStaff);
+            self::fail('Referensi nonaktif seharusnya ditolak');
+        } catch (ValidationException $e) {
+            self::assertSame($message, $e->errors()[$field] ?? null);
+        }
+    }
+
+    #[Test]
+    public function anInactiveProductLineIsRefused(): void
+    {
+        $payload = $this->validPayload();
+        $payload['items'][0]['product_id'] = (string) self::INACTIVE_PRODUCT;
+
+        try {
+            $this->service->create($payload, $this->warehouseStaff);
+            self::fail('Product nonaktif seharusnya ditolak');
+        } catch (ValidationException $e) {
+            self::assertSame(
+                'Retired Product is inactive. Choose an active product.',
+                $e->errors()['items.0.product_id'] ?? null,
+            );
+        }
+    }
+
+    #[Test]
+    public function editingADraftIsAlsoRefusedForAnInactiveReference(): void
+    {
+        // Edit memakai validate() yang sama dengan create (spec 004 R-005), jadi
+        // aturan aktif berlaku juga di sana.
+        $id = $this->service->create($this->validPayload(), $this->warehouseStaff);
+        $payload = $this->validPayload();
+        $payload['supplier_id'] = (string) self::INACTIVE_SUPPLIER;
+
+        $this->expectException(ValidationException::class);
+
+        $this->service->update($id, $payload, $this->warehouseStaff);
     }
 
     // ------------------------------------------------------- transitions

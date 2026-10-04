@@ -55,7 +55,6 @@ final class ProductServiceTest extends TestCase
     private function validData(array $overrides = []): array
     {
         return array_merge([
-            'sku'            => 'SKU-000099',
             'name'           => 'New Product',
             'category_id'    => 1,
             'unit'           => 'pcs',
@@ -74,29 +73,73 @@ final class ProductServiceTest extends TestCase
         $created = $this->products->findById($id);
 
         self::assertNotNull($created);
-        self::assertSame('SKU-000099', $created->sku);
+        self::assertSame('SKU-000003', $created->sku);
         self::assertTrue($created->isActive);
     }
 
+    // --------------------------------------------------- SKU otomatis
+
     #[Test]
-    public function rejectsADuplicateSku(): void
+    public function nextSkuContinuesFromTheHighestSequence(): void
     {
-        try {
-            $this->service->create($this->validData(['sku' => 'SKU-000001']));
-            self::fail('SKU duplikat seharusnya ditolak');
-        } catch (ValidationException $e) {
-            self::assertArrayHasKey('sku', $e->errors());
-        }
+        self::assertSame('SKU-000003', $this->service->nextSku());
     }
 
     #[Test]
-    public function allowsAProductToKeepItsOwnSkuOnUpdate(): void
+    public function nextSkuStartsAtOneForAnEmptyCatalog(): void
     {
-        $this->service->update(1, $this->validData(['sku' => 'SKU-000001', 'name' => 'Renamed']));
+        $service = new ProductService(
+            new InMemoryProductRepository(),
+            $this->stocks,
+            new InMemoryCategoryRepository([new Category(1, 'Networking', 'Kategori Networking')]),
+        );
+
+        self::assertSame('SKU-000001', $service->nextSku());
+    }
+
+    #[Test]
+    public function nextSkuFollowsTheHighestNumberNotTheLatestRow(): void
+    {
+        // Product lama dengan nomor besar tetap menjadi acuan, dan SKU
+        // berbentuk lain tidak ikut dihitung.
+        $this->products->save(new Product(null, 'SKU-000040', 'Lama', 1, 'pcs', '1.00', '1.00', 0, null, true));
+        $this->products->save(new Product(null, 'SKU-000007', 'Baru', 1, 'pcs', '1.00', '1.00', 0, null, true));
+        $this->products->save(new Product(null, 'LEGACY-999', 'Impor', 1, 'pcs', '1.00', '1.00', 0, null, true));
+
+        self::assertSame('SKU-000041', $this->service->nextSku());
+    }
+
+    #[Test]
+    public function aSubmittedSkuIsIgnoredOnCreate(): void
+    {
+        // Field read-only dapat diakali dari browser; server tetap yang
+        // menentukan SKU, sehingga duplikat atau nilai karangan tidak mungkin.
+        $id = $this->service->create($this->validData(['sku' => 'SKU-000001']));
+
+        $created = $this->products->findById($id);
+        self::assertNotNull($created);
+        self::assertSame('SKU-000003', $created->sku);
+    }
+
+    #[Test]
+    public function consecutiveCreatesGetConsecutiveSkus(): void
+    {
+        $first = $this->products->findById($this->service->create($this->validData()));
+        $second = $this->products->findById($this->service->create($this->validData()));
+
+        self::assertSame('SKU-000003', $first?->sku);
+        self::assertSame('SKU-000004', $second?->sku);
+    }
+
+    #[Test]
+    public function updateNeverChangesTheSku(): void
+    {
+        $this->service->update(1, $this->validData(['sku' => 'SKU-999999', 'name' => 'Renamed']));
 
         $updated = $this->products->findById(1);
         self::assertNotNull($updated);
         self::assertSame('Renamed', $updated->name);
+        self::assertSame('SKU-000001', $updated->sku);
     }
 
     #[Test]
@@ -162,7 +205,7 @@ final class ProductServiceTest extends TestCase
         $before = $this->products->countBy([]);
 
         try {
-            $this->service->create($this->validData(['sku' => '', 'purchase_price' => '-5']));
+            $this->service->create($this->validData(['name' => '', 'purchase_price' => '-5']));
         } catch (ValidationException) {
             // diharapkan
         }

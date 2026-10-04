@@ -10,6 +10,7 @@ declare(strict_types=1);
  *
  * @var Csrf $csrf
  * @var Product|null $product
+ * @var string|null $nextSku pratinjau SKU untuk product baru; null saat edit
  * @var array<string, mixed> $old
  * @var array<string, string> $errors
  * @var list<Category> $categories
@@ -59,16 +60,19 @@ $err = static fn (string $field): ?string => $errors[$field] ?? null;
             <?= $csrf->field() ?>
 
             <div class="form-grid">
+                <?php /* SKU dibuat server dan tidak pernah berubah, sehingga field-nya
+                         read-only dan sengaja tanpa atribut name: nilainya tidak ikut
+                         dikirim, dan server mengabaikan `sku` dari request. */ ?>
                 <div class="field">
-                    <label class="field-label field-required" for="sku">SKU</label>
-                    <input class="input tabular" type="text" id="sku" name="sku"
-                           value="<?= View::e($value('sku', $isEdit ? $product->sku : null)) ?>"
-                           <?= $err('sku') !== null ? 'aria-invalid="true"' : '' ?> required>
-                    <?php if ($err('sku') !== null) : ?>
-                        <p class="field-error"><?= View::e($err('sku')) ?></p>
-                    <?php else : ?>
-                        <p class="field-hint">Must be unique across the catalog.</p>
-                    <?php endif; ?>
+                    <label class="field-label" for="sku">SKU</label>
+                    <input class="input tabular" type="text" id="sku"
+                           value="<?= View::e($isEdit ? $product->sku : (string) $nextSku) ?>"
+                           aria-describedby="sku-hint" readonly>
+                    <p class="field-hint" id="sku-hint">
+                        <?= $isEdit
+                            ? 'Assigned when the product was created. It never changes.'
+                            : 'Assigned automatically when you save. It never changes afterwards.' ?>
+                    </p>
                 </div>
 
                 <div class="field">

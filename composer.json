@@ -32,6 +32,11 @@
         "test": "phpunit",
         "test:unit": "phpunit --testsuite Unit",
         "test:integration": "phpunit --testsuite Integration",
+        "test:coverage": [
+            "@db:test",
+            "@php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage/clover.xml",
+            "@php scripts/relativize-coverage.php coverage/clover.xml"
+        ],
         "analyse": "phpstan analyse --error-format=table",
         "cs": "phpcs",
         "cs:fix": "phpcbf",
@@ -53,6 +58,7 @@
         "test": "Menjalankan seluruh test suite (unit + integration)",
         "test:unit": "Unit test saja - tanpa database, session, atau network",
         "test:integration": "Integration test saja - butuh MySQL yang berjalan",
+        "test:coverage": "Unit + integration dengan pcov, menulis coverage/clover.xml untuk SonarQube",
         "analyse": "Static analysis PHPStan level 6",
         "cs": "Pemeriksaan coding standard PSR-12",
         "cs:fix": "Perbaikan otomatis pelanggaran PSR-12",

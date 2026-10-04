@@ -16,6 +16,11 @@ final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryIn
 
     private int $nextId = 1;
 
+    /** Id untuk line yang ditulis ulang replaceItems(); jauh dari id fixture. */
+    private int $nextItemId = 10_000;
+
+    private bool $failNextUpdateDraft = false;
+
     /**
      * Nama supplier, warehouse dan user di-inject agar ordersBetween() dapat
      * mengembalikan kolom nama persis seperti query MySQL-nya.
@@ -93,6 +98,72 @@ final class InMemoryPurchaseOrderRepository implements PurchaseOrderRepositoryIn
         $this->rows[$id] = $this->withId($order, $id, $status, $order->items);
 
         return true;
+    }
+
+    public function updateDraft(PurchaseOrder $order): bool
+    {
+        $id = (int) $order->id;
+        $stored = $this->rows[$id] ?? null;
+
+        if ($this->failNextUpdateDraft) {
+            $this->failNextUpdateDraft = false;
+
+            return false;
+        }
+
+        // Compare-and-set, sama seperti WHERE status = 'Draft' di MySQL.
+        if ($stored === null || $stored->status !== PurchaseOrderStatus::Draft) {
+            return false;
+        }
+
+        // Hanya header yang dapat diubah; nomor, status, pembuat, dan line
+        // diambil dari baris tersimpan.
+        $this->rows[$id] = new PurchaseOrder(
+            $id,
+            $stored->orderNumber,
+            $order->supplierId,
+            $order->warehouseId,
+            $stored->status,
+            $order->orderDate,
+            $stored->createdBy,
+            $stored->items,
+        );
+
+        return true;
+    }
+
+    public function replaceItems(int $orderId, array $items): void
+    {
+        $stored = $this->rows[$orderId] ?? null;
+
+        if ($stored === null) {
+            return;
+        }
+
+        $replaced = [];
+        foreach ($items as $item) {
+            $replaced[] = new PurchaseOrderItem(
+                $this->nextItemId++,
+                $orderId,
+                $item->productId,
+                $item->quantity,
+                $item->receivedQuantity,
+                $item->purchasePrice,
+            );
+        }
+
+        $this->rows[$orderId] = $this->withId($stored, $orderId, $stored->status, $replaced);
+    }
+
+    /**
+     * Khusus test: updateDraft() berikutnya mengembalikan false tanpa
+     * mengubah apa pun. Memodelkan order yang keluar dari Draft di antara
+     * pembacaan dan penyimpanan (spec 004, research R-003) — kelas ini final,
+     * jadi perilaku itu tidak dapat dibuat lewat subclass.
+     */
+    public function failNextUpdateDraft(): void
+    {
+        $this->failNextUpdateDraft = true;
     }
 
     public function addReceivedQuantity(int $itemId, int $quantity): void

@@ -1,5 +1,5 @@
 PHPStan level 6 — laporan lengkap
-Dijalankan: 2026-10-03, di dalam Docker (PHP 8.4.26)
+Dijalankan: 2026-10-04, di dalam Docker (PHP 8.4.26)
 Perintah:   docker compose exec app composer analyse   (juga bagian dari composer check)
 Konfigurasi: phpstan.neon (level 6; paths: app, config, database, scripts, tests)
 
@@ -10,6 +10,5 @@ Tidak ada satu pun finding yang ditekan: tidak ada baseline, tidak ada
 Hasil: nol error, nol warning.
 
 ----------------------------------------------------------------------
-Note: Using configuration file /var/www/html/phpstan.neon.
 
- [OK] No errors
+ [OK] No errors                                                                 

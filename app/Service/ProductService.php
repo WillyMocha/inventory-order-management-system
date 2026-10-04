@@ -23,6 +23,11 @@ use App\Support\Validator;
  */
 final class ProductService
 {
+    /** Bentuk SKU otomatis: SKU-000031 — sama dengan data seed. */
+    private const string SKU_PREFIX = 'SKU-';
+
+    private const int SKU_DIGITS = 6;
+
     public function __construct(
         private readonly ProductRepositoryInterface $products,
         private readonly ProductStockRepositoryInterface $stocks,
@@ -37,9 +42,26 @@ final class ProductService
      */
     public function create(array $data): int
     {
-        $this->validate($data, null);
+        $this->validate($data);
 
-        return $this->products->save($this->hydrate(null, $data, null, true));
+        // SKU selalu dibuat di server saat menyimpan; nilai `sku` dari request
+        // diabaikan. Field read-only di form hanya pratinjau, sehingga tidak
+        // dapat diakali dengan mengirim nilai sendiri.
+        return $this->products->save($this->hydrate(null, $this->nextSku(), $data, null, true));
+    }
+
+    /**
+     * SKU yang akan diberikan ke product berikutnya: nomor urut tertinggi
+     * ditambah satu. Dipakai juga sebagai pratinjau di form Create product.
+     */
+    public function nextSku(): string
+    {
+        // Acuannya nomor TERTINGGI, bukan baris terakhir, sehingga hasilnya
+        // tidak pernah bentrok dengan SKU yang sudah ada. Dua penyimpanan yang
+        // benar-benar bersamaan tetap dijaga UNIQUE index pada kolom sku.
+        $next = $this->products->highestSkuSequence(self::SKU_PREFIX) + 1;
+
+        return self::SKU_PREFIX . str_pad((string) $next, self::SKU_DIGITS, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -52,11 +74,15 @@ final class ProductService
     {
         $existing = $this->requireProduct($id);
 
-        $this->validate($data, $id);
+        $this->validate($data);
 
         // image_path dan is_active tidak diubah lewat form ini: image punya
-        // jalurnya sendiri, status punya toggle-nya sendiri.
-        $this->products->save($this->hydrate($id, $data, $existing->imagePath, $existing->isActive));
+        // jalurnya sendiri, status punya toggle-nya sendiri. SKU juga tidak
+        // pernah berubah setelah dibuat — ia identitas yang dipegang API
+        // availability dan laporan.
+        $this->products->save(
+            $this->hydrate($id, $existing->sku, $data, $existing->imagePath, $existing->isActive),
+        );
     }
 
     /** @throws NotFoundException */
@@ -223,11 +249,11 @@ final class ProductService
     }
 
     /** @param array<string, mixed> $data */
-    private function hydrate(?int $id, array $data, ?string $imagePath, bool $isActive): Product
+    private function hydrate(?int $id, string $sku, array $data, ?string $imagePath, bool $isActive): Product
     {
         return new Product(
             $id,
-            strtoupper(trim((string) $data['sku'])),
+            $sku,
             trim((string) $data['name']),
             (int) $data['category_id'],
             trim((string) $data['unit']),
@@ -246,16 +272,13 @@ final class ProductService
     }
 
     /**
+     * SKU tidak divalidasi di sini: ia tidak pernah berasal dari input user.
+     *
      * @param array<string, mixed> $data
-     * @param int|null $exceptId id yang dikecualikan dari pemeriksaan SKU unik
      */
-    private function validate(array $data, ?int $exceptId): void
+    private function validate(array $data): void
     {
-        $sku = strtoupper(trim((string) ($data['sku'] ?? '')));
-
-        $validator = Validator::make($data)
-            ->required('sku', 'SKU')
-            ->maxLength('sku', 'SKU', 64)
+        Validator::make($data)
             ->required('name', 'Name')
             ->maxLength('name', 'Name', 200)
             ->required('unit', 'Unit')
@@ -267,16 +290,7 @@ final class ProductService
             ->required('selling_price', 'Selling price')
             ->decimalMin('selling_price', 'Selling price', 0)
             ->required('reorder_point', 'Reorder point')
-            ->integerMin('reorder_point', 'Reorder point', 0);
-
-        if ($sku !== '') {
-            $validator->rule(
-                'sku',
-                !$this->products->skuExists($sku, $exceptId),
-                'That SKU is already in use.',
-            );
-        }
-
-        $validator->validate();
+            ->integerMin('reorder_point', 'Reorder point', 0)
+            ->validate();
     }
 }

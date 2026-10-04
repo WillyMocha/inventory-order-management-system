@@ -19,29 +19,42 @@ admin template — Composer hanya dipakai untuk autoload dan dev dependency.
 | **Authentication** | Login dengan session, rate limit percobaan gagal, regenerasi session id, step-up re-auth sebelum aksi sensitif; akun divalidasi ulang pada setiap request, sehingga user yang dinonaktifkan atau diganti role-nya langsung kehilangan akses |
 | **Profil sendiri** | Setiap role melihat profilnya (nama, email, role, status) dan mengganti password sendiri dengan password saat ini; batas percobaannya berbagi counter dengan login |
 | **User management** | Admin membuat dan menonaktifkan user; tidak ada registrasi publik |
-| **Master data** | Category, Warehouse, Supplier, Customer — dinonaktifkan, tidak pernah dihapus |
+| **Master data** | Category, Warehouse, Supplier, Customer — tidak pernah dihapus; Warehouse, Supplier, dan Customer dapat dinonaktifkan (Category tidak punya status aktif, mengikuti resource sumber) |
 | **Product** | Katalog dengan SKU unik, harga beli/jual, reorder point, dan upload image |
 | **Stock** | Quantity per warehouse, `stock_ledger` append-only, dan invariant `SUM(ledger) = product_stock`; koreksi dari hasil hitung fisik (Adjustment) dengan alasan wajib, aman dari race condition |
-| **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap |
-| **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue |
-| **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation |
+| **Purchase Order** | Draft → Ordered → PartiallyReceived → Received, dengan goods receipt bertahap; PO Draft dapat diedit |
+| **Sales Order** | Draft → PendingApproval → Approved → Fulfilled, dengan approval dan goods issue; SO Draft dapat diedit pembuatnya |
+| **Dashboard** | Tiga tampilan berbeda per role, seluruh angkanya dari query aggregation; Admin dan Warehouse Staff juga melihat grafik stock movement 30 hari langsung dari `stock_ledger` |
 | **Report** | Export CSV stock movement, status Sales Order, dan status Purchase Order untuk rentang tanggal pilihan |
 | **JSON API** | Ketersediaan stock per warehouse, dengan session auth yang sama dengan halaman |
 | **Job** | Routine low-stock yang berjalan di luar request cycle |
+
+### Bonus
+
+Brief menyebut beberapa contoh pekerjaan bonus. Yang dikerjakan, setelah seluruh requirement wajib
+stabil:
+
+- **Dashboard grafik SVG buatan sendiri** — unit masuk/keluar per hari selama 30 hari terakhir,
+  dihitung langsung dari `stock_ledger` setiap kali dashboard dibuka, tanpa library dan tanpa
+  JavaScript; angka per hari sama dengan export CSV stock movement
+  ([spec 005](specs/005-stock-movement-chart/spec.md)).
+- **Integration test tambahan** — jauh melebihi minimum 3 di TEST-02 (lihat
+  [`docs/testing/test-results.md`](docs/testing/test-results.md)): race condition dua connection,
+  rekonsiliasi ledger, trigger append-only, akses report per role, dan lapisan HTTP controller.
 
 ## Role
 
 | Role | Tanggung jawab |
 | --- | --- |
-| **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order, koreksi stock, seluruh report |
-| **Sales** | Membuat dan mengajukan Sales Order miliknya, export CSV order miliknya — **tidak boleh approve**, termasuk order miliknya sendiri |
-| **Warehouse Staff** | Membuat Purchase Order, goods receipt, goods issue, koreksi stock dari hasil hitung fisik, antrean fulfillment, report stock |
+| **Admin** | User management, master data, approval Sales Order (kecuali order buatannya sendiri), Purchase Order (termasuk mengedit PO Draft siapa pun), koreksi stock, seluruh report |
+| **Sales** | Membuat, mengedit (selama Draft), dan mengajukan Sales Order miliknya, export CSV order miliknya — **tidak boleh approve**, termasuk order miliknya sendiri |
+| **Warehouse Staff** | Membuat Purchase Order (dan mengedit PO Draft buatannya), goods receipt, goods issue, koreksi stock dari hasil hitung fisik, antrean fulfillment, report stock |
 
 Ketiga role memiliki menu **My profile** untuk melihat data akunnya dan mengganti password
 sendiri. Nama, email, dan role tetap hanya dapat diubah Admin.
 
 Pemisahan tanggung jawab ditegakkan **di server**, bukan dengan menyembunyikan tombol di UI.
-`SalesOrderService::approve()` memeriksa role Admin **dan** `approved_by <> created_by`.
+`SalesOrderApprovalService::approve()` memeriksa role Admin **dan** `approved_by <> created_by`.
 
 ## Kebutuhan
 
@@ -140,6 +153,7 @@ Atau satu perintah per suite:
 docker compose exec app composer test              # unit + integration
 docker compose exec app composer test:unit         # tanpa DB, session, atau network
 docker compose exec app composer test:integration  # MySQL 8 sungguhan
+docker compose exec app composer test:coverage     # unit + integration + coverage/clover.xml untuk SonarQube
 docker compose exec app composer analyse           # PHPStan level 6
 docker compose exec app composer cs                # PHP_CodeSniffer PSR-12
 ```

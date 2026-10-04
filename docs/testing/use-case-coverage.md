@@ -15,10 +15,11 @@ Dibuat pada T144 dengan menyilangkan seluruh method `public` di `app/Service/` t
 | `MasterDataService` | 10/10 | — |
 | `PartyService` | 16/16 | — |
 | `ProductImageService` | 3/6 | `store` `read` `delete` |
-| `ProductService` | 11/15 | `totalInventoryValue` `totalStockFor` `updateImagePath` `requireProduct` |
-| `PurchaseOrderService` | 7/7 | — |
+| `ProductService` | 12/16 | `totalInventoryValue` `totalStockFor` `updateImagePath` `requireProduct` |
+| `PurchaseOrderService` | 10/10 | — |
 | `ReportService` | 11/11 | — |
-| `SalesOrderService` | 10/10 | — |
+| `SalesOrderService` | 11/11 | — |
+| `SalesOrderApprovalService` | 2/2 | — |
 | `StockService` | 5/8 | `availableFor` `movementsForSalesOrder` `movementsForPurchaseOrder` |
 | `UserService` | 6/7 | `requireUser` |
 
@@ -28,10 +29,31 @@ Audit ini menemukan kekurangan yang nyata, bukan sekadar mencatat keadaan:
 
 | Temuan | Tindakan |
 | --- | --- |
-| **`MasterDataService` tidak punya file test sama sekali** — 11 method, termasuk aturan validasi dan keunikan nama Category | `tests/Unit/Service/MasterDataServiceTest.php` — 21 test |
+| **`MasterDataService` tidak punya file test sama sekali** — 10 method, termasuk aturan validasi dan keunikan nama Category | `tests/Unit/Service/MasterDataServiceTest.php` — 21 test |
 | `AuthService::verifyPasswordFor` tidak teruji padahal ia adalah step-up re-auth sebelum aksi sensitif (security standard §7) | 4 test pada `AuthServiceTest` |
 | `PartyService` sisi Customer tertinggal dari sisi Supplier — `updateCustomer`, `countCustomers`, `activeCustomers`, `countSuppliers` | 3 test pada `PartyServiceTest` |
 | `ProductService::stockBreakdownBySku` dan `availableQuantity` hanya teruji tidak langsung lewat controller API | 5 test pada `ProductServiceTest` |
+
+## Yang ditambahkan pada tech-debt TD-9 … TD-11 (2026-10-04)
+
+| Perubahan | Test |
+| --- | --- |
+| `approve`/`reject` pindah ke `SalesOrderApprovalService` | Test approval yang sama di `SalesOrderServiceTest` dan `ApprovalAuthorizationTest`, kini memanggil service baru |
+| Referensi nonaktif ditolak (`Validator::activeById`) | 8 test pada `SalesOrderServiceTest` dan `PurchaseOrderServiceTest` |
+| `Money::lineTotal` | 3 test pada `MoneyTest` (baru) |
+| Trigger append-only `stock_ledger` | 6 test integration pada `LedgerAppendOnlyTest` (baru) |
+
+## Yang ditambahkan pada 004-edit-draft-orders
+
+| Method baru | Unit test |
+| --- | --- |
+| `SalesOrderService::update` | 16 test (`SalesOrderServiceEditTest`): pembuat Sales dan Admin, harga dari katalog, field yang tidak boleh dari payload, Sales lain 404, Admin lain dan WS 403, tiga status non-Draft, race saat menyimpan, lima payload tidak valid tanpa partial save |
+| `SalesOrderService::canEdit` / `assertMayEdit` | 2 test: hanya pembuat dan hanya Draft; penolakan izin tidak bergantung status |
+| `PurchaseOrderService::update` | 15 test (`PurchaseOrderServiceEditTest`): WS pembuat dan Admin, pembuat tetap, harga beli dari katalog, WS lain dan Sales 403, id tidak dikenal 404, empat status non-Draft, race saat menyimpan, empat payload tidak valid |
+| `PurchaseOrderService::canEdit` / `assertMayEdit` | 2 test: Admin siapa pun, WS hanya miliknya, hanya Draft |
+
+SQL-nya (`updateDraft`, `replaceItems`, rollback, route roles) dieksekusi terhadap MySQL oleh
+`EditDraftOrderTest` (18 test).
 
 ## Yang ditambahkan pada 003-stock-adjustment
 
@@ -108,10 +130,12 @@ integration test terhadap MySQL sungguhan:
 | `adjust()` menerapkan delta negatif dan menolak hasil negatif | `StockAdjustmentTest` |
 | Segregation of duties ditegakkan di server (FR-018) | `ApprovalAuthorizationTest` |
 | Dashboard dan CSV export sepakat (FR-027) | `DashboardReportConsistencyTest` |
+| Grafik stock movement 30 hari: masuk/keluar per hari dari ledger, hanya Admin dan WS, sama dengan CSV (spec 005, bonus) | `DashboardStockMovementTest`, `BarChartScaleTest`, `DashboardChartRenderTest`, `DashboardReportConsistencyTest` |
+| Export CSV per role sesuai matriks §1.2 — Warehouse Staff hanya report stock (REPORT-01) | `ReportAccessTest` |
 | Kontrak JSON, termasuk 401 JSON bukan halaman HTML (FR-028) | `StockApiTest` |
 | Satu order tidak keluar dua kali; cancel tidak menimpa order `Fulfilled` | `ConcurrentGoodsIssueTest` — tiga test snapshot basi |
 | Rollback nested transaction lewat SAVEPOINT | `NestedTransactionTest`, `GoodsReceiptTest` |
-| Seluruh 116 method repository MySQL benar-benar dieksekusi | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
+| Seluruh 126 method repository MySQL benar-benar dieksekusi | `RepositoryCoverageTest`, `RepositorySearchTest`, `RepositorySortPagingTest` |
 | Jalur filesystem upload | `ProductImageStorageTest` |
 | Akun yang dinonaktifkan atau diganti role-nya langsung kehilangan session (002 FR-012) | `SessionRevalidationTest` |
 | Profil hanya milik user di session; `id` pada request diabaikan; batas percobaan dihitung bersama login (002 FR-003, FR-008) | `ProfileFlowTest` |

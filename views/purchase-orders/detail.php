@@ -17,6 +17,7 @@ declare(strict_types=1);
  * @var Warehouse $warehouse
  * @var User $creator
  * @var list<StockLedger> $movements
+ * @var bool $canEdit Admin, atau Warehouse Staff pembuatnya; hanya selama Draft (spec 004)
  * @var bool $canSubmit
  * @var bool $canReceive
  * @var bool $canCancel
@@ -68,9 +69,13 @@ $receivedPercent = $totalOrdered === 0 ? 0 : (int) round($totalReceived / $total
     <div class="row">
         <a class="btn btn--ghost" href="/purchase-orders">Back to purchase orders</a>
 
+        <?php if ($canEdit) : ?>
+            <a class="btn" href="/purchase-orders/<?= $orderId ?>/edit">Edit</a>
+        <?php endif; ?>
+
         <?php if ($canSubmit) : ?>
             <form method="post" action="/purchase-orders/<?= $orderId ?>/submit"
-                  data-confirm="Submit this order to the supplier? It can then receive goods, and you will no longer be able to edit its lines.">
+                  data-confirm="Submit this order to the supplier? It can then receive goods, and you will no longer be able to edit it.">
                 <?= $csrf->field() ?>
                 <button type="submit" class="btn btn--primary">Submit to supplier</button>
             </form>
