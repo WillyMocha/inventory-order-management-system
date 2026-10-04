@@ -38,6 +38,9 @@ final class ReportController
     private const string ORDERS_FILE = 'orders';
     private const string PURCHASE_ORDERS_FILE = 'purchase-orders';
 
+    /** Pesan 403 saat role membuka export yang bukan haknya (§1.2). */
+    private const string NOT_AVAILABLE = 'This report is not available for your role.';
+
     public function __construct(
         private readonly View $view,
         private readonly ReportService $reports,
@@ -107,7 +110,7 @@ final class ReportController
     public function stockMovementCsv(Request $request): Response
     {
         if (!$this->canSeeStockMovement($this->requireRole())) {
-            throw new ForbiddenException('This report is not available for your role.');
+            throw new ForbiddenException(self::NOT_AVAILABLE);
         }
 
         $requested = $this->requestedRange($request);
@@ -138,7 +141,7 @@ final class ReportController
         $userId = $this->requireUserId();
 
         if (!$this->canExportOrders($role)) {
-            throw new ForbiddenException('This report is not available for your role.');
+            throw new ForbiddenException(self::NOT_AVAILABLE);
         }
 
         $requested = $this->requestedRange($request);
@@ -170,7 +173,7 @@ final class ReportController
     public function purchaseOrdersCsv(Request $request): Response
     {
         if (!$this->canExportPurchaseOrders($this->requireRole())) {
-            throw new ForbiddenException('This report is not available for your role.');
+            throw new ForbiddenException(self::NOT_AVAILABLE);
         }
 
         $requested = $this->requestedRange($request);
