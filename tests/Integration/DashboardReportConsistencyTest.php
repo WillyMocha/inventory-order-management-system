@@ -15,7 +15,6 @@ use App\Repository\Mysql\MysqlSalesOrderRepository;
 use App\Repository\Mysql\MysqlStockLedgerRepository;
 use App\Service\DashboardService;
 use App\Service\ReportService;
-use App\Support\Router;
 use App\Support\SystemClock;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -206,20 +205,6 @@ final class DashboardReportConsistencyTest extends IntegrationTestCase
         self::assertSame('Ordered', $cells[2]);
         self::assertSame('10', $cells[6], 'Ordered Qty dijumlahkan dari seluruh item');
         self::assertSame('0', $cells[7]);
-    }
-
-    #[Test]
-    public function thePurchaseOrderExportIsClosedToSalesInTheRouteTable(): void
-    {
-        $router = new Router();
-        /** @var callable(Router): void $register */
-        $register = require dirname(__DIR__, 2) . '/config/routes.php';
-        $register($router);
-
-        $matched = $router->match('GET', '/reports/purchase-orders.csv');
-
-        self::assertSame('purchaseOrdersCsv', $matched['action']);
-        self::assertSame([Role::Admin, Role::WarehouseStaff], $matched['roles']);
     }
 
     #[Test]

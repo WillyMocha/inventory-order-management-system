@@ -16,10 +16,12 @@ declare(strict_types=1);
  * @var array{start: string, end: string} $range      rentang yang dipakai menghitung
  * @var array{start: string, end: string} $requested  nilai yang diisi user
  * @var array<string, string> $errors
+ * @var bool $canExportOrders
  * @var int $orderCount
  * @var array<string, int> $statusTotals
  * @var int $movementCount
  * @var bool $canSeeStockMovement
+ * @var bool $canExportPurchaseOrders
  * @var int $purchaseOrderCount
  * @var array<string, int> $purchaseOrderTotals
  * @var bool $isScoped
@@ -63,7 +65,13 @@ $exportQuery = http_build_query(['start_date' => $range['start'], 'end_date' => 
     <div>
         <h1 class="page-title">Reports</h1>
         <p class="page-subtitle">
-            Export order status and stock movement for a date range, as CSV.
+            <?php if ($canExportOrders && $canSeeStockMovement) : ?>
+                Export order status and stock movement for a date range, as CSV.
+            <?php elseif ($canExportOrders) : ?>
+                Export order status for a date range, as CSV.
+            <?php else : ?>
+                Export stock movement for a date range, as CSV.
+            <?php endif; ?>
             <?= $isScoped ? 'Your export covers the orders you created.' : '' ?>
         </p>
     </div>
@@ -106,23 +114,25 @@ $exportQuery = http_build_query(['start_date' => $range['start'], 'end_date' => 
 </div>
 
 <div class="stat-grid">
-    <div class="stat stat--feature">
-        <div class="stat-chip stat-chip--info">
-            <svg class="icon" aria-hidden="true">
-                <use href="/assets/icons/lucide-sprite.svg#shopping-cart"></use>
-            </svg>
-        </div>
-        <div class="stat-body">
-            <div class="stat-label">Matching sales orders</div>
-            <div class="stat-value tabular"><?= (int) $orderCount ?></div>
-            <div class="stat-delta stat-delta--flat">
-                <svg class="icon icon--sm" aria-hidden="true">
-                    <use href="/assets/icons/lucide-sprite.svg#clock"></use>
+    <?php if ($canExportOrders) : ?>
+        <div class="stat stat--feature">
+            <div class="stat-chip stat-chip--info">
+                <svg class="icon" aria-hidden="true">
+                    <use href="/assets/icons/lucide-sprite.svg#shopping-cart"></use>
                 </svg>
-                <span><?= View::e($range['start']) ?> → <?= View::e($range['end']) ?></span>
+            </div>
+            <div class="stat-body">
+                <div class="stat-label">Matching sales orders</div>
+                <div class="stat-value tabular"><?= (int) $orderCount ?></div>
+                <div class="stat-delta stat-delta--flat">
+                    <svg class="icon icon--sm" aria-hidden="true">
+                        <use href="/assets/icons/lucide-sprite.svg#clock"></use>
+                    </svg>
+                    <span><?= View::e($range['start']) ?> → <?= View::e($range['end']) ?></span>
+                </div>
             </div>
         </div>
-    </div>
+    <?php endif; ?>
 
     <?php if ($canSeeStockMovement) : ?>
         <div class="stat">
@@ -144,54 +154,58 @@ $exportQuery = http_build_query(['start_date' => $range['start'], 'end_date' => 
         </div>
     <?php endif; ?>
 
-    <div class="stat">
-        <div class="stat-chip stat-chip--warning">
-            <svg class="icon" aria-hidden="true"><use href="/assets/icons/lucide-sprite.svg#users"></use></svg>
-        </div>
-        <div class="stat-body">
-            <div class="stat-label">Scope</div>
-            <div class="stat-value stat-value--text"><?= $isScoped ? 'Your orders' : 'All users' ?></div>
-            <div class="stat-delta stat-delta--flat">
-                <svg class="icon icon--sm" aria-hidden="true">
-                    <use href="/assets/icons/lucide-sprite.svg#file-text"></use>
-                </svg>
-                <span><?= $isScoped ? 'orders you created' : 'every order in the system' ?></span>
+    <?php if ($canExportOrders) : ?>
+        <div class="stat">
+            <div class="stat-chip stat-chip--warning">
+                <svg class="icon" aria-hidden="true"><use href="/assets/icons/lucide-sprite.svg#users"></use></svg>
+            </div>
+            <div class="stat-body">
+                <div class="stat-label">Scope</div>
+                <div class="stat-value stat-value--text"><?= $isScoped ? 'Your orders' : 'All users' ?></div>
+                <div class="stat-delta stat-delta--flat">
+                    <svg class="icon icon--sm" aria-hidden="true">
+                        <use href="/assets/icons/lucide-sprite.svg#file-text"></use>
+                    </svg>
+                    <span><?= $isScoped ? 'orders you created' : 'every order in the system' ?></span>
+                </div>
             </div>
         </div>
-    </div>
+    <?php endif; ?>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">Order status report</h2>
-        <a class="btn btn--primary btn--sm" href="/reports/orders.csv?<?= View::e($exportQuery) ?>">
-            <svg class="icon" aria-hidden="true"><use href="/assets/icons/lucide-sprite.svg#file-text"></use></svg>
-            <span>Export CSV</span>
-        </a>
+<?php if ($canExportOrders) : ?>
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Order status report</h2>
+            <a class="btn btn--primary btn--sm" href="/reports/orders.csv?<?= View::e($exportQuery) ?>">
+                <svg class="icon" aria-hidden="true"><use href="/assets/icons/lucide-sprite.svg#file-text"></use></svg>
+                <span>Export CSV</span>
+            </a>
+        </div>
+        <div class="card-body">
+            <?php if ($orderCount === 0) : ?>
+                <?= $view->renderPartial('layout/_empty-state', [
+                    'icon'        => 'inbox',
+                    'heading'     => 'No orders in this date range',
+                    'text'        => 'Nothing was ordered between these two dates. You can still export — '
+                        . 'the file will contain the column headers and no rows.',
+                    'actionLabel' => '',
+                    'actionHref'  => '',
+                ]) ?>
+            <?php else : ?>
+                <p class="muted">
+                    These are the same records the CSV will contain, counted from the same query.
+                </p>
+                <?= $view->renderPartial('dashboard/_status-tally', [
+                    'tally'    => $statusTotals,
+                    'labels'   => $labels,
+                    'badges'   => $badges,
+                    'linkBase' => '/sales-orders',
+                ]) ?>
+            <?php endif; ?>
+        </div>
     </div>
-    <div class="card-body">
-        <?php if ($orderCount === 0) : ?>
-            <?= $view->renderPartial('layout/_empty-state', [
-                'icon'        => 'inbox',
-                'heading'     => 'No orders in this date range',
-                'text'        => 'Nothing was ordered between these two dates. You can still export — '
-                    . 'the file will contain the column headers and no rows.',
-                'actionLabel' => '',
-                'actionHref'  => '',
-            ]) ?>
-        <?php else : ?>
-            <p class="muted">
-                These are the same records the CSV will contain, counted from the same query.
-            </p>
-            <?= $view->renderPartial('dashboard/_status-tally', [
-                'tally'    => $statusTotals,
-                'labels'   => $labels,
-                'badges'   => $badges,
-                'linkBase' => '/sales-orders',
-            ]) ?>
-        <?php endif; ?>
-    </div>
-</div>
+<?php endif; ?>
 
 <?php if ($canSeeStockMovement) : ?>
     <div class="card">
@@ -223,7 +237,9 @@ $exportQuery = http_build_query(['start_date' => $range['start'], 'end_date' => 
             <?php endif; ?>
         </div>
     </div>
+<?php endif; ?>
 
+<?php if ($canExportPurchaseOrders) : ?>
     <div class="card">
         <div class="card-header">
             <h2 class="card-title">Purchase order status report</h2>

@@ -22,11 +22,13 @@ use App\Support\View;
  * layar dihitung dari baris yang persis akan ditulis ke file. Itulah sebabnya
  * isi file tidak bisa berbeda dari yang dilihat user.
  *
- * Pembatasan role terjadi di dua lapis yang saling mendukung:
- *   1. Route table — /reports/stock-movement.csv dan
- *      /reports/purchase-orders.csv hanya untuk Admin dan Warehouse Staff;
- *      guard menolak Sales sebelum request sampai ke sini.
- *   2. Service — scopeFor() membatasi export order Sales pada miliknya
+ * Pembatasan role mengikuti matriks §1.2 "Download CSV report" — Admin semua,
+ * Sales order miliknya, Warehouse Staff report stock saja — di tiga lapis:
+ *   1. Route table — stock-movement.csv untuk Admin dan Warehouse Staff,
+ *      orders.csv untuk Admin dan Sales, purchase-orders.csv untuk Admin.
+ *   2. Controller — setiap export memeriksa ulang role-nya, dan halaman report
+ *      hanya menghitung serta menampilkan export yang boleh diunduh role itu.
+ *   3. Service — scopeFor() membatasi export order Sales pada miliknya
  *      sendiri, di dalam WHERE clause, bukan dengan menyaring hasil.
  */
 final class ReportController
@@ -62,13 +64,17 @@ final class ReportController
         }
 
         $scope = $this->reports->scopeFor($role, $userId);
-        $orderRows = $this->reports->salesOrders($range['start'], $range['end'], $scope);
 
-        // Stock movement dan Purchase Order bukan bagian Sales (§1.2); untuk
-        // role itu angkanya memang tidak dihitung, bukan sekadar tidak
-        // ditampilkan.
+        // Export yang tidak boleh diunduh suatu role (§1.2) memang tidak
+        // dihitung untuk role itu, bukan sekadar tidak ditampilkan.
+        $canExportOrders = $this->canExportOrders($role);
+        $orderRows = $canExportOrders
+            ? $this->reports->salesOrders($range['start'], $range['end'], $scope)
+            : [];
+
         $canSeeStockMovement = $this->canSeeStockMovement($role);
-        $purchaseOrderRows = $canSeeStockMovement
+        $canExportPurchaseOrders = $this->canExportPurchaseOrders($role);
+        $purchaseOrderRows = $canExportPurchaseOrders
             ? $this->reports->purchaseOrders($range['start'], $range['end'])
             : [];
 
@@ -78,12 +84,14 @@ final class ReportController
             'range'               => $range,
             'requested'           => $requested,
             'errors'              => $errors,
+            'canExportOrders'     => $canExportOrders,
             'orderCount'          => count($orderRows),
             'statusTotals'        => $this->reports->statusTotals($orderRows),
             'movementCount'       => $canSeeStockMovement
                 ? count($this->reports->stockMovements($range['start'], $range['end']))
                 : 0,
             'canSeeStockMovement' => $canSeeStockMovement,
+            'canExportPurchaseOrders' => $canExportPurchaseOrders,
             'purchaseOrderCount'  => count($purchaseOrderRows),
             'purchaseOrderTotals' => $this->reports->purchaseOrderStatusTotals($purchaseOrderRows),
             'isScoped'            => $scope !== null,
@@ -120,10 +128,18 @@ final class ReportController
         );
     }
 
+    /**
+     * Export status Sales Order — Admin seluruhnya, Sales order miliknya.
+     * Warehouse Staff ditolak: §1.2 hanya memberinya report stock.
+     */
     public function ordersCsv(Request $request): Response
     {
         $role = $this->requireRole();
         $userId = $this->requireUserId();
+
+        if (!$this->canExportOrders($role)) {
+            throw new ForbiddenException('This report is not available for your role.');
+        }
 
         $requested = $this->requestedRange($request);
 
@@ -148,12 +164,12 @@ final class ReportController
     }
 
     /**
-     * Export status Purchase Order. Route-nya dibatasi Admin dan Warehouse
-     * Staff; pemeriksaan ulang di sini sama alasannya dengan stockMovementCsv().
+     * Export status Purchase Order. Route-nya dibatasi Admin; pemeriksaan
+     * ulang di sini sama alasannya dengan stockMovementCsv().
      */
     public function purchaseOrdersCsv(Request $request): Response
     {
-        if (!$this->canSeeStockMovement($this->requireRole())) {
+        if (!$this->canExportPurchaseOrders($this->requireRole())) {
             throw new ForbiddenException('This report is not available for your role.');
         }
 
@@ -239,6 +255,16 @@ final class ReportController
     private function canSeeStockMovement(Role $role): bool
     {
         return $role === Role::Admin || $role === Role::WarehouseStaff;
+    }
+
+    private function canExportOrders(Role $role): bool
+    {
+        return $role === Role::Admin || $role === Role::Sales;
+    }
+
+    private function canExportPurchaseOrders(Role $role): bool
+    {
+        return $role === Role::Admin;
     }
 
     /** @throws UnauthenticatedException */

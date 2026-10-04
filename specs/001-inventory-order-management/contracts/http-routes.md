@@ -142,8 +142,8 @@ layer, bukan hanya oleh route table.
 | --- | --- | --- | --- | --- |
 | GET | `/reports` | wajib | A S W | Form pemilihan rentang tanggal |
 | GET | `/reports/stock-movement.csv` | wajib | A W | Rentang tanggal dibatasi maksimal 366 hari. Satu export berjalan per session (R-005). Streaming `fputcsv`. Kolom terakhir `Reason` berisi alasan koreksi stock (kosong untuk Receipt/Issue; dinetralkan dari rumus spreadsheet) |
-| GET | `/reports/orders.csv` | wajib | A S W | **S: hanya order miliknya** — di-scope di `WHERE`. Batas rentang sama |
-| GET | `/reports/purchase-orders.csv` | wajib | A W | Status Purchase Order beserta qty dipesan/diterima. Batas rentang sama. Tafsiran REPORT-01: `docs/planning/decisions.md` D-03 |
+| GET | `/reports/orders.csv` | wajib | A S | **S: hanya order miliknya** — di-scope di `WHERE`. Batas rentang sama. W → 403 (§1.2: Warehouse Staff hanya report stock) |
+| GET | `/reports/purchase-orders.csv` | wajib | A | Status Purchase Order beserta qty dipesan/diterima. Batas rentang sama. S dan W → 403. Tafsiran REPORT-01: `docs/planning/decisions.md` D-03 |
 
 ## JSON API
 

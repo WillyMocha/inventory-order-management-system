@@ -80,17 +80,29 @@ terpisah karena kolomnya memang berbeda (customer + approver vs. supplier + qty 
 
 | Export | Route | Role | Scoping |
 | --- | --- | --- | --- |
-| Status Sales Order | `GET /reports/orders.csv` | Admin, Sales, Warehouse Staff | Sales hanya order miliknya (§1.2) |
-| Status Purchase Order | `GET /reports/purchase-orders.csv` | Admin, Warehouse Staff | Tidak ada (PO tidak dimiliki Sales) |
+| Status Sales Order | `GET /reports/orders.csv` | Admin, Sales | Sales hanya order miliknya (§1.2) |
+| Status Purchase Order | `GET /reports/purchase-orders.csv` | Admin | Tidak ada |
 | Stock movement | `GET /reports/stock-movement.csv` | Admin, Warehouse Staff | Tidak ada |
 
 Export PO memuat *Ordered Qty* dan *Received Qty* per order, supaya sisa barang dari
 penerimaan sebagian tetap terlihat (PO-01). Angka di halaman report dihitung dari baris yang
 sama persis dengan isi file, sehingga layar dan file tidak dapat berbeda.
 
-**Ditegakkan di.** `ReportService::purchaseOrders()`, `ReportController::purchaseOrdersCsv()`.
-Diuji oleh `ReportServiceTest` (bagian *Purchase order export*) dan
-`DashboardReportConsistencyTest` (kolom terhadap MySQL nyata dan role di route table).
+**Role mengikuti matriks §1.2, bukan tafsiran.** Baris "Download CSV report" di brief
+menyebut Admin *Yes*, Sales *Own orders*, Warehouse Staff *Stock report*. Karena itu Warehouse
+Staff hanya mengunduh export stock movement, dan export Purchase Order hanya untuk Admin.
+Warehouse Staff tetap dapat **melihat** SO dan PO di layar, karena mereka memprosesnya untuk
+goods issue dan goods receipt. Hanya download CSV-nya yang dibatasi. Sebelum 2026-10-04, route
+`orders.csv` dan `purchase-orders.csv` juga terbuka untuk Warehouse Staff. Itu menyimpang dari
+brief dan dari spec 001 (*"a Warehouse Staff export contains the stock report"*), dan sudah
+diperbaiki.
+
+**Ditegakkan di.** Route table (`config/routes.php`), pemeriksaan ulang di
+`ReportController::ordersCsv()`/`purchaseOrdersCsv()`/`stockMovementCsv()`, dan
+`views/reports/index.php`, yang hanya menampilkan export milik role tersebut.
+`ReportService::purchaseOrders()` menyusun isi export PO. Diuji oleh `ReportServiceTest`
+(bagian *Purchase order export*), `DashboardReportConsistencyTest` (kolom terhadap MySQL nyata),
+dan `ReportAccessTest` (role di route table, 403 di controller, dan kartu yang tampil per role).
 
 **Bila tafsiran ditolak** (cukup Sales Order): hapus route, action, dan kartu "Purchase order
 status report" di `views/reports/index.php`. Export Sales Order tidak terpengaruh.
