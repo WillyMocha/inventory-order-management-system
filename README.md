@@ -140,6 +140,7 @@ Atau satu perintah per suite:
 docker compose exec app composer test              # unit + integration
 docker compose exec app composer test:unit         # tanpa DB, session, atau network
 docker compose exec app composer test:integration  # MySQL 8 sungguhan
+docker compose exec app composer test:coverage     # unit + integration + coverage/clover.xml untuk SonarQube
 docker compose exec app composer analyse           # PHPStan level 6
 docker compose exec app composer cs                # PHP_CodeSniffer PSR-12
 ```

@@ -8,8 +8,9 @@ PHP 8.4.26 dan MySQL 8.0.46.
 | Suite | Perintah | Hasil |
 | --- | --- | --- |
 | Unit | `composer test:unit` | **OK — 459 test, 1307 assertion** |
-| Integration | `composer test:integration` | **OK — 194 test, 740 assertion** |
-| Gabungan | `composer test` | **OK — 653 test, 2047 assertion** |
+| Integration | `composer test:integration` | **OK — 244 test, 896 assertion** |
+| Gabungan | `composer test` | **OK — 703 test, 2203 assertion** |
+| Coverage (SonarQube) | `composer test:coverage` | **OK — 703 test**; `coverage/clover.xml`, 2660 dari 3483 statement (76%) |
 | JavaScript | `node --test "tests/js/*.test.mjs"` (image `node:22-alpine`) | **OK — 18 test** |
 | Seluruh gate | `composer check` | **OK** — schema test, unit, integration, PHPStan 0 error, PHPCS 0 error 0 warning; lulus di Docker, dari `cmd.exe` Windows, dan dari salinan repo bersih |
 
@@ -18,6 +19,16 @@ container sekali pakai; lihat `docs/quality/tech-debt.md` TD-2b). Ini bukti bahw
 SQL di repository pernah benar-benar dieksekusi MySQL, bukan hanya fake in-memory-nya.
 Empat method yang ditambahkan 004 (`updateDraft` dan `replaceItems` pada kedua repository order)
 dieksekusi `EditDraftOrderTest`; angka pcov di atas belum diukur ulang sejak itu.
+
+**Coverage untuk SonarQube.** `composer test:coverage` menjalankan unit + integration dengan pcov
+(terpasang di image, dimatikan secara default) dan menulis `coverage/clover.xml` dengan path relatif
+terhadap root project; `sonar-project.properties` membacanya lewat `sonar.php.coverage.reportPaths`.
+Sebelum ini SonarQube tidak menerima laporan apa pun, sehingga seluruh *new code* terbaca 0%.
+Controller order (`SalesOrderController`, `PurchaseOrderController`, `SalesOrderApprovalController`,
+`GoodsIssueController`, `GoodsReceiptController`) kini diuji di lapisan HTTP oleh
+`SalesOrderControllerTest`, `PurchaseOrderControllerTest`, `SalesOrderActionControllerTest`, dan
+`GoodsReceiptControllerTest` (50 test): status code, redirect beserta flash, dan form 422. Coverage
+kelimanya 98–100%.
 
 **Nol test yang di-skip, incomplete, atau risky.** `phpunit.xml` menyetel `failOnWarning`,
 `failOnRisky`, dan `failOnNotice` ke `true`, sehingga test yang diam-diam tidak menguji apa
