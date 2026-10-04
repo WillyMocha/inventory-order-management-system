@@ -77,6 +77,11 @@ validasi berstatus 422), `overflow` = 0px, `clipped` = 0.** Tabel yang lebih leb
 (sidebar mendapat item **My profile**) dan 003-stock-adjustment (detail product mendapat tombol
 "Adjust stock" dan kartu riwayat untuk Admin dan Warehouse Staff).
 
+**Pembaruan 2026-10-04.** Tangkapan 09 (form product, desktop dan 360px) diambil ulang setelah
+SKU dibuat otomatis: field SKU kini read-only dengan latar sunken dan hint "Assigned
+automatically when you save". Diambil dengan viewport dan pengukuran yang sama — `overflow` =
+0px, `clipped` = 0 — sehingga entri 09 di `run.json` tetap berlaku.
+
 | Layar | Desktop | 360px |
 | --- | --- | --- |
 | Login | [01](./screenshots/01-login-desktop.png) | [01](./screenshots/01-login-mobile.png) |

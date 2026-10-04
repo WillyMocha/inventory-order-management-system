@@ -1963,3 +1963,41 @@ seluruh tooling project berbahasa PHP dan dapat dijalankan di dalam container
 - Tidak ada file PHP yang berubah — PHPUnit/PHPStan/PHPCS tidak terdampak.
 
 **UNRESOLVED**: tidak ada.
+
+---
+
+## 2026-10-04 — redesign: SKU product dibuat otomatis dan read-only
+
+- **Checkpoint**: `6aa1231` (working tree bersih kecuali `SOP-Penggunaan-IOMS.pdf` yang untracked)
+- **Target**: field SKU pada form Create/Edit product — sebelumnya diketik manual.
+- **Keputusan user**: SKU berikutnya = sequence `SKU-NNNNNN` tertinggi + 1; field read-only di
+  form create **dan** edit; SKU tidak berubah setelah dibuat.
+- **File yang direncanakan**: `ProductRepositoryInterface`, `MysqlProductRepository`,
+  `InMemoryProductRepository` (test fake), `ProductService`, `ProductController`,
+  `views/products/form.php`, `public/assets/css/app.css`, `ProductServiceTest`, `spec.md` (FR-008).
+
+| File | Perubahan |
+| --- | --- |
+| `app/Repository/ProductRepositoryInterface.php` | Method baru `highestSkuSequence(string $prefix): int` |
+| `app/Repository/Mysql/MysqlProductRepository.php` | Implementasi MySQL: `MAX(CAST(SUBSTRING(...)))` untuk SKU `<prefix><digit>`, prefix di-escape untuk LIKE |
+| `tests/Unit/Fake/InMemoryProductRepository.php` | Implementasi fake yang setara |
+| `app/Service/ProductService.php` | `nextSku()`; `create()` selalu memakai SKU hasil generate (input `sku` diabaikan); `update()` mempertahankan SKU lama; validasi SKU dari form dihapus |
+| `app/Controller/ProductController.php` | `nextSku` diteruskan ke form Create sebagai pratinjau |
+| `views/products/form.php` | Input SKU `readonly`, tanpa atribut `name`, hint baru untuk create/edit |
+| `public/assets/css/app.css` | Style `.input[readonly]` (latar sunken) |
+| `tests/Unit/Service/ProductServiceTest.php` | Test duplikat SKU diganti: sequence dari nomor tertinggi, katalog kosong, input `sku` diabaikan, create berurutan, update tidak mengubah SKU |
+| `tests/Integration/RepositoryCoverageTest.php` | Query `highestSkuSequence()` dieksekusi MySQL sungguhan |
+| `specs/001-inventory-order-management/spec.md` | Amendment FR-008 + Independent Test US2 |
+
+**Keputusan desain**: retry loop seperti `nextOrderNumber()` sengaja tidak dipakai — dengan acuan
+nomor tertinggi, `highest + 1` tidak mungkin sudah terpakai; dua penyimpanan yang benar-benar
+bersamaan ditahan `UNIQUE (sku)` (perilaku race yang sama dengan nomor order).
+
+**Verifikasi**
+
+- `composer test` → 582 test OK (unit + integration); `--filter highestSkuSequence` di MySQL OK.
+- PHPStan level 6 bersih; PHPCS PSR-12 bersih.
+- Headless Chrome sebagai Admin: `/products/create` menampilkan `SKU-000031` (read-only, tanpa
+  `name`); `/products/1/edit` menampilkan `SKU-000001` read-only. Tidak ada data yang disimpan.
+
+**UNRESOLVED**: tidak ada.

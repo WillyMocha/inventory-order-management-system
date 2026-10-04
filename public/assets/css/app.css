@@ -721,6 +721,15 @@ a.row-entity:hover .cell-primary {
     border-color: var(--danger);
 }
 
+/* Nilai yang ditetapkan sistem (mis. SKU otomatis): tetap dapat difokus dan
+   disalin, tetapi latar sunken menandakan field ini tidak untuk diketik. */
+.input[readonly] {
+    background: var(--surface-sunken);
+    border-color: var(--border-default);
+    color: var(--text-secondary);
+    cursor: default;
+}
+
 .field-error {
     color: var(--danger);
     font-size: var(--text-xs);

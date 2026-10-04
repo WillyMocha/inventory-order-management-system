@@ -31,8 +31,11 @@ yang disembunyikan.
 | --- | --- |
 | Sebagai Sales, buka `/users` | 403 — bukan halaman kosong, bukan redirect diam-diam |
 | Sebagai Admin, buat category dengan nama yang sudah ada | Ditolak dengan pesan di samping field |
-| Buat product dengan SKU yang sudah ada | Ditolak; input yang sudah diisi tetap dipertahankan |
-| Buat product dengan harga negatif | Ditolak |
+| Buka form Create product | Field SKU read-only, berisi SKU berikutnya (nomor `SKU-NNNNNN` tertinggi + 1) |
+| Simpan product baru, lalu buka form Create lagi | Product tersimpan dengan SKU yang tadi ditampilkan; pratinjau kini menunjukkan nomor berikutnya |
+| Kirim `sku` buatan sendiri lewat DevTools/curl | Diabaikan — server tetap memberi SKU berikutnya |
+| Edit product | Field SKU read-only; SKU tidak berubah setelah disimpan |
+| Buat product dengan harga negatif | Ditolak; input yang sudah diisi tetap dipertahankan |
 | Unggah file `.exe` yang diganti namanya menjadi `.jpg` | **Ditolak** — tipe ditentukan dari isi file |
 | Unggah gambar melebihi batas ukuran | Ditolak |
 | Nonaktifkan product yang dipakai order | Berhasil; order lama tetap utuh, product hilang dari pilihan order baru |

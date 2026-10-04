@@ -215,6 +215,8 @@ final class ProductController
             'title'      => $product === null ? 'Create product' : 'Edit product',
             'activeNav'  => 'products',
             'product'    => $product,
+            // Pratinjau saja; SKU final dibuat ulang di server saat disimpan.
+            'nextSku'    => $product === null ? $this->productService->nextSku() : null,
             'old'        => $old,
             'errors'     => $errors,
             'categories' => $this->masterData->allCategories(),
