@@ -24,7 +24,8 @@
  *
  * Exit code:
  *   0  berhasil, 002_seed.sql ditulis ulang
- *   1  data demo melanggar aturan (stock negatif, approver = creator) atau
+ *   1  data demo melanggar aturan (stock negatif, approver = creator,
+ *      approver bukan Admin, approved_by tidak sesuai status) atau
  *      file tidak dapat ditulis — tidak ada file yang ditulis
  */
 
@@ -105,6 +106,12 @@ $users = [
     // Diberi id 6 agar id user lain tidak bergeser.
     [6, 'Hendra Saputra', 'admin2@ioms.test', 'Admin'],
 ];
+
+/** @var list<int> $adminIds satu-satunya user yang boleh menjadi approver Sales Order */
+$adminIds = array_values(array_map(
+    static fn (array $user): int => $user[0],
+    array_filter($users, static fn (array $user): bool => $user[3] === 'Admin'),
+));
 $w('-- User: 2 Admin, 2 Sales, 2 Warehouse Staff (§7.1 meminta minimal 1 Admin)');
 $w('INSERT INTO `user` (id, name, email, password_hash, role, is_active, created_at, updated_at) VALUES');
 $w(implode(",\n", array_map(
@@ -324,13 +331,13 @@ $poPlan = [
 $soPlan = [
     ['Fulfilled', 1, 2, 1, 40, [[1, 8], [5, 12], [22, 15]]],
     ['Fulfilled', 1, 3, 1, 36, [[4, 4], [25, 6]]],
-    ['Fulfilled', 2, 2, 5, 30, [[10, 6], [11, 8], [16, 20]]],
+    ['Fulfilled', 2, 2, 6, 30, [[10, 6], [11, 8], [16, 20]]],
     ['Fulfilled', 2, 3, 1, 25, [[15, 12], [17, 5]]],
-    ['Fulfilled', 1, 2, 4, 19, [[6, 5], [8, 10]]],
-    ['Fulfilled', 2, 3, 5, 16, [[19, 7], [21, 14]]],
+    ['Fulfilled', 1, 2, 6, 19, [[6, 5], [8, 10]]],
+    ['Fulfilled', 2, 3, 6, 16, [[19, 7], [21, 14]]],
     ['Fulfilled', 1, 2, 1, 12, [[23, 35], [24, 8]]],
-    ['Approved', 1, 3, null, 7, [[3, 4], [4, 3]]],
-    ['Approved', 2, 2, null, 5, [[12, 3]]],
+    ['Approved', 1, 3, 1, 7, [[3, 4], [4, 3]]],
+    ['Approved', 2, 2, 6, 5, [[12, 3]]],
     ['PendingApproval', 1, 2, null, 4, [[7, 2], [9, 2]]],
     ['PendingApproval', 2, 3, null, 3, [[13, 4], [14, 2]]],
     ['PendingApproval', 1, 3, null, 2, [[26, 1]]],
@@ -465,6 +472,25 @@ foreach ($soPlan as $index => [$status, $warehouseId, $creator, $approver, $day,
     // berlaku juga pada data demo (§1.2, FR-018).
     if ($approver !== null && $approver === $creator) {
         $fail(sprintf('SO %d: approver == creator', $soId));
+    }
+
+    // Hanya Admin yang boleh approve — sama dengan SalesOrderService.
+    if ($approver !== null && !in_array($approver, $adminIds, true)) {
+        $fail(sprintf('SO %d: approver %d bukan Admin', $soId, $approver));
+    }
+
+    // Approved dan Fulfilled pasti sudah melewati approval, sehingga
+    // approved_by wajib terisi. Draft dan PendingApproval belum pernah
+    // disetujui, sehingga wajib kosong.
+    $mustHaveApprover = in_array($status, ['Approved', 'Fulfilled'], true);
+    $mustNotHaveApprover = in_array($status, ['Draft', 'PendingApproval'], true);
+
+    if ($mustHaveApprover && $approver === null) {
+        $fail(sprintf('SO %d: status %s tanpa approver', $soId, $status));
+    }
+
+    if ($mustNotHaveApprover && $approver !== null) {
+        $fail(sprintf('SO %d: status %s tidak boleh memiliki approver', $soId, $status));
     }
 
     $soRows[] = sprintf(
